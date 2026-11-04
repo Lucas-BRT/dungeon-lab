@@ -48,13 +48,18 @@ each with its own single-threaded instance** (`web/pool.js`): no shared memory, 
 ## Run
 
 ```bash
-./build.sh                          # cargo build --release --target wasm32-unknown-unknown --no-default-features + wasm-bindgen → web/pkg
-python3 -m http.server 8090 -d web  # then http://localhost:8090/
+cargo run --release                 # builds the module if it is missing, then serves the page on http://localhost:8090/
+cargo run --release -- --port 9000 --host 0.0.0.0 --build   # another port, reachable from a phone, rebuild the module first
+./build.sh                          # only the module: cargo build --release --target wasm32-unknown-unknown + wasm-bindgen → web/pkg
 cargo test --release                # validity of the 5 levels, determinism, density; add `profile`, `scale`, `bench -- --nocapture` for timings
 cargo test --release --no-default-features   # the same, single-threaded
 cargo run --release --example dump  # a hash per stage, to compare two builds
 ./build.sh simd && node bench.mjs 5 100      # SIMD vs not, in Node
 ```
+
+The server is `src/bin/serve.rs` (axum + tower-http's `ServeDir`): it serves `web/` with the right types (`.wasm` as `application/wasm`) and no cache,
+so an edit to the page or a rebuilt module shows on reload. It sits behind the `server` feature (on by default); the WebAssembly build leaves it out
+with `--no-default-features`. `PORT` also sets the port.
 
 Needs the `wasm32-unknown-unknown` target and the `wasm-bindgen` CLI at the version in `Cargo.toml` (`=0.2.130`).
 
@@ -70,6 +75,7 @@ Needs the `wasm32-unknown-unknown` target and the `wasm-bindgen` CLI at the vers
 | `src/stage.rs` | a valid stage: redraws from a derived seed when the validator objects |
 | `src/par.rs` | the one place that decides parallel or sequential (rayon, or plain loops) |
 | `src/clock.rs` | `performance.now()` in the browser, the system clock natively |
+| `src/bin/serve.rs` | the dev server (`cargo run`) |
 | `src/lib.rs` | the WASM API: `default_params(level)`, `stage_json(seed, params)`, `bench(level, from, count)`, `threads()` |
 | `web/` | the page (`index.html`, `main.js`), the worker pool (`pool.js`, `worker.js`), no bundler |
 | `tests/`, `examples/` | model tests, `profile` (time by phase), `scale` (big floors, batch), `dump` (hashes) |
