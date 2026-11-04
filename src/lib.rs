@@ -3,9 +3,11 @@
 //!
 //! The browser calls [`stage_json`]: the stage, its violations and its measures come back as one JSON string, so the page only draws.
 
+pub mod clock;
 pub mod generate;
 pub mod geom;
 pub mod metrics;
+pub mod par;
 pub mod params;
 pub mod rng;
 pub mod stage;
@@ -34,35 +36,26 @@ pub fn default_params(level: u32) -> String {
 #[wasm_bindgen]
 pub fn stage_json(seed: u32, params_json: &str) -> Result<String, JsError> {
     let p: params::Params = serde_json::from_str(params_json).map_err(|e| JsError::new(&format!("bad Λ: {e}")))?;
-    let t0 = now_ms();
+    let t0 = clock::now_ms();
     let s = stage::stage(seed, &p, 8);
-    let ms = now_ms() - t0;
+    let ms = clock::now_ms() - t0;
     let m = metrics::metrics_of(&s.d);
     serde_json::to_string(&Answer { dungeon: &s.d, violations: &s.violations, draws: s.draws, metrics: m, ms }).map_err(|e| JsError::new(&e.to_string()))
 }
 
-/// Generates `n` stages of one level from consecutive seeds and returns `{ invalid, ms }` (a benchmark that measures the module alone).
+/// How many threads the module computes with (1 for the single-threaded build).
 #[wasm_bindgen]
-pub fn bench(level: u32, n: u32) -> String {
+pub fn threads() -> u32 {
+    par::threads() as u32
+}
+
+/// Times `count` stages of one level from the seeds `from..from + count`, one after another, and returns `{ invalid, ms, threads }`.
+/// The page's worker pool gives each worker a slice of the seeds (see `web/pool.js`); natively the stages of a slice also split over rayon's threads.
+#[wasm_bindgen]
+pub fn bench(level: u32, from: u32, count: u32) -> String {
     let p = params::params_of_level(level as usize);
-    let t0 = now_ms();
-    let invalid = (1..=n).filter(|seed| !stage::stage(*seed, &p, 8).violations.is_empty()).count();
-    format!("{{\"invalid\":{},\"ms\":{}}}", invalid, now_ms() - t0)
-}
-
-#[cfg(target_arch = "wasm32")]
-fn now_ms() -> f64 {
-    js_sys_now()
-}
-
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen(inline_js = "export function js_sys_now() { return performance.now() }")]
-extern "C" {
-    fn js_sys_now() -> f64;
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn now_ms() -> f64 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs_f64() * 1000.0).unwrap_or(0.0)
+    let seeds: Vec<u32> = (from..from + count).collect();
+    let t0 = clock::now_ms();
+    let invalid: usize = par::pmap(&seeds, |seed| usize::from(!stage::stage(*seed, &p, 8).violations.is_empty())).iter().sum();
+    format!("{{\"invalid\":{},\"ms\":{},\"threads\":{}}}", invalid, clock::now_ms() - t0, par::threads())
 }

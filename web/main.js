@@ -1,11 +1,13 @@
 import init, { default_params, stage_json, bench } from './pkg/dungeon_lab.js'
+import { createPool } from './pool.js'
+
+await init()
+const pool = createPool()
 
 /**
  * The page of the dungeon lab: the generator, validator and measures run in the WebAssembly module (`src/`, Rust); this file only edits
  * Λ, asks for a stage and draws the answer. Drag pans, the wheel zooms, a double click fits; keys 1 to 5 pick a level, R a new seed.
  */
-
-await init()
 
 const CLASSES = ['rect', 'disc', 'oct', 'L', 'star']
 const COLORS = { rect: '#3d5a80', disc: '#2a9d8f', oct: '#8e6cc9', L: '#c07a2e', star: '#b8a030' }
@@ -305,13 +307,19 @@ const left = h(
   'section',
   {},
   h('h3', {}, 'Dungeon model lab · Rust + WASM'),
+  h('div', { class: 'dim' }, `module: single-threaded; batches run on a pool of ${pool.size} workers`),
   h('div', { class: 'dim' }, 'docs/dungeon-model.md · one generator, Λ per level'),
   h('div', { class: 'row' }, ...levelButtons),
   h('div', { class: 'row' }, 'seed', seedIn, button('◀', () => step(-1)), button('▶', () => step(1)), button('new seed (R)', newSeed)),
   h('div', { class: 'row' }, button('copy Λ (JSON)', () => void navigator.clipboard?.writeText(JSON.stringify({ level: state.level, seed: state.seed, params: state.P }, null, 2)).catch(() => {})), button('reset level', () => setLevel(state.level))),
-  h('div', { class: 'row' }, button('benchmark: 50 stages of this level', () => {
-    const r = JSON.parse(bench(state.level, 50))
-    benchOut.textContent = `level ${state.level}: ${(r.ms / 50).toFixed(1)} ms per stage (${r.invalid} invalid of 50)`
+  h('div', { class: 'row' }, button('benchmark: 40 stages in a row', () => {
+    const r = JSON.parse(bench(state.level, 1, 40))
+    benchOut.textContent = `level ${state.level}, 40 stages in a row on this thread: ${(r.ms / 40).toFixed(2)} ms each (${r.invalid} invalid)`
+  }), button(`benchmark: batch of 800 on the pool`, async () => {
+    benchOut.textContent = 'running…'
+    const one = await pool.batch(state.level, 1, 800, 1)
+    const all = await pool.batch(state.level, 1, 800)
+    benchOut.textContent = `level ${state.level}, 800 stages: 1 worker ${one.ms.toFixed(0)} ms · ${all.workers} workers ${all.ms.toFixed(0)} ms (${(one.ms / all.ms).toFixed(1)}× faster, ${(all.ms / 800).toFixed(2)} ms per stage; ${all.invalid} invalid)`
   })),
   benchOut,
   h('h3', {}, 'Show'),

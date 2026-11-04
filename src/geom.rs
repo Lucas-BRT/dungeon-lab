@@ -91,6 +91,16 @@ fn box_gap(a: &Bounded, b: &Bounded) -> f64 {
     (dx * dx + dy * dy).sqrt()
 }
 
+/// What "touching" means to `*_within`: a distance below it is a distance of 0.
+pub const TOUCH: f64 = f64::MIN_POSITIVE;
+
+/// The gap between the boxes of segments a-b and c-d: never more than the distance between the segments.
+fn seg_box_gap(a: V, b: V, c: V, d: V) -> f64 {
+    let dx = (a[0].min(b[0]) - c[0].max(d[0])).max(c[0].min(d[0]) - a[0].max(b[0])).max(0.0);
+    let dy = (a[1].min(b[1]) - c[1].max(d[1])).max(c[1].min(d[1]) - a[1].max(b[1])).max(0.0);
+    (dx * dx + dy * dy).sqrt()
+}
+
 /// Twice the signed area (shoelace).
 pub fn signed_area2(pts: &[V]) -> f64 {
     let mut a = 0.0;
@@ -211,6 +221,52 @@ pub fn shape_dist(a: &Shape, b: &Shape) -> f64 {
             best
         }
     }
+}
+
+/// Whether the distance between two shapes is less than `limit`: the same answer as `shape_dist(a, b) < limit`, without working the distance out.
+/// Pairs of edges whose boxes are `limit` apart are skipped, and the first pair closer than it ends the search.
+pub fn shape_within(a: &Shape, b: &Shape, limit: f64) -> bool {
+    match (a, b) {
+        (Shape::Disc { c: ca, r: ra }, Shape::Disc { c: cb, r: rb }) => (dist(*ca, *cb) - ra - rb).max(0.0) < limit,
+        (Shape::Disc { c, r }, other) | (other, Shape::Disc { c, r }) => (point_shape(*c, other) - r).max(0.0) < limit,
+        (Shape::Poly { pts: pa }, Shape::Poly { pts: pb }) => {
+            if limit <= 0.0 {
+                return false;
+            }
+            if inside_poly(pa, pb[0]) || inside_poly(pb, pa[0]) {
+                return true;
+            }
+            let (na, nb) = (pa.len(), pb.len());
+            for i in 0..na {
+                let (p, q) = (pa[i], pa[(i + 1) % na]);
+                for j in 0..nb {
+                    let (r, s) = (pb[j], pb[(j + 1) % nb]);
+                    if seg_box_gap(p, q, r, s) >= limit {
+                        continue;
+                    }
+                    if seg_seg(p, q, r, s) < limit {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+    }
+}
+
+/// Whether some shape of `a` is less than `limit` from some shape of `b` (`region_dist(a, b) < limit`, without the distance).
+pub fn region_within(a: &[Bounded], b: &[Bounded], limit: f64) -> bool {
+    for x in a {
+        for y in b {
+            if box_gap(x, y) >= limit {
+                continue;
+            }
+            if shape_within(&x.shape, &y.shape, limit) {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// The rectangle of width `w` along the segment a-b (no caps).

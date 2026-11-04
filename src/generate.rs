@@ -2,12 +2,13 @@
 //! constraints already fixed, so nothing is drawn and then thrown away whole. Deterministic: the same seed and Λ give the same stage.
 
 use crate::geom::*;
+use crate::par::{pflat_min, pmap, pmap_min};
 use crate::params::*;
 use crate::rng::{Const, Mulberry, Rand};
 use serde::Serialize;
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::f64::consts::PI;
-use std::rc::Rc;
 
 /// A door (§3): where on the room's outline a corridor meets it and the direction (0..7, ×45°) it leaves in.
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -112,6 +113,8 @@ pub struct Dungeon {
     pub pairs: Vec<[usize; 2]>,
     pub dropped: Vec<V>,
     pub log: Vec<String>,
+    /// Milliseconds each phase of the generator took, in order (rooms, candidates, tree, β_max, cycles, leaf chambers).
+    pub phases: Vec<(String, f64)>,
 }
 
 /* ---------------- Shapes ---------------- */
@@ -268,7 +271,7 @@ fn ports_of(room: usize, s: &Shape, pr: &Params) -> Vec<Port> {
                 let mut t = iota;
                 while t <= l - iota + 1e-9 {
                     let p = add(a, mul(d, t));
-                    if shape_dist(&exit_band(p, k, pr, 0.5), s) > 0.0 {
+                    if !shape_within(&exit_band(p, k, pr, 0.5), s, TOUCH) {
                         out.push(Port { room, p, k, edge: e as i32, embed: 0.0 });
                     }
                     t += pr.port_step;
@@ -302,7 +305,7 @@ fn slide(port: &Port, s: &Shape, at: V, k: i32, pr: &Params) -> Option<Port> {
     if along < iota || along > l - iota {
         return None;
     }
-    if shape_dist(&exit_band(q, port.k, pr, 0.5), s) <= 0.0 {
+    if shape_within(&exit_band(q, port.k, pr, 0.5), s, TOUCH) {
         return None;
     }
     Some(Port { p: q, ..*port })
@@ -445,9 +448,114 @@ enum Action {
     Cross { cand: usize, edge: usize, i: usize, seg: usize, h: V },
 }
 
+/// A corridor segment with what the search for T branches needs of it.
+struct SegRef {
+    edge: usize,
+    seg: usize,
+    a: V,
+    ds: V,
+    sl: f64,
+}
+
+type Axes = [Vec<SegRef>; 4];
+
 struct Opt {
     weight: f64,
     act: Action,
+}
+
+fn mix_of(p: &Params, rooms: &[Room], a: usize, b: usize) -> f64 {
+    *p.mix.get(&mix_key(rooms[a].cls, rooms[b].cls)).unwrap_or(&1.0)
+}
+
+fn type_weight(p: &Params, t: RouteType) -> f64 {
+    match t {
+        RouteType::I => p.p_i,
+        RouteType::L => p.p_l,
+        RouteType::Z => p.p_z,
+    }
+}
+
+/// The corridors that may join rooms a and b (§7.3 steps 2 to 5), the best `keep` by cost, each with distinct doors.
+pub fn candidates_for(pr: &Params, rooms: &[Room], a: usize, b: usize, keep: usize) -> Vec<Candidate> {
+    let (ra, rb) = (&rooms[a], &rooms[b]);
+    if mix_of(pr, rooms, a, b) <= 0.0 || shape_within(&ra.shape, &rb.shape, pr.min_len) {
+        return Vec::new();
+    }
+    let facing = |r: &Room, other: &Room| -> Vec<Port> {
+        let to = sub(other.center, r.center);
+        let ps: Vec<Port> = r.ports.iter().filter(|p| dot(dir_of(p.k), to) > 0.0).copied().collect();
+        let stride = ((ps.len() as f64 / 14.0).ceil() as usize).max(1);
+        ps.into_iter().enumerate().filter(|(i, _)| i % stride == 0).map(|(_, p)| p).collect()
+    };
+    let (fa, fb) = (facing(ra, rb), facing(rb, ra));
+    let mut tries: Vec<(Port, Port)> = Vec::new();
+    for pa in &fa {
+        for pb in &fb {
+            tries.push((*pa, *pb));
+            // A straight corridor needs the two doors on one line: slide one of them along its edge to meet the other's.
+            if pb.k == (pa.k + 4) % 8 && pr.p_i > 0.0 {
+                if let Some(sb) = slide(pb, &rb.shape, pa.p, pa.k, pr) {
+                    tries.push((*pa, sb));
+                } else if let Some(sa) = slide(pa, &ra.shape, pb.p, pb.k, pr) {
+                    tries.push((sa, *pb));
+                }
+            }
+        }
+    }
+    let mut out: Vec<Candidate> = Vec::new();
+    let (sa, sb) = (&ra.bb, &rb.bb);
+    let others: Vec<&Bounded> = rooms.iter().filter(|o| o.id != a && o.id != b).map(|o| &o.bb).collect();
+    for (pa, pb) in tries {
+        if dot(dir_of(pa.k), sub(pb.p, pa.p)) <= 0.0 || dot(dir_of(pb.k), sub(pa.p, pb.p)) <= 0.0 {
+            continue;
+        }
+        for (pts, kind) in routes(&pa, &pb, pr) {
+            if type_weight(pr, kind) <= 0.0 {
+                continue;
+            }
+            let segs: Vec<f64> = pts.windows(2).map(|w| dist(w[0], w[1])).collect();
+            if segs[0] < pr.exit || segs[segs.len() - 1] < pr.exit || segs.iter().skip(1).take(segs.len().saturating_sub(2)).any(|l| *l < pr.seg) {
+                continue;
+            }
+            let length = polyline_length(&pts);
+            if length < pr.min_len {
+                continue;
+            }
+            let ends = [Some(pa), Some(pb)];
+            let region = region_of(&pts, &ends, pr);
+            let outside = outside_region(&pts, &ends, pr);
+            let mut ok = !region_within(&outside, std::slice::from_ref(sa), TOUCH) && !region_within(&outside, std::slice::from_ref(sb), TOUCH);
+            if ok {
+                for o in &others {
+                    if region_within(&region, std::slice::from_ref(*o), pr.clear) {
+                        ok = false;
+                        break;
+                    }
+                }
+            }
+            if !ok {
+                continue;
+            }
+            let bends = (pts.len() - 2) as f64;
+            let dirs: Vec<i32> = pts.windows(2).map(|w| seg_dir(w[0], w[1])).collect();
+            let forty_five = dirs.windows(2).filter(|w| turn_of(w[0], w[1]) == 1).count() as f64;
+            let cost = pr.cost_bend * bends + pr.cost_len * length + pr.cost45 * forty_five - if kind == RouteType::I { pr.cost_facing } else { 0.0 };
+            out.push(Candidate { a, b, ports: [pa, pb], pts, kind, cost, weight: mix_of(pr, rooms, a, b) * type_weight(pr, kind) * (-cost).exp(), region });
+        }
+    }
+    out.sort_by(|x, y| x.cost.partial_cmp(&y.cost).unwrap());
+    let mut kept: Vec<Candidate> = Vec::new();
+    for c in out {
+        if kept.len() >= keep {
+            break;
+        }
+        if kept.iter().any(|k| dist(k.ports[0].p, c.ports[0].p) < pr.width || dist(k.ports[1].p, c.ports[1].p) < pr.width) {
+            continue;
+        }
+        kept.push(c);
+    }
+    kept
 }
 
 struct Gen<'a> {
@@ -458,8 +566,12 @@ struct Gen<'a> {
     nodes: Vec<Node>,
     node_of_room: Vec<usize>,
     edges: Vec<Edge>,
-    cache: HashMap<(usize, usize), Rc<Vec<Candidate>>>,
+    cache: HashMap<(usize, usize), Vec<Candidate>>,
     statics: Vec<Candidate>,
+    /// `statics[i]` is known not to fit: edges and doors in use only grow while the cycles are added, so a candidate that does not fit never will.
+    no_fit: Vec<AtomicBool>,
+    /// `statics[i]` can never become a crossing: its doors are taken or it already touches two corridors (both only grow).
+    no_cross: Vec<AtomicBool>,
     stairs_room: usize,
 }
 
@@ -480,15 +592,7 @@ impl<'a> Gen<'a> {
     }
 
     fn mix_of(&self, a: usize, b: usize) -> f64 {
-        *self.p.mix.get(&mix_key(self.rooms[a].cls, self.rooms[b].cls)).unwrap_or(&1.0)
-    }
-
-    fn type_weight(&self, t: RouteType) -> f64 {
-        match t {
-            RouteType::I => self.p.p_i,
-            RouteType::L => self.p.p_l,
-            RouteType::Z => self.p.p_z,
-        }
+        mix_of(self.p, &self.rooms, a, b)
     }
 
     fn proximity_pairs(&self, kind: Proximity, near: f64) -> Vec<[usize; 2]> {
@@ -522,96 +626,16 @@ impl<'a> Gen<'a> {
         out
     }
 
-    /// The corridors that may join rooms a and b (§7.3 steps 2 to 5), the best `keep` by cost, each with distinct doors.
-    fn candidates_for(&self, a: usize, b: usize, keep: usize) -> Vec<Candidate> {
-        let pr = self.p;
-        let (ra, rb) = (&self.rooms[a], &self.rooms[b]);
-        if self.mix_of(a, b) <= 0.0 || shape_dist(&ra.shape, &rb.shape) < pr.min_len {
-            return Vec::new();
+    /// Candidates for every pair in `pairs` not seen yet, worked out together: each depends only on the rooms, so they split over the threads.
+    fn ensure(&mut self, pairs: &[[usize; 2]]) {
+        let mut missing: Vec<[usize; 2]> = pairs.iter().copied().filter(|[a, b]| !self.cache.contains_key(&(*a, *b))).collect();
+        missing.sort();
+        missing.dedup();
+        let (p, rooms) = (self.p, &self.rooms);
+        let found = pmap(&missing, |[a, b]| candidates_for(p, rooms, *a, *b, 4));
+        for ([a, b], c) in missing.into_iter().zip(found) {
+            self.cache.insert((a, b), c);
         }
-        let facing = |r: &Room, other: &Room| -> Vec<Port> {
-            let to = sub(other.center, r.center);
-            let ps: Vec<Port> = r.ports.iter().filter(|p| dot(dir_of(p.k), to) > 0.0).copied().collect();
-            let stride = ((ps.len() as f64 / 14.0).ceil() as usize).max(1);
-            ps.into_iter().enumerate().filter(|(i, _)| i % stride == 0).map(|(_, p)| p).collect()
-        };
-        let (fa, fb) = (facing(ra, rb), facing(rb, ra));
-        let mut tries: Vec<(Port, Port)> = Vec::new();
-        for pa in &fa {
-            for pb in &fb {
-                tries.push((*pa, *pb));
-                // A straight corridor needs the two doors on one line: slide one of them along its edge to meet the other's.
-                if pb.k == (pa.k + 4) % 8 && pr.p_i > 0.0 {
-                    if let Some(sb) = slide(pb, &rb.shape, pa.p, pa.k, pr) {
-                        tries.push((*pa, sb));
-                    } else if let Some(sa) = slide(pa, &ra.shape, pb.p, pb.k, pr) {
-                        tries.push((sa, *pb));
-                    }
-                }
-            }
-        }
-        let mut out: Vec<Candidate> = Vec::new();
-        let (sa, sb) = (&ra.bb, &rb.bb);
-        let others: Vec<&Bounded> = self.rooms.iter().filter(|o| o.id != a && o.id != b).map(|o| &o.bb).collect();
-        for (pa, pb) in tries {
-            if dot(dir_of(pa.k), sub(pb.p, pa.p)) <= 0.0 || dot(dir_of(pb.k), sub(pa.p, pb.p)) <= 0.0 {
-                continue;
-            }
-            for (pts, kind) in routes(&pa, &pb, pr) {
-                if self.type_weight(kind) <= 0.0 {
-                    continue;
-                }
-                let segs: Vec<f64> = pts.windows(2).map(|w| dist(w[0], w[1])).collect();
-                if segs[0] < pr.exit || segs[segs.len() - 1] < pr.exit || segs.iter().skip(1).take(segs.len().saturating_sub(2)).any(|l| *l < pr.seg) {
-                    continue;
-                }
-                let length = polyline_length(&pts);
-                if length < pr.min_len {
-                    continue;
-                }
-                let ends = [Some(pa), Some(pb)];
-                let region = region_of(&pts, &ends, pr);
-                let outside = outside_region(&pts, &ends, pr);
-                let mut ok = region_dist(&outside, std::slice::from_ref(sa)) > 0.0 && region_dist(&outside, std::slice::from_ref(sb)) > 0.0;
-                if ok {
-                    for o in &others {
-                        if region_dist(&region, std::slice::from_ref(*o)) < pr.clear {
-                            ok = false;
-                            break;
-                        }
-                    }
-                }
-                if !ok {
-                    continue;
-                }
-                let bends = (pts.len() - 2) as f64;
-                let dirs: Vec<i32> = pts.windows(2).map(|w| seg_dir(w[0], w[1])).collect();
-                let forty_five = dirs.windows(2).filter(|w| turn_of(w[0], w[1]) == 1).count() as f64;
-                let cost = pr.cost_bend * bends + pr.cost_len * length + pr.cost45 * forty_five - if kind == RouteType::I { pr.cost_facing } else { 0.0 };
-                out.push(Candidate { a, b, ports: [pa, pb], pts, kind, cost, weight: self.mix_of(a, b) * self.type_weight(kind) * (-cost).exp(), region });
-            }
-        }
-        out.sort_by(|x, y| x.cost.partial_cmp(&y.cost).unwrap());
-        let mut kept: Vec<Candidate> = Vec::new();
-        for c in out {
-            if kept.len() >= keep {
-                break;
-            }
-            if kept.iter().any(|k| dist(k.ports[0].p, c.ports[0].p) < pr.width || dist(k.ports[1].p, c.ports[1].p) < pr.width) {
-                continue;
-            }
-            kept.push(c);
-        }
-        kept
-    }
-
-    fn cand_of(&mut self, a: usize, b: usize) -> Rc<Vec<Candidate>> {
-        if let Some(c) = self.cache.get(&(a, b)) {
-            return c.clone();
-        }
-        let c = Rc::new(self.candidates_for(a, b, 4));
-        self.cache.insert((a, b), c.clone());
-        c
     }
 
     fn add_edge(&mut self, u: usize, v: usize, pts: Vec<V>, ends: [Option<Port>; 2]) {
@@ -627,7 +651,7 @@ impl<'a> Gen<'a> {
     fn port_free(&self, p: &Port) -> bool {
         let pr = self.p;
         let mine = exit_band(p.p, p.k, pr, 0.0);
-        self.rooms[p.room].used.iter().all(|q| shape_dist(&mine, &exit_band(q.p, q.k, pr, 0.0)) >= pr.clear)
+        self.rooms[p.room].used.iter().all(|q| !shape_within(&mine, &exit_band(q.p, q.k, pr, 0.0), pr.clear))
     }
 
     /// Whether a candidate fits what is already built (§7.4): free doors, and σ from every corridor.
@@ -635,7 +659,19 @@ impl<'a> Gen<'a> {
         if !self.port_free(&c.ports[0]) || !self.port_free(&c.ports[1]) {
             return false;
         }
-        self.edges.iter().all(|e| region_dist(&c.region, &e.region) >= self.p.clear)
+        self.edges.iter().all(|e| !region_within(&c.region, &e.region, self.p.clear))
+    }
+
+    /// `fits_now` of `statics[ci]`, remembering a no for good.
+    fn fits_cached(&self, ci: usize) -> bool {
+        if self.no_fit[ci].load(Ordering::Relaxed) {
+            return false;
+        }
+        let ok = self.fits_now(&self.statics[ci]);
+        if !ok {
+            self.no_fit[ci].store(true, Ordering::Relaxed);
+        }
+        ok
     }
 
     fn degree(&self, r: usize) -> usize {
@@ -685,6 +721,23 @@ impl<'a> Gen<'a> {
         j
     }
 
+    /// Every corridor segment filed by axis (its direction mod 180°, in steps of 45°), each list in the order of the edges.
+    fn axes(&self) -> Axes {
+        let mut out: Axes = [Vec::new(), Vec::new(), Vec::new(), Vec::new()];
+        for e in &self.edges {
+            for s in 0..e.pts.len() - 1 {
+                let (a, b) = (e.pts[s], e.pts[s + 1]);
+                let k = seg_dir(a, b);
+                if k < 0 {
+                    continue;
+                }
+                let sl = dist(a, b);
+                out[(k % 4) as usize].push(SegRef { edge: e.id, seg: s, a, ds: [(b[0] - a[0]) / sl, (b[1] - a[1]) / sl], sl });
+            }
+        }
+        out
+    }
+
     fn room_of_node(&self, n: usize) -> Option<usize> {
         match self.nodes[n] {
             Node::Room { room } => Some(room),
@@ -693,27 +746,28 @@ impl<'a> Gen<'a> {
     }
 
     /// T (§4.3): a straight arm from a free door of a room to a perpendicular corridor segment, met away from its ends.
-    fn branches(&self, out: &mut Vec<Opt>) {
+    fn branches_of(&self, r: &Room, axes: &Axes) -> Vec<Opt> {
+        let mut out = Vec::new();
         let pr = self.p;
         let margin = pr.width / 2.0 + pr.seg;
-        for r in &self.rooms {
+        {
             if !r.alive || self.locked_full(r.id) {
-                continue;
+                return out;
             }
-            for p in &r.ports {
-                if !self.port_free(p) {
-                    continue;
-                }
+            // The doors in use only change when an edge is added, so the free ones are worked out once for the room, not once per segment.
+            let mut free: Vec<bool> = vec![false; r.ports.len()];
+            let mut free_known: Vec<bool> = vec![false; r.ports.len()];
+            for (pi, p) in r.ports.iter().enumerate() {
                 let u = dir_of(p.k);
-                for e in &self.edges {
+                // Only a segment perpendicular to the door can take an arm: those of the axis a quarter turn from its direction, in the order the edges list them.
+                for sr in &axes[((p.k + 2) % 4) as usize] {
+                    let e = &self.edges[sr.edge];
                     let rooms_of_e: Vec<usize> = [e.u, e.v].iter().filter_map(|n| self.room_of_node(*n)).collect();
                     if rooms_of_e.contains(&r.id) {
                         continue;
                     }
-                    for s in 0..e.pts.len() - 1 {
-                        let (a, b) = (e.pts[s], e.pts[s + 1]);
-                        let sl = dist(a, b);
-                        let ds = [(b[0] - a[0]) / sl, (b[1] - a[1]) / sl];
+                    {
+                        let (s, a, sl, ds) = (sr.seg, sr.a, sr.sl, sr.ds);
                         if dot(u, ds).abs() > 1e-6 {
                             continue;
                         }
@@ -724,20 +778,27 @@ impl<'a> Gen<'a> {
                         if t < pr.exit + pr.width / 2.0 || along < margin || along > sl - margin {
                             continue;
                         }
+                        if !free_known[pi] {
+                            free_known[pi] = true;
+                            free[pi] = self.port_free(p);
+                        }
+                        if !free[pi] {
+                            continue;
+                        }
                         let arm = [p.p, h];
                         let arm_out = corridor_region(&trim_ends(&arm, 1.0, pr.width / 2.0 + pr.clear), pr.width);
-                        if region_dist(&arm_out, std::slice::from_ref(&r.bb)) <= 0.0 {
+                        if region_within(&arm_out, std::slice::from_ref(&r.bb), TOUCH) {
                             continue;
                         }
                         let mut ok = true;
                         for o in &self.rooms {
-                            if o.alive && o.id != r.id && region_dist(&arm_out, std::slice::from_ref(&o.bb)) < pr.clear {
+                            if o.alive && o.id != r.id && region_within(&arm_out, std::slice::from_ref(&o.bb), pr.clear) {
                                 ok = false;
                                 break;
                             }
                         }
                         if ok {
-                            ok = self.edges.iter().all(|o| region_dist(&arm_out, &o.region) >= pr.clear);
+                            ok = self.edges.iter().all(|o| !region_within(&arm_out, &o.region, pr.clear));
                         }
                         if !ok {
                             continue;
@@ -746,7 +807,7 @@ impl<'a> Gen<'a> {
                         let to_u = polyline_length(&[&e.pts[..=s], &[h][..]].concat());
                         let to_v = polyline_length(&[&[h][..], &e.pts[s + 1..]].concat());
                         let reach: Vec<(usize, f64)> = [(e.u, t + to_u), (e.v, t + to_v)].into_iter().filter_map(|(n, w)| self.room_of_node(n).map(|room| (room, w))).collect();
-                        if reach.iter().any(|(room, walk)| *walk < pr.min_len || shape_dist(&r.shape, &self.rooms[*room].shape) < pr.min_len) {
+                        if reach.iter().any(|(room, walk)| *walk < pr.min_len || shape_within(&r.shape, &self.rooms[*room].shape, pr.min_len)) {
                             continue;
                         }
                         let mix_w: f64 = reach.iter().map(|(room, _)| self.mix_of(r.id, *room)).product();
@@ -756,14 +817,18 @@ impl<'a> Gen<'a> {
                 }
             }
         }
+        out
     }
 
     /// X (§4.3): candidate `ci` crosses exactly one corridor, at right angles, away from both segments' ends: the crossing becomes a junction.
     fn crossing(&self, ci: usize) -> Option<Action> {
         let pr = self.p;
         let c = &self.statics[ci];
-        let hit: Vec<&Edge> = self.edges.iter().filter(|e| region_dist(&c.region, &e.region) < pr.clear).collect();
+        let hit: Vec<&Edge> = self.edges.iter().filter(|e| region_within(&c.region, &e.region, pr.clear)).collect();
         if hit.len() != 1 {
+            if hit.len() > 1 {
+                self.no_cross[ci].store(true, Ordering::Relaxed);
+            }
             return None;
         }
         let e = hit[0];
@@ -794,7 +859,7 @@ impl<'a> Gen<'a> {
                 let e_b = corridor_region(&trim_ends(&with(&e.pts[s + 1..], h, true), cut, 0.0), pr.width);
                 for x in [&c_a, &c_b] {
                     for y in [&e_a, &e_b] {
-                        if region_dist(x, y) < pr.clear {
+                        if region_within(x, y, pr.clear) {
                             return None;
                         }
                     }
@@ -805,7 +870,7 @@ impl<'a> Gen<'a> {
                 }
                 for ra in [c.a, c.b] {
                     for rb in &rooms_of_e {
-                        if shape_dist(&self.rooms[ra].shape, &self.rooms[*rb].shape) < pr.min_len {
+                        if shape_within(&self.rooms[ra].shape, &self.rooms[*rb].shape, pr.min_len) {
                             return None;
                         }
                     }
@@ -816,22 +881,30 @@ impl<'a> Gen<'a> {
         None
     }
 
+    /// What can be added now, in the order the sequential loops would list it: each candidate and each room is judged on its own, so they split over the threads.
     fn options(&self) -> Vec<Opt> {
-        let mut out = Vec::new();
-        for (ci, c) in self.statics.iter().enumerate() {
+        let idx: Vec<usize> = (0..self.statics.len()).collect();
+        let mut out: Vec<Opt> = pflat_min(&idx, 128, |&ci| {
+            let c = &self.statics[ci];
             if self.locked_full(c.a) || self.locked_full(c.b) {
-                continue;
+                return Vec::new();
             }
-            if self.fits_now(c) {
-                out.push(Opt { weight: c.weight, act: Action::Add(ci) });
-            } else if self.p.p_x > 0.0 && self.port_free(&c.ports[0]) && self.port_free(&c.ports[1]) {
-                if let Some(act) = self.crossing(ci) {
-                    out.push(Opt { weight: c.weight * self.p.p_x, act });
+            if self.fits_cached(ci) {
+                vec![Opt { weight: c.weight, act: Action::Add(ci) }]
+            } else if self.p.p_x > 0.0 && !self.no_cross[ci].load(Ordering::Relaxed) {
+                if self.port_free(&c.ports[0]) && self.port_free(&c.ports[1]) {
+                    self.crossing(ci).map(|act| Opt { weight: c.weight * self.p.p_x, act }).into_iter().collect()
+                } else {
+                    self.no_cross[ci].store(true, Ordering::Relaxed);
+                    Vec::new()
                 }
+            } else {
+                Vec::new()
             }
-        }
+        });
         if self.p.p_t > 0.0 {
-            self.branches(&mut out);
+            let axes = self.axes();
+            out.extend(pflat_min(&self.rooms, 16, |r| self.branches_of(r, &axes)));
         }
         out
     }
@@ -859,7 +932,14 @@ impl<'a> Gen<'a> {
 }
 
 pub fn generate(seed: u32, p: &Params) -> Dungeon {
-    let mut g = Gen { p, rng: Mulberry(seed), log: Vec::new(), rooms: Vec::new(), nodes: Vec::new(), node_of_room: Vec::new(), edges: Vec::new(), cache: HashMap::new(), statics: Vec::new(), stairs_room: usize::MAX };
+    let mut phases: Vec<(String, f64)> = Vec::new();
+    let mut t_last = crate::clock::now_ms();
+    let mut lap = |name: &str| {
+        let t = crate::clock::now_ms();
+        phases.push((name.to_string(), t - t_last));
+        t_last = t;
+    };
+    let mut g = Gen { p, rng: Mulberry(seed), log: Vec::new(), rooms: Vec::new(), nodes: Vec::new(), node_of_room: Vec::new(), edges: Vec::new(), cache: HashMap::new(), statics: Vec::new(), no_fit: Vec::new(), no_cross: Vec::new(), stairs_room: usize::MAX };
 
     /* §7.1 Scaffold: blocks on a grid, the big shapes first, then a share of the 1×1 cells dropped (the rest kept in one piece). */
     let (cols, rows, cell_w, cell_h, gap) = (p.cols.max(1), p.rows.max(1), p.cell_w, p.cell_h, p.gap);
@@ -996,6 +1076,7 @@ pub fn generate(seed: u32, p: &Params) -> Dungeon {
     g.nodes = g.rooms.iter().map(|r| Node::Room { room: r.id }).collect();
     g.node_of_room = g.rooms.iter().map(|r| r.id).collect();
 
+    lap("rooms");
     /* §7.5.1 The spanning tree: Prim from the start, weighted by ω; the proximity graph relaxed when it gets stuck. */
     let start_room = (g.rng.next() * g.rooms.len() as f64).floor() as usize;
     let order: Vec<Proximity> = match p.proximity {
@@ -1007,15 +1088,25 @@ pub fn generate(seed: u32, p: &Params) -> Dungeon {
     let mut near = p.near;
     let mut pairs = g.proximity_pairs(order[0], near);
     let mut in_tree: HashSet<usize> = HashSet::from([start_room]);
+    let mut flat: Vec<Candidate> = Vec::new();
+    let mut dead: Vec<bool> = Vec::new();
+    // Every pair's corridors are needed anyway (the cycles and β_max read them all): one big batch, split over the threads.
+    g.ensure(&pairs);
+    lap("candidates");
     while in_tree.len() < g.rooms.len() {
+        if flat.is_empty() && !pairs.is_empty() {
+            flat = pairs.iter().flat_map(|[a, b]| g.cache[&(*a, *b)].iter().cloned()).collect();
+            dead = vec![false; flat.len()];
+        }
+        // Corridors across the tree's edge: those that fit now (a corridor that doesn't fit never will, so it is dropped for good).
+        let live: Vec<usize> = (0..flat.len()).filter(|i| !dead[*i] && in_tree.contains(&flat[*i].a) != in_tree.contains(&flat[*i].b)).collect();
+        let fits = pmap_min(&live, 128, |i| g.fits_now(&flat[*i]));
         let mut open: Vec<Candidate> = Vec::new();
-        for [a, b] in pairs.clone() {
-            if in_tree.contains(&a) != in_tree.contains(&b) {
-                for c in g.cand_of(a, b).iter() {
-                    if g.fits_now(c) {
-                        open.push(c.clone());
-                    }
-                }
+        for (i, ok) in live.iter().zip(fits) {
+            if ok {
+                open.push(flat[*i].clone());
+            } else {
+                dead[*i] = true;
             }
         }
         let ws: Vec<f64> = open.iter().map(|c| c.weight).collect();
@@ -1030,10 +1121,14 @@ pub fn generate(seed: u32, p: &Params) -> Dungeon {
             level += 1;
             g.log.push(format!("tree stuck: candidates from {:?}", order[level]).to_lowercase());
             pairs = g.proximity_pairs(order[level], near);
+            g.ensure(&pairs);
+            flat.clear();
         } else if near < 4.0 * cell_w.max(cell_h) {
             near *= 1.5;
             g.log.push(format!("tree stuck: near {} px", near.round()));
             pairs = g.proximity_pairs(Proximity::Near, near);
+            g.ensure(&pairs);
+            flat.clear();
         } else {
             for r in g.rooms.iter_mut() {
                 if !in_tree.contains(&r.id) {
@@ -1045,6 +1140,7 @@ pub fn generate(seed: u32, p: &Params) -> Dungeon {
         }
     }
 
+    lap("tree");
     /* §7.5.2 Roles: the start, the stairs at a far leaf. */
     let h0 = room_hops(&g.nodes, &g.edges, g.node_of_room[start_room]);
     let leaves: Vec<usize> = g.rooms.iter().filter(|r| r.alive && r.id != start_room && g.degree(r.id) == 1).map(|r| r.id).collect();
@@ -1064,13 +1160,11 @@ pub fn generate(seed: u32, p: &Params) -> Dungeon {
 
     /* §7.4 β_max: a maximal selection of the remaining candidates, greedy by weight, on a copy. */
     let all_pairs = g.proximity_pairs(order[level], near);
-    let mut statics: Vec<Candidate> = Vec::new();
-    for [a, b] in &all_pairs {
-        if g.rooms[*a].alive && g.rooms[*b].alive {
-            statics.extend(g.cand_of(*a, *b).iter().cloned());
-        }
-    }
-    g.statics = statics;
+    let live_pairs: Vec<[usize; 2]> = all_pairs.iter().copied().filter(|[a, b]| g.rooms[*a].alive && g.rooms[*b].alive).collect();
+    g.ensure(&live_pairs);
+    g.statics = live_pairs.iter().flat_map(|[a, b]| g.cache[&(*a, *b)].iter().cloned()).collect();
+    g.no_fit = g.statics.iter().map(|_| AtomicBool::new(false)).collect();
+    g.no_cross = g.statics.iter().map(|_| AtomicBool::new(false)).collect();
     let alive_rooms = g.rooms.iter().filter(|r| r.alive).count() as i32;
     let beta_now = |g: &Gen| g.edges.len() as i32 - (alive_rooms + g.nodes.iter().filter(|n| matches!(n, Node::Junction { .. })).count() as i32) + 1;
     let beta_max;
@@ -1092,6 +1186,7 @@ pub fn generate(seed: u32, p: &Params) -> Dungeon {
         }
         beta_max = m_max - alive_rooms + 1;
     }
+    lap("β_max");
     let beta_target = (p.delta * beta_max as f64).round() as i32;
 
     /* §7.5.3 Cycles: corridors between rooms already joined, T branches off a corridor and X crossings, until β reaches β*. */
@@ -1111,6 +1206,7 @@ pub fn generate(seed: u32, p: &Params) -> Dungeon {
         }
     }
 
+    lap("cycles");
     /* §7.6 Leaf chambers: small rooms in the dropped cells, each hung by one corridor off a room nearby. */
     let leaf_weights: Vec<f64> = CLASSES.iter().map(|c| p.leaf_classes.get(*c).max(0.0)).collect();
     let mut spots = dropped.clone();
@@ -1132,7 +1228,7 @@ pub fn generate(seed: u32, p: &Params) -> Dungeon {
         }
         let Some(shape) = shape else { continue };
         let sb = bounded(shape.clone());
-        if g.rooms.iter().any(|o| o.alive && shape_dist(&o.shape, &shape) < 2.0 * gap) || g.edges.iter().any(|e| region_dist(std::slice::from_ref(&sb), &e.region) < p.clear) {
+        if g.rooms.iter().any(|o| o.alive && shape_within(&o.shape, &shape, 2.0 * gap)) || g.edges.iter().any(|e| region_within(std::slice::from_ref(&sb), &e.region, p.clear)) {
             continue;
         }
         let id = g.rooms.len();
@@ -1142,14 +1238,7 @@ pub fn generate(seed: u32, p: &Params) -> Dungeon {
         g.nodes.push(Node::Room { room: id });
         g.node_of_room.push(g.nodes.len() - 1);
         let near_rooms: Vec<usize> = g.rooms.iter().filter(|o| o.alive && !o.leaf && !g.locked_full(o.id) && dist(o.center, center) <= 1.8 * cell_w.max(cell_h)).map(|o| o.id).collect();
-        let mut options: Vec<Candidate> = Vec::new();
-        for o in near_rooms {
-            for k in g.candidates_for(id, o, 2) {
-                if g.fits_now(&k) {
-                    options.push(k);
-                }
-            }
-        }
+        let mut options: Vec<Candidate> = pflat_min(&near_rooms, 12, |o| candidates_for(p, &g.rooms, id, *o, 2).into_iter().filter(|k| g.fits_now(k)).collect());
         options.sort_by(|x, y| x.cost.partial_cmp(&y.cost).unwrap());
         let Some(best) = options.into_iter().next() else {
             g.rooms.pop();
@@ -1174,6 +1263,7 @@ pub fn generate(seed: u32, p: &Params) -> Dungeon {
         g.rooms[id].role = Role::Ambush;
     }
 
+    lap("leaf chambers");
     let dropped_centers: Vec<V> = dropped.iter().map(|i| { let b = box_of(&blocks[*i]); [(b.x0 + b.x1) / 2.0, (b.y0 + b.y1) / 2.0] }).collect();
-    Dungeon { params: p.clone(), seed, rooms: g.rooms, nodes: g.nodes, edges: g.edges, start: start_room, stairs: stairs_room, beta_max, beta_target, candidates: g.statics, pairs: all_pairs, dropped: dropped_centers, log: g.log }
+    Dungeon { params: p.clone(), seed, rooms: g.rooms, nodes: g.nodes, edges: g.edges, start: start_room, stairs: stairs_room, beta_max, beta_target, candidates: g.statics, pairs: all_pairs, dropped: dropped_centers, log: g.log, phases }
 }

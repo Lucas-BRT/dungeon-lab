@@ -16,12 +16,18 @@ fn every_level_gives_only_valid_stages() {
     }
 }
 
+/// The stage, without the clock readings of `phases` (the only thing that differs between two runs).
+fn without_clock(seed: u32, level: usize) -> serde_json::Value {
+    let mut v = serde_json::to_value(generate(seed, &params_of_level(level))).unwrap();
+    v.as_object_mut().unwrap().remove("phases");
+    v
+}
+
 #[test]
 fn the_same_seed_and_lambda_give_the_same_stage() {
-    let p = params_of_level(4);
-    let a = serde_json::to_string(&generate(7, &p)).unwrap();
-    let b = serde_json::to_string(&generate(7, &p)).unwrap();
-    assert_eq!(a, b);
+    for level in [3, 5] {
+        assert_eq!(without_clock(7, level), without_clock(7, level));
+    }
 }
 
 #[test]
