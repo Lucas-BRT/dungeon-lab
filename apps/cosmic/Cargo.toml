@@ -1,0 +1,11 @@
+[package]
+name = "dungeon-lab-cosmic"
+version.workspace = true
+edition.workspace = true
+description = "Native COSMIC desktop frontend for Dungeon Lab"
+
+[dependencies]
+cosmic = { package = "libcosmic", git = "https://github.com/pop-os/libcosmic.git", rev = "daca62bb701bdc2cefbf44d6e87dc5d0c2f1835f", default-features = false, features = ["tokio", "a11y", "x11", "wayland"] }
+dungeon-lab-core = { path = "../../crates/dungeon-core" }
+serde_json = "1"
+tokio = { version = "1", features = ["time"] }

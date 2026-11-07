@@ -11,10 +11,10 @@ mode="${1:-st}"
 target=wasm32-unknown-unknown
 case "$mode" in
   st)
-    cargo build --release --target $target --no-default-features
+    cargo build --release --manifest-path crates/dungeon-wasm/Cargo.toml --target $target
     out=web/pkg ;;
   simd)
-    RUSTFLAGS="-C target-feature=+simd128" cargo build --release --target $target --no-default-features
+    RUSTFLAGS="-C target-feature=+simd128" cargo build --release --manifest-path crates/dungeon-wasm/Cargo.toml --target $target
     out=web/pkg-simd ;;
   *) echo "usage: $0 [st|simd]" >&2; exit 1 ;;
 esac

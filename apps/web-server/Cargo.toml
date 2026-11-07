@@ -1,0 +1,10 @@
+[package]
+name = "dungeon-lab-web-server"
+version.workspace = true
+edition.workspace = true
+description = "Local development server for the Dungeon Lab web frontend"
+
+[dependencies]
+axum = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
+tower-http = { version = "0.7", features = ["fs", "set-header"] }

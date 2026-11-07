@@ -1,0 +1,15 @@
+[package]
+name = "dungeon-lab-wasm"
+version.workspace = true
+edition.workspace = true
+description = "WebAssembly bindings and JSON API for Dungeon Lab"
+
+[lib]
+name = "dungeon_lab"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+dungeon-lab-core = { path = "../dungeon-core", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+wasm-bindgen = "=0.2.130"
