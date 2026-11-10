@@ -13,6 +13,7 @@ use topcoat::{
         header::CONTENT_TYPE,
         href, module_router, page, route,
     },
+    runtime::RuntimeLayer,
     view::View,
 };
 
@@ -28,6 +29,7 @@ pub fn router() -> Router {
         .assets(AssetBundle::load().expect("asset bundle missing: run `topcoat dev`, or `topcoat asset bundle --package tapiti-site` after building"))
         // The browser lab keeps fixed URLs (it loads its own scripts and the WebAssembly module by relative path).
         .serve_dir("/lab/{*file}", lab_dir())
+        .layer(RuntimeLayer::new())
         .build()
 }
 

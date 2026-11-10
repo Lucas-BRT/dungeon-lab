@@ -64,3 +64,5 @@ search_count =
 chamber_title = Uma câmara-folha
 chamber_text_one = Você achou um beco sem saída. É nos becos que as coisas boas se escondem: uma sala com uma porta só, um prêmio, às vezes uma armadilha.
 chamber_text_two = Tapiti é o nome tupi do coelho-do-mato que vive por todo o Brasil, o que cava. Ele cava tocas; nós cavamos masmorras.
+hero_seed = Semente { $seed }
+hero_dig_again = Cavar de novo

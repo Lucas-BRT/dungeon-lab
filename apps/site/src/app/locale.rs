@@ -86,6 +86,7 @@ async fn layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
                     href=(asset!("assets/brand/apple-touch-icon.png"))
                 >
                 <link rel="stylesheet" href=(asset!("assets/styles.css"))>
+                topcoat::runtime::script()
                 topcoat::dev::script()
             </head>
             <body>
@@ -103,6 +104,12 @@ async fn header(cx: &Cx) -> Result<impl View> {
     Ok(view! {
         <header class="site-header">
             <a class="brand" href=(href!(_page::page, path_locale: locale(cx)))>
+                <img
+                    src=(asset!("assets/brand/mark.svg"))
+                    alt=""
+                    width="28"
+                    height="28"
+                >
                 "tapiti"
             </a>
             <nav class="site-nav" aria-label=(t!(nav_label))>

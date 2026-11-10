@@ -65,3 +65,5 @@ search_count =
 chamber_title = A leaf chamber
 chamber_text_one = You found a dead end. Dead ends are where the good things hide: a room with one door, a prize, sometimes a trap.
 chamber_text_two = Tapiti is the Tupi name of the wild rabbit that lives across Brazil, the one that digs. It digs burrows; we dig dungeons.
+hero_seed = Seed { $seed }
+hero_dig_again = Dig again

@@ -287,7 +287,9 @@ fn render(markdown: &str, slug: &'static str, locale: &str) -> Page {
             Event::DisplayMath(tex) => match mathml(&tex, true) {
                 Some(m) => {
                     math_rendered += 1;
-                    Event::Html(format!("<div class=\"math-display\">{m}</div>").into())
+                    Event::Html(
+                        format!("<div class=\"math-display\" tabindex=\"0\">{m}</div>").into(),
+                    )
                 }
                 None => {
                     Event::Html(format!("<pre class=\"math-error\">{}</pre>", escape(&tex)).into())
@@ -348,7 +350,7 @@ fn render(markdown: &str, slug: &'static str, locale: &str) -> Page {
                 out_events.extend(events[i + 1..j].iter().cloned());
                 if level_number > 1 {
                     out_events.push(Event::Html(
-                        format!("<a class=\"anchor\" href=\"#{id}\" aria-hidden=\"true\">#</a>")
+                        format!("<a class=\"anchor\" href=\"#{id}\" aria-hidden=\"true\" tabindex=\"-1\">#</a>")
                             .into(),
                     ));
                     toc.push(TocEntry {
@@ -389,7 +391,11 @@ fn render(markdown: &str, slug: &'static str, locale: &str) -> Page {
     let mut html_out = String::new();
     html::push_html(&mut html_out, out_events.into_iter());
     let html_out = html_out
-        .replace("<table>", "<div class=\"table-wrap\"><table>")
+        .replace(
+            "<table>",
+            "<div class=\"table-wrap\" tabindex=\"0\"><table>",
+        )
+        .replace("<pre>", "<pre tabindex=\"0\">")
         .replace("</table>", "</table></div>");
     Page {
         slug,
@@ -452,7 +458,7 @@ fn parameters_page(locale: &'static str) -> Page {
         let id = slugify(&group.id);
         let _ = write!(
             html,
-            "<h2 id=\"{id}\">{}<a class=\"anchor\" href=\"#{id}\" aria-hidden=\"true\">#</a></h2>",
+            "<h2 id=\"{id}\">{}<a class=\"anchor\" href=\"#{id}\" aria-hidden=\"true\" tabindex=\"-1\">#</a></h2>",
             escape(&group_title)
         );
         let _ = write!(html, "<p>{}</p>", escape(group.intro.get(portuguese)));
@@ -497,7 +503,10 @@ fn group_table(html: &mut String, group: &ParamGroup, portuguese: bool) {
     } else {
         ["Parameter", "Name", "Values", "What it does"]
     };
-    let _ = write!(html, "<div class=\"table-wrap\"><table><thead><tr>");
+    let _ = write!(
+        html,
+        "<div class=\"table-wrap\" tabindex=\"0\"><table><thead><tr>"
+    );
     for h in head {
         let _ = write!(html, "<th>{h}</th>");
     }

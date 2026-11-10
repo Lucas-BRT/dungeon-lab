@@ -1,7 +1,8 @@
 //! Floors drawn by the generator itself and inlined in pages as SVG.
 
-use std::sync::OnceLock;
-use std::time::Instant;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::{Duration, Instant};
 use tapiti_core::{
     generate::{Dungeon, generate},
     params::params_of_level,
@@ -124,5 +125,80 @@ mod tests {
         for class in ["c-rect", "c-disc", "c-oct", "c-L", "c-star"] {
             assert!(svg.contains(class), "{class}");
         }
+    }
+}
+
+/// Floors that visitors ask for by seed ("dig again"). Generating one takes about 15 ms, so the site keeps the latest ones and spends at
+/// most `BUDGET` new floors per `WINDOW` across all visitors (behind a proxy every visitor shares one address anyway); over budget, the
+/// landing page floor is shown instead of working for free.
+const BUDGET: u32 = 40;
+const WINDOW: Duration = Duration::from_secs(10);
+const CACHE_LIMIT: usize = 64;
+
+struct Dug {
+    floors: HashMap<u32, Arc<Dungeon>>,
+    window_start: Instant,
+    spent: u32,
+}
+
+fn dug() -> &'static Mutex<Dug> {
+    static DUG: OnceLock<Mutex<Dug>> = OnceLock::new();
+    DUG.get_or_init(|| {
+        Mutex::new(Dug {
+            floors: HashMap::new(),
+            window_start: Instant::now(),
+            spent: 0,
+        })
+    })
+}
+
+/// The level 5 floor of `seed`, or the landing page's floor when the budget is spent.
+pub fn dig(seed: u32, label: String) -> (u32, TrustedHtml) {
+    let floor = {
+        let mut state = dug()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(floor) = state.floors.get(&seed) {
+            Some((seed, floor.clone()))
+        } else {
+            if state.window_start.elapsed() >= WINDOW {
+                state.window_start = Instant::now();
+                state.spent = 0;
+            }
+            if state.spent >= BUDGET {
+                None
+            } else {
+                state.spent += 1;
+                // Generated outside the lock below would be nicer, but the budget keeps this short and bounded.
+                let floor = Arc::new(stage(seed, &params_of_level(5), 8).d);
+                if state.floors.len() >= CACHE_LIMIT {
+                    state.floors.clear();
+                }
+                state.floors.insert(seed, floor.clone());
+                Some((seed, floor))
+            }
+        }
+    };
+    match floor {
+        Some((seed, floor)) => (seed, svg(&floor, label)),
+        None => (HERO_SEED, hero(label)),
+    }
+}
+
+#[cfg(test)]
+mod dig_tests {
+    use super::*;
+
+    #[test]
+    fn digging_is_deterministic_cached_and_bounded() {
+        let (seed, first) = dig(4242, String::new());
+        let (_, second) = dig(4242, String::new());
+        assert_eq!(seed, 4242);
+        assert_eq!(first.0, second.0);
+        // Far more new seeds than the budget allows: the surplus gets the landing page floor, not a new one.
+        let fallbacks = (10_000..10_000 + 3 * BUDGET)
+            .filter(|s| dig(*s, String::new()).0 == HERO_SEED)
+            .count();
+        assert!(fallbacks >= 2 * BUDGET as usize - 5, "{fallbacks}");
     }
 }

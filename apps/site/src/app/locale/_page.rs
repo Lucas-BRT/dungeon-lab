@@ -1,8 +1,9 @@
 use topcoat::{
     Result,
     context::Cx,
-    l10n::locale,
+    l10n::{Locale, locale},
     router::{href, page},
+    runtime::{shard, signal},
     view::{Child, View, component, view},
 };
 
@@ -16,7 +17,7 @@ use crate::{
 
 #[page]
 pub async fn page(cx: &Cx) -> Result<impl View> {
-    let hero = floor::hero(t!(hero_floor_label).resolve(cx).into_owned());
+    let seed = signal(cx, || floor::HERO_SEED as usize);
     let shapes = floor::shapes(t!(shapes_figure_label).resolve(cx).into_owned());
     let (rejected, violations) =
         floor::rejected(t!(rejected_figure_label).resolve(cx).into_owned());
@@ -46,7 +47,18 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
                     </a>
                 </div>
             </div>
-            <figure class="hero-floor">(hero)</figure>
+            <figure class="hero-floor">
+                hero_floor(seed: $(seed.get()), lang: locale(cx).id().to_string())
+                <figcaption>
+                    <button
+                        class="dig-again"
+                        type="button"
+                        @click=$(|_e| seed.increment())
+                    >
+                        (t!(hero_dig_again))
+                    </button>
+                </figcaption>
+            </figure>
         </section>
 
         <section class="proof" aria-label=(t!(proof_label))>
@@ -214,5 +226,23 @@ async fn chamber(cx: &Cx, shape: &'static str, #[default] child: Child<'_>) -> R
             </svg>
             <div>(child)</div>
         </li>
+    })
+}
+
+/// The floor of the hero, dug on the server for the seed asked for. A visitor can only change the seed, which is validated here.
+#[shard]
+async fn hero_floor(cx: &Cx, seed: usize, lang: String) -> Result<impl View> {
+    // A shard's endpoint runs without the page's layers, so the language comes along as an argument (and is checked).
+    let language = lang
+        .parse::<Locale>()
+        .ok()
+        .filter(|language| t::locales().contains(language))
+        .unwrap_or(locale!("en"));
+    let cx = cx.with(language);
+    let seed = u32::try_from(seed).unwrap_or(floor::HERO_SEED);
+    let (seed, svg) = floor::dig(seed, t!(hero_floor_label).resolve(&cx).into_owned());
+    Ok(view! {
+        <div class="hero-floor-svg">(svg)</div>
+        <p class="seed-label">(t!(hero_seed, seed))</p>
     })
 }
