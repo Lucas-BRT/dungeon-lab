@@ -1,25 +1,37 @@
-# dungeon-lab-wasm
+# Tapiti
 
-The dungeon model of the game (`docs/dungeon-model.md` in `pokemon-survivors`) rewritten in Rust and compiled to WebAssembly: rooms of
-many shapes (rect, disc, octagon, L, truncated star), continuous doors, octilinear corridors (I, L, Z/U, T, X), leaf chambers, a validator
-(V1 to V5) and the graph's measures (β, δ, bridges, Menger routes, λ₂), with a page to generate any level and edit every parameter of Λ.
+Tapiti digs dungeon floors from a seed, in Rust and WebAssembly: rooms of many shapes (rect, disc, octagon, L, truncated star), continuous doors,
+octilinear corridors (I, L, Z/U, T, X), leaf chambers, a validator (V1 to V5) and the graph's measures (β, δ, bridges, Menger routes, λ₂), with a
+desktop app and a page to generate any level and edit every parameter of Λ.
 
-It is a faithful port of the TypeScript prototype (`src/dungeonLab` there): the same seed and Λ draw the same stage (the rng is the game's
-Mulberry32). Every optimization below was checked against it: `cargo run --release --example dump` hashes 150 stages (5 levels × 30 seeds)
-and the hashes did not move, single-threaded or parallel.
+The same seed and Λ always draw the same stage (the rng is Mulberry32). Every optimization below was checked against that: `cargo run --release -p tapiti-core --example dump`
+hashes 150 stages (5 levels × 30 seeds) and the hashes did not move, single-threaded or parallel.
 
 ## Speed
 
-Per stage (generate + validate), level 1 to 5 of the page's Λ:
+Generation cost depends on Λ: the current model evaluates corridor candidates,
+βmax with junction actions, topology constraints, progression, and leaf chambers.
+Do not compare it with measurements from the earlier, smaller model.
 
-| level | TypeScript | Rust, first port | Rust now (1 thread) | WASM now (browser, 1 thread) |
-|---|---|---|---|---|
-| 3 | 238 ms | 9.9 ms | 1.9 ms | ~2.2 ms |
-| 5 | 692 ms | 31.5 ms | 3.1 ms | ~6.5 ms (8.7 ms in the page) |
+Recent native release measurements on the development machine (14 Rayon threads)
+show level 5 generation around 22–28 ms and generation plus validation around
+24–27 ms. The `scale` benchmark measured:
 
-Larger floors (level 5 Λ on a bigger grid), native: 10×8 grid (~56 rooms) 20.8 ms on 1 thread, 11.0 ms on 14; 16×12 (~132 rooms) 208 ms and 74 ms.
-A batch of 200 level-5 stages: 749 ms on 1 thread, 113 ms on 14 (6.6×). In the browser, 800 stages of level 5 take 8.65 s on one worker and
-1.09 s on a pool of 14 workers (8×).
+| workload | 1 thread | 14 threads |
+|---|---:|---:|
+| 10×8 grid, about 54 rooms | 448 ms/map | 396 ms/map |
+| 16×12 grid, about 130 rooms | 4,668 ms/map | 966 ms/map |
+| batch of 200 level-5 maps | 12,958 ms | 2,114 ms |
+
+The small default map has limited independent work, so its speedup is modest.
+Large maps and batches expose enough work to benefit from the Rayon pool. Use
+Criterion for comparable single-map measurements and `scale` for throughput:
+
+```bash
+cargo bench --release -p tapiti-core --bench generator
+cargo test --release -p tapiti-core scale -- --nocapture
+cargo test --release -p tapiti-core --no-default-features scale -- --nocapture
+```
 
 ### What it took, in the order it paid
 
@@ -48,36 +60,63 @@ each with its own single-threaded instance** (`web/pool.js`): no shared memory, 
 ## Run
 
 ```bash
-cargo run --release                 # builds the module if it is missing, then serves the page on http://localhost:8090/
-cargo run --release -- --port 9000 --host 0.0.0.0 --build   # another port, reachable from a phone, rebuild the module first
+cargo run                           # opens the native desktop app (egui) (workspace default; fast dev build)
+cargo run --release                 # optimized desktop build
+./build.sh && topcoat dev -p tapiti-site     # the website (landing, docs, lab) on http://127.0.0.1:3000/, rebuilt on every change (`cargo install topcoat-cli`)
+docker compose -f compose.local.yml up --build   # the same site as a container on http://localhost:8090/
 ./build.sh                          # only the module: cargo build --release --target wasm32-unknown-unknown + wasm-bindgen → web/pkg
-cargo test --release                # validity of the 5 levels, determinism, density; add `profile`, `scale`, `bench -- --nocapture` for timings
-cargo test --release --no-default-features   # the same, single-threaded
-cargo run --release --example dump  # a hash per stage, to compare two builds
+cargo test --release -p tapiti-core   # validity of the 5 levels, determinism, density; add `profile`, `scale`, `bench -- --nocapture` for timings
+cargo test --release -p tapiti-core --no-default-features   # the same, single-threaded
+cargo bench --release -p tapiti-core --bench generator  # Criterion benchmarks
+cargo run --release -p tapiti-core --example dump  # a hash per stage, to compare two builds
 ./build.sh simd && node bench.mjs 5 100      # SIMD vs not, in Node
 ```
 
-The server is `src/bin/serve.rs` (axum + tower-http's `ServeDir`): it serves `web/` with the right types (`.wasm` as `application/wasm`) and no cache,
-so an edit to the page or a rebuilt module shows on reload. It sits behind the `server` feature (on by default); the WebAssembly build leaves it out
-with `--no-default-features`. `PORT` also sets the port.
+The code is split into workspace packages so frontend changes do not require rebuilding the generator, WASM bindings, web server, and desktop app together.
+Cargo keeps one shared `target/` cache: `cargo run` builds only the default desktop app and its core dependency; `./build.sh` builds the WASM package and core; the site is compiled only when selected. The desktop (egui/eframe, glow renderer) enables only the Wayland and X11 backends. For everyday UI work, use the incremental development profile with plain `cargo run`; release builds retain optimization and thin LTO for performance measurements.
 
-Needs the `wasm32-unknown-unknown` target and the `wasm-bindgen` CLI at the version in `Cargo.toml` (`=0.2.130`).
+The root virtual workspace sets only `apps/desktop` as its default member, so plain `cargo run` still opens the desktop app. To build a package directly, use `cargo build -p tapiti-core`, `cargo build -p tapiti-wasm --target wasm32-unknown-unknown`, or `cargo build -p tapiti-site`. Cargo compiles the selected package and its dependency graph, rather than every workspace member. Development builds omit debug symbols and optimize only the generator core; release builds use thin LTO and multiple codegen units to shorten link times while retaining native optimization.
+
+The website is a [Topcoat](https://github.com/tokio-rs/topcoat) app (`apps/site`): server-rendered pages in English and Portuguese (`/en`, `/pt-BR`), with the browser lab at `/lab` (the WebAssembly module and `web/`, served from fixed URLs). `HOST` and `PORT` set the address; `compose.yml` is the Dokploy deployment.
+
+Needs the `wasm32-unknown-unknown` target and the `wasm-bindgen` CLI at the version in `crates/tapiti-wasm/Cargo.toml` (`=0.2.130`).
+
+The native egui frontend is the workspace's default application. It calls the shared Rust generator directly with Rayon enabled and renders the map
+without WebAssembly. The map fills the window; a right-hand panel has three tabs (floor reading and layout, every Λ parameter, analysis). Controls: all level
+presets, Λ parameters with per-field reset and a filter, guided experiments, JSON editing and copying, five map overlays and a legend,
+pan/zoom/hover inspection, validation, and metrics. Edits regenerate the map after a short pause. Each interactive request generates one floor;
+a slow generation shows rooms and corridor connections as the generator creates them. A separate benchmark compares single-thread and
+multi-thread throughput over many independent maps. Shortcuts: Alt+1–5 level, Alt+R random seed, Alt+left/right seed.
+The UI is in English by default; the language selector in the bottom bar switches to Portuguese. Texts use `t!("English text")` / `tf!("… {name}", name = x)`
+(`apps/desktop/src/i18n.rs`), and a language is one table of `(english, translation)` pairs, e.g. `i18n/pt.rs`; a unit test fails when a text has no
+entry, an entry is unused, or the placeholders differ. The choice is not persisted between runs.
+Building needs the usual eframe system libraries on Linux (xkbcommon, Wayland and/or X11, OpenGL).
+
+The desktop's single-map latency and progressive-rendering design is documented in [docs/desktop-generation-rendering.md](docs/desktop-generation-rendering.md).
 
 ## Layout
 
 | file | what |
 |---|---|
-| `src/geom.rs` | directions Θ₈, shapes, distances (exact and with a limit), corridor bands and joints |
-| `src/params.rs` | Λ (serde, camelCase JSON as in the prototype) and the five levels |
-| `src/generate.rs` | the generator, valid by construction: scaffold, shapes, doors, candidates, tree, cycles with T/X, leaf chambers; per-phase times |
-| `src/validate.rs` | V1 to V5 from the stage alone |
-| `src/metrics.rs` | β, δ, bridges, articulation rooms, Menger routes, diameter, λ₂ |
-| `src/stage.rs` | a valid stage: redraws from a derived seed when the validator objects |
-| `src/par.rs` | the one place that decides parallel or sequential (rayon, or plain loops) |
-| `src/clock.rs` | `performance.now()` in the browser, the system clock natively |
-| `src/bin/serve.rs` | the dev server (`cargo run`) |
-| `src/lib.rs` | the WASM API: `default_params(level)`, `stage_json(seed, params)`, `bench(level, from, count)`, `threads()` |
+| `crates/tapiti-core/src/geom.rs` | directions Θ₈, shapes, distances (exact and with a limit), corridor bands and joints |
+| `crates/tapiti-core/src/params.rs` | Λ (serde, camelCase JSON) and the five levels |
+| `crates/tapiti-core/src/generate.rs` | the generator, valid by construction: scaffold, shapes, doors, candidates, tree, cycles with T/X, leaf chambers; per-phase times |
+| `crates/tapiti-core/src/validate.rs` | V1 to V5 from the stage alone |
+| `crates/tapiti-core/src/metrics.rs` | β, δ, bridges, articulation rooms, Menger routes, diameter, λ₂ |
+| `crates/tapiti-core/src/stage.rs` | a valid stage: redraws from a derived seed when the validator objects |
+| `crates/tapiti-core/src/par.rs` | the one place that decides parallel or sequential (rayon, or plain loops) |
+| `crates/tapiti-core/src/clock.rs` | `performance.now()` in the browser, the system clock natively |
+| `apps/desktop/` | native desktop application (egui); selected by bare `cargo run` |
+| `apps/site/` | the website: landing page, docs and the lab (Topcoat; `topcoat dev -p tapiti-site`) |
+| `crates/tapiti-render/` | SVG rendering of floors for the site, docs and social images |
+| `crates/tapiti-schema/` | the parameters of Λ as data (groups, ranges, help in English and Portuguese), shared by the desktop app and the docs |
+| `docs/`, `docs/pt-BR/` | the documentation (Markdown, math as `$…$`), rendered by the site and readable on GitHub |
+| `crates/tapiti-wasm/` | the WASM API: `default_params(level)`, `stage_json(seed, params)`, `bench(level, from, count)`, `threads()` |
+| `crates/tapiti-core/tests/`, `benches/`, `examples/` | model tests, Criterion benchmarks, profiling and deterministic dumps |
 | `web/` | the page (`index.html`, `main.js`), the worker pool (`pool.js`, `worker.js`), no bundler |
-| `tests/`, `examples/` | model tests, `profile` (time by phase), `scale` (big floors, batch), `dump` (hashes) |
 
 Floats: only `+ − × ÷`, `sqrt` and the libm inside the module, so every browser rounds the same.
+
+## License
+
+[MIT](LICENSE).

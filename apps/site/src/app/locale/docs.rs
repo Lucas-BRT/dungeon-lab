@@ -1,0 +1,60 @@
+pub mod _page;
+pub mod slug;
+
+use topcoat::{
+    Result,
+    context::Cx,
+    l10n::locale,
+    router::href,
+    view::{Child, View, component, view},
+};
+
+use super::{path_locale, search};
+use crate::{app::t, docs::docs};
+
+/// The documentation's frame: the search box and the list of pages beside whatever `child` shows. `current` is the slug being read.
+#[component]
+pub async fn frame(cx: &Cx, current: &str, #[default] child: Child<'_>) -> Result<impl View> {
+    let here = locale(cx).clone();
+    let pages = docs().pages(&here.id().to_string());
+    Ok(view! {
+        <div class="docs">
+            <aside class="docs-nav">
+                <form
+                    class="docs-search"
+                    role="search"
+                    method="get"
+                    action=(href!(search::page, path_locale: &here))
+                >
+                    <label class="visually-hidden" for="docs-q">
+                        (t!(docs_search_label))
+                    </label>
+                    <input
+                        id="docs-q"
+                        type="search"
+                        name="q"
+                        maxlength="80"
+                        placeholder=(t!(docs_search_placeholder))
+                    >
+                </form>
+                <nav aria-label=(t!(docs_nav_label))>
+                    <ul>
+                        for page in pages {
+                            <li>
+                                <a
+                                    href=(href!(slug::_page::page, path_locale: &here, slug: page.slug))
+                                    if page.slug == current {
+                                        aria-current="page"
+                                    }
+                                >
+                                    (page.title.as_str())
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+            </aside>
+            <div class="docs-main">(child)</div>
+        </div>
+    })
+}
