@@ -91,6 +91,7 @@ async fn layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
                 >
                 <link rel="stylesheet" href=(asset!("assets/styles.css"))>
                 topcoat::runtime::script()
+                <script src=(asset!("assets/site.js")) defer="defer"></script>
                 topcoat::dev::script()
             </head>
             <body>
@@ -103,13 +104,24 @@ async fn layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
     })
 }
 
-/// The same page in every language, for `hreflang` (absolute URLs, as search engines require).
-fn alternates(cx: &Cx) -> Vec<(String, String)> {
-    let path = topcoat::router::request::uri(cx).path();
-    let rest = path
+/// The path of the current page without its language, with the query: `/docs/model`, `/search?q=seed`.
+fn page_rest(cx: &Cx) -> String {
+    let uri = topcoat::router::request::uri(cx);
+    let rest = uri
+        .path()
         .strip_prefix('/')
         .and_then(|p| p.split_once('/').map(|(_, r)| format!("/{r}")))
         .unwrap_or_default();
+    match uri.query() {
+        Some(query) => format!("{rest}?{query}"),
+        None => rest,
+    }
+}
+
+/// The same page in every language, for `hreflang` (absolute URLs, as search engines require).
+fn alternates(cx: &Cx) -> Vec<(String, String)> {
+    let rest = page_rest(cx);
+    let rest = rest.split('?').next().unwrap_or_default();
     let base = crate::app::site_url();
     let base = base.trim_end_matches('/');
     t::locales()
@@ -140,7 +152,7 @@ async fn header(cx: &Cx) -> Result<impl View> {
                 <span class="lang">
                     for link_locale in t::locales() {
                         <a
-                            href=(href!(_page::page, path_locale: link_locale))
+                            href=(format!("/{}{}", link_locale.id(), page_rest(cx)))
                             lang=(link_locale.id())
                             hreflang=(link_locale.id())
                             if link_locale == locale(cx) {
@@ -160,9 +172,30 @@ async fn header(cx: &Cx) -> Result<impl View> {
 async fn footer(cx: &Cx) -> Result<impl View> {
     Ok(view! {
         <footer class="site-footer" data-layer="deep">
-            <span>(t!(footer_license))</span>
-            <a href=(GITHUB)>(t!(footer_source))</a>
-            <a href=(GITHUB_ISSUES)>(t!(footer_issues))</a>
+            <div class="footer-about">
+                <a class="brand" href=(href!(_page::page, path_locale: locale(cx)))>
+                    <img
+                        src=(asset!("assets/brand/mark.svg"))
+                        alt=""
+                        width="28"
+                        height="28"
+                    >
+                    "tapiti"
+                </a>
+                <p>(t!(footer_license))</p>
+            </div>
+            <nav aria-label=(t!(footer_explore))>
+                <h2>(t!(footer_explore))</h2>
+                <a href=(href!(docs::_page::page, path_locale: locale(cx)))>
+                    (t!(nav_docs))
+                </a>
+                <a href=(href!(crate::app::lab))>(t!(nav_lab))</a>
+            </nav>
+            <nav aria-label=(t!(footer_project))>
+                <h2>(t!(footer_project))</h2>
+                <a href=(GITHUB)>(t!(footer_source))</a>
+                <a href=(GITHUB_ISSUES)>(t!(footer_issues))</a>
+            </nav>
         </footer>
     })
 }

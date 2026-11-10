@@ -28,6 +28,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
         href!(leaf::page, path_locale: locale(cx)).resolve(cx)
     ));
     Ok(view! {
+        <div class="gauge" aria-hidden="true"><i></i></div>
         <section class="hero" data-layer="dawn">
             <div class="hero-copy">
                 <h1>(t!(hero_title))</h1>
@@ -224,7 +225,10 @@ async fn chamber(cx: &Cx, shape: &'static str, #[default] child: Child<'_>) -> R
                     }
                 }
             </svg>
-            <div>(child)</div>
+            <div>
+                <span class="depth" aria-hidden="true"></span>
+                (child)
+            </div>
         </li>
     })
 }
