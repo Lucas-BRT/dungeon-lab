@@ -34,7 +34,7 @@ pub fn router() -> Router {
 }
 
 /// The public address of the site (for canonical links and social previews): `TAPITI_SITE_URL`, else the local one.
-fn site_url() -> String {
+pub(crate) fn site_url() -> String {
     std::env::var("TAPITI_SITE_URL").unwrap_or_else(|_| "http://127.0.0.1:3000".into())
 }
 

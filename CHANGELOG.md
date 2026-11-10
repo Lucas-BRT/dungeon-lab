@@ -6,6 +6,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- Site: canonical link and `hreflang` alternates on every page.
 - The Tapiti website: landing page, documentation (English and Portuguese, with math as MathML, a generated parameter reference and search), the browser lab, sitemap and robots.txt.
 - `tapiti-render` (SVG floors) and `tapiti-schema` (the parameters of Λ as data, in English and Portuguese).
 - "Dig again" on the landing page: dig the floor of any seed on the server (cached, with a bounded budget).

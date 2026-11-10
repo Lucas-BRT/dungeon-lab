@@ -9,7 +9,7 @@ use topcoat::{
     context::Cx,
     font::{Font, fontsource::fontsource_font},
     l10n::{Locale, locale},
-    metadata::{Metadata, OpenGraph},
+    metadata::{Metadata, OpenGraph, Url},
     router::{
         Body, Next, Slot, error::not_found, href, layer, layout, module_param, response::Response,
     },
@@ -62,6 +62,7 @@ async fn layer(cx: &Cx, body: Body, next: Next<'_>) -> Result<Response> {
         .title(t!(title))
         .description(t!(description))
         .theme_color("#15110e")
+        .canonical(Url::Current)
         .open_graph(
             OpenGraph::new().site_name("Tapiti").image(asset!("assets/brand/og.png")),
         ))
@@ -73,6 +74,9 @@ async fn layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
             <head>
                 <meta name="color-scheme" content="dark light">
                 topcoat::metadata::tags()
+                for (id, href) in alternates(cx) {
+                    <link rel="alternate" hreflang=(id) href=(href)>
+                }
                 topcoat::font::link(font: FRAUNCES)
                 topcoat::font::link(font: DM_SANS)
                 <link
@@ -97,6 +101,21 @@ async fn layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
             </body>
         </html>
     })
+}
+
+/// The same page in every language, for `hreflang` (absolute URLs, as search engines require).
+fn alternates(cx: &Cx) -> Vec<(String, String)> {
+    let path = topcoat::router::request::uri(cx).path();
+    let rest = path
+        .strip_prefix('/')
+        .and_then(|p| p.split_once('/').map(|(_, r)| format!("/{r}")))
+        .unwrap_or_default();
+    let base = crate::app::site_url();
+    let base = base.trim_end_matches('/');
+    t::locales()
+        .iter()
+        .map(|l| (l.id().to_string(), format!("{base}/{}{rest}", l.id())))
+        .collect()
 }
 
 #[component]
