@@ -5,12 +5,18 @@ use tapiti_core::{generate, layout::layout_stats, params};
 
 fn mean_sd(xs: &[f64]) -> (f64, f64) {
     let m = xs.iter().sum::<f64>() / xs.len() as f64;
-    (m, (xs.iter().map(|x| (x - m).powi(2)).sum::<f64>() / xs.len() as f64).sqrt())
+    (
+        m,
+        (xs.iter().map(|x| (x - m).powi(2)).sum::<f64>() / xs.len() as f64).sqrt(),
+    )
 }
 
 fn main() {
     println!("reference: alignment ≈ 1/√n for unrelated points; Clark-Evans 1 random, 2.15 hex lattice; dispersion 1 Poisson");
-    println!("{:<12} {:>6} {:>6} {:>14} {:>14} {:>14} {:>12}", "grid", "jitter", "rooms", "alignment", "clark-evans", "dispersion", "area-cv");
+    println!(
+        "{:<12} {:>6} {:>6} {:>14} {:>14} {:>14} {:>12}",
+        "grid", "jitter", "rooms", "alignment", "clark-evans", "dispersion", "area-cv"
+    );
     for (cols, rows, scale) in [(10, 8, 1.0), (16, 12, 1.0), (10, 8, 2.0)] {
         for jitter in [0.0, 0.15, 0.3, 0.45] {
             let mut p = params::params_of_level(5);
@@ -19,7 +25,9 @@ fn main() {
             p.layout_jitter = jitter;
             p.cell_w *= scale;
             p.cell_h *= scale;
-            let all: Vec<_> = (0..100u32).map(|s| layout_stats(&generate::generate(0xA000 + s, &p))).collect();
+            let all: Vec<_> = (0..100u32)
+                .map(|s| layout_stats(&generate::generate(0xA000 + s, &p)))
+                .collect();
             let col = |f: fn(&tapiti_core::layout::LayoutStats) -> f64| {
                 mean_sd(&all.iter().map(f).collect::<Vec<_>>())
             };

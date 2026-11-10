@@ -1,52 +1,92 @@
-/* Tapiti design tokens: soil neutrals, one accent (carrot). Dark is the default ("underground"); light follows the system ("surface"). */
+/* Tapiti design tokens. The landing page is a cross-section of a burrow: each section sits in a soil layer (data-layer)
+   that re-defines the colour tokens below it. One accent (carrot); lantern yellow only for light in the tunnels.
+   Docs and utility pages use the neutral base (:root). Dark is the default; light follows the system. */
 :root {
   color-scheme: dark light;
-  --bg: #15110e;
-  --surface: #1e1814;
-  --line: #31281f;
-  --text: #f2e9dc;
-  --muted: #b9ab9a;
-  --accent: #f08a3c;
-  --accent-ink: #1b0f05;
-  --ok: #7fbf7a;
+  --carrot: #ff7a2f;
+  --lantern: #ffc857;
+  --accent-ink: #1f0d03;
+  --ok: #7fd48a;
+  --danger: #ff6b6b;
 
-  --map-corridor: #5a4e43;
-  --map-gate: #e8b339;
-  --map-rect: #496c9a;
-  --map-disc: #29a89a;
-  --map-oct: #9b78d1;
-  --map-L: #ce843c;
-  --map-star: #d0ae38;
-  --map-ink: #f2e9dc;
+  /* neutral base */
+  --bg: #17131c;
+  --surface: #211b28;
+  --line: #36303f;
+  --text: #f1e9e0;
+  --muted: #b9aebb;
+  --accent: var(--carrot);
+  --accent-text: #ff9a5c;
+
+  /* floor colours (luminous, for the dark layers) */
+  --map-corridor: #7d7489;
+  --map-gate: #ffc857;
+  --map-rect: #5b8def;
+  --map-disc: #2ec4b6;
+  --map-oct: #a78bfa;
+  --map-L: #f08a4b;
+  --map-star: #e0c34a;
+  --map-ink: #f1e9e0;
 
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-body: "DM Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --shadow: 0 1px 2px rgb(0 0 0 / .25), 0 8px 24px -8px rgb(0 0 0 / .45);
   --ease-out: cubic-bezier(.2, .7, .2, 1);
+  --gutter: clamp(16px, 4vw, 40px);
 }
 @media (prefers-color-scheme: light) {
   :root {
-    --bg: #f7f1e6;
+    --bg: #fbf5ea;
     --surface: #fffaf0;
-    --line: #e4d9c6;
-    --text: #2a2118;
-    --muted: #6d5f50;
-    --accent: #a84f0a;
-    --accent-ink: #fff7ec;
+    --line: #e6dac6;
+    --text: #2a1d14;
+    --muted: #6b5848;
+    --accent: #b8470a;
+    --accent-text: #b8470a;
     --ok: #1d7a3c;
-    --map-corridor: #b3a590;
-    --map-gate: #b77d00;
-    --map-rect: #315f96;
-    --map-disc: #087f76;
-    --map-oct: #7253af;
-    --map-L: #a95812;
-    --map-star: #936c00;
-    --map-ink: #2a2118;
+    --danger: #c4372f;
+    --shadow: 0 1px 2px rgb(60 30 10 / .08), 0 8px 24px -8px rgb(60 30 10 / .18);
   }
+}
+
+/* Layers, from the surface down. A section sets data-layer and its children inherit the tokens. */
+[data-layer] { background-color: var(--bg); color: var(--text); }
+[data-layer="dawn"], body:has(.hero) .site-header {
+  --bg: #2a1f36; --surface: #382b46; --line: #55425d; --text: #f8ebdc; --muted: #d3bfc0; --accent-text: #ffa066;
+  --glow: #6a3342;
+  --map-corridor: #a58f9a;
+}
+[data-layer="soil"] {
+  --bg: #3f2a1e; --surface: #4d3325; --line: #6b4a36; --text: #f4e7d4; --muted: #d4bea5; --accent-text: #ffa066;
+  --map-corridor: #b39478;
+}
+[data-layer="clay"] {
+  --bg: #6e3a28; --surface: #7d4630; --line: #9a5c42; --text: #fcecdf; --muted: #efd3bf; --accent-text: #ffcb94;
+  --map-corridor: #d6aa8c;
+}
+[data-layer="rock"] {
+  --bg: #2b2733; --surface: #363141; --line: #4b4559; --text: #eee8f3; --muted: #beb5ca; --accent-text: #ff9a5c;
+  --map-corridor: #8e86a0;
+}
+[data-layer="deep"] {
+  --bg: #120f18; --surface: #1c1824; --line: #2f2a3a; --text: #eee8f3; --muted: #b2a9bf; --accent-text: #ff9a5c;
+  --map-corridor: #6f6780;
+}
+@media (prefers-color-scheme: light) {
+  [data-layer="dawn"], body:has(.hero) .site-header {
+    --bg: #ffe9c7; --surface: #fff5e0; --line: #efcf9f; --text: #2a1a12; --muted: #66493a; --accent-text: #b8470a;
+    --glow: #f9c08f;
+    --map-corridor: #b8a28a;
+    --map-gate: #a56d00; --map-rect: #2f5fb8; --map-disc: #0a7f76; --map-oct: #6f4fc4; --map-L: #b4560f; --map-star: #8c6a00;
+    --map-ink: #2a1a12;
+  }
+  [data-layer="rock"] { --bg: #3a3545; --surface: #453f52; --line: #5b546a; }
+  [data-layer="deep"] { --bg: #1c1824; --surface: #262130; --line: #3a3447; }
 }
 
 * { box-sizing: border-box; }
@@ -67,7 +107,7 @@ a { color: inherit; }
 .skip-link:focus { top: 12px; }
 
 /* Header */
-.site-header { display: flex; align-items: center; gap: 24px; padding: 18px clamp(16px, 4vw, 40px); }
+.site-header { background: var(--bg); display: flex; align-items: center; gap: 24px; padding: 18px clamp(16px, 4vw, 40px); }
 .brand { display: inline-flex; align-items: center; gap: 10px; font: 600 1.45rem/1 var(--font-display); letter-spacing: -.02em; text-decoration: none; }
 .brand img { display: block; }
 .site-nav { display: flex; align-items: center; gap: 22px; margin-left: auto; font-size: .95rem; }
@@ -77,14 +117,14 @@ a { color: inherit; }
 
 /* Hero: the floor is the product, cropped by the right edge of the fold. */
 main { flex: 1; }
-.hero { position: relative; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); align-items: center; gap: clamp(24px, 5vw, 72px); padding: clamp(40px, 12vh, 120px) 0 clamp(40px, 8vh, 96px) clamp(16px, 4vw, 40px); overflow: hidden; }
+.hero { position: relative; background-image: linear-gradient(180deg, transparent 30%, var(--glow)); display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); align-items: center; gap: clamp(24px, 5vw, 72px); padding: clamp(40px, 12vh, 120px) 0 clamp(40px, 8vh, 96px) clamp(16px, 4vw, 40px); overflow: hidden; }
 .hero-copy { max-width: 40rem; }
 .hero h1 { margin: 0 0 20px; font: 600 clamp(2.4rem, 5.2vw, 4rem)/1.05 var(--font-display); letter-spacing: -.025em; text-wrap: balance; }
 .hero p { margin: 0 0 32px; max-width: 30rem; font-size: 1.1rem; color: var(--muted); text-wrap: pretty; }
 .cta-row { display: flex; flex-wrap: wrap; gap: 14px; }
 .button { display: inline-flex; align-items: center; padding: 12px 22px; border-radius: var(--radius-md); font-weight: 600; text-decoration: none; border: 1px solid var(--line); transition: background-color .15s, border-color .15s, transform .15s var(--ease-out); }
 .button:hover { border-color: var(--muted); }
-.button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.button.primary { background: var(--carrot); border-color: var(--carrot); color: var(--accent-ink); }
 .button.primary:hover { transform: translateY(-1px); }
 .hero-floor { margin: 0; min-width: 0; margin-right: calc(-1 * clamp(40px, 9vw, 160px)); }
 .hero-floor svg { display: block; width: 100%; height: auto; }
@@ -106,7 +146,7 @@ main { flex: 1; }
 .tapiti-floor .c-star { fill: var(--map-star); }
 .tapiti-floor .r-start, .tapiti-floor .r-rest { stroke: var(--ok); }
 .tapiti-floor .r-stairs, .tapiti-floor .r-switch { stroke: var(--accent); }
-.tapiti-floor .r-ambush, .tapiti-floor .r-boss, .tapiti-floor .r-trap { stroke: #ef5d5d; }
+.tapiti-floor .r-ambush, .tapiti-floor .r-boss, .tapiti-floor .r-trap { stroke: var(--danger); }
 .tapiti-floor .r-key, .tapiti-floor .r-prize { stroke: var(--map-gate); }
 .tapiti-floor .junction { fill: var(--map-ink); stroke: var(--bg); }
 .tapiti-floor .door { stroke: var(--map-ink); }
@@ -133,7 +173,7 @@ code { font-family: var(--font-mono); font-size: .88em; }
 .stat-label { margin: 10px 0 0; max-width: 22rem; color: var(--muted); font-size: .95rem; text-wrap: pretty; }
 
 /* Feature rows: text on one side, a real floor on the other. */
-.feature { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); align-items: center; gap: clamp(24px, 6vw, 88px); max-width: 1200px; margin: 0 auto; padding: clamp(64px, 11vh, 128px) clamp(16px, 4vw, 40px); }
+.feature { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); align-items: center; gap: clamp(24px, 6vw, 88px); padding: clamp(64px, 11vh, 128px) max(var(--gutter), calc((100% - 1200px) / 2)); }
 .feature.reverse { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); }
 .feature.reverse .feature-copy { order: 2; }
 .feature-copy p { margin: 0 0 20px; color: var(--muted); max-width: 32rem; text-wrap: pretty; }
@@ -148,12 +188,12 @@ code { font-family: var(--font-mono); font-size: .88em; }
 .swatch.c-L, .token .c-L { fill: var(--map-L); background: var(--map-L); }
 .swatch.c-star, .token .c-star { fill: var(--map-star); background: var(--map-star); }
 .token .c-rect, .token .c-disc, .token .c-oct, .token .c-L, .token .c-star { background: none; }
-.verdict { display: grid; gap: 8px; padding: 16px 18px; background: var(--surface); border: 1px solid var(--line); border-left: 3px solid #ef5d5d; border-radius: var(--radius-md); }
+.verdict { display: grid; gap: 8px; padding: 16px 18px; background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--danger); border-radius: var(--radius-md); }
 .verdict-caption { margin: 0 !important; font-size: .88rem; }
 .verdict code { color: var(--text); overflow-wrap: anywhere; }
 
 /* The descent: the signature. One corridor, drawn as the page scrolls, joins four chambers. */
-.descent { max-width: 1100px; margin: 0 auto; padding: clamp(64px, 11vh, 128px) clamp(16px, 4vw, 40px); }
+.descent { padding: clamp(64px, 11vh, 128px) max(var(--gutter), calc((100% - 1100px) / 2)); }
 .descent > h2 { text-align: center; }
 .descent ol { position: relative; display: grid; gap: clamp(36px, 7vh, 72px); margin: clamp(40px, 7vh, 72px) 0 0; padding: 0; list-style: none; }
 .descent ol::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 14px; margin-left: -7px; border-radius: 7px; background: var(--map-corridor); transform-origin: top; }
@@ -172,13 +212,13 @@ code { font-family: var(--font-mono); font-size: .88em; }
 }
 
 /* Run it your way: one panel, one row per way in. */
-.run { max-width: 900px; margin: 0 auto; padding: clamp(48px, 9vh, 112px) clamp(16px, 4vw, 40px); }
+.run { padding: clamp(48px, 9vh, 112px) max(var(--gutter), calc((100% - 900px) / 2)); }
 .run-panel { margin: 28px 0 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); }
 .run-panel > div { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: 16px; align-items: baseline; padding: 18px 22px; }
 .run-panel > div + div { border-top: 1px solid var(--line); }
 .run-panel dt { color: var(--muted); font-size: .92rem; }
 .run-panel dd { margin: 0; overflow-wrap: anywhere; }
-.run-panel a { color: var(--accent); }
+.run-panel a { color: var(--accent-text); }
 
 .final-cta { padding: clamp(72px, 14vh, 160px) clamp(16px, 4vw, 40px); text-align: center; }
 .final-cta .cta-row { justify-content: center; margin-top: 28px; }
@@ -202,7 +242,7 @@ input[type=search]::placeholder { color: var(--muted); }
 .docs-article h3 { margin: 1.8em 0 .5em; scroll-margin-top: 16px; }
 .docs-article h4 { margin: 1.4em 0 .4em; scroll-margin-top: 16px; }
 .docs-article p, .docs-article li { text-wrap: pretty; }
-.docs-article a { color: var(--accent); text-underline-offset: 3px; }
+.docs-article a { color: var(--accent-text); text-underline-offset: 3px; }
 .docs-article .anchor { margin-left: .4em; color: var(--muted); text-decoration: none; opacity: 0; transition: opacity .15s; }
 .docs-article :is(h2, h3, h4):hover .anchor, .docs-article .anchor:focus-visible { opacity: 1; }
 .docs-article :is(pre, .table-wrap, .math-display):focus-visible { outline-offset: 2px; }
@@ -232,7 +272,7 @@ math { font-size: 1.08em; }
 .search-results { display: grid; gap: 18px; margin: 12px 0 0; padding: 0; list-style: none; max-width: 46rem; }
 .search-results a { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; text-decoration: none; }
 .hit-page { color: var(--muted); font-size: .85rem; }
-.hit-heading { color: var(--accent); font-weight: 600; }
+.hit-heading { color: var(--accent-text); font-weight: 600; }
 .search-results p { margin: 4px 0 0; color: var(--muted); font-size: .92rem; }
 
 /* The leaf chamber */

@@ -1300,7 +1300,11 @@ impl<'a> Gen<'a> {
                                 .into_iter()
                                 .all(|oi| {
                                     oi >= self.edges.len()
-                                        || !region_within(&arm_full, &self.edges[oi].region, pr.clear)
+                                        || !region_within(
+                                            &arm_full,
+                                            &self.edges[oi].region,
+                                            pr.clear,
+                                        )
                                 });
                         }
                         if !ok {
@@ -1337,7 +1341,8 @@ impl<'a> Gen<'a> {
                                             < pr.clear - 1e-6
                                 })
                         };
-                        if too_close(&first_region, e.ends[0]) || too_close(&tail_region, e.ends[1]) {
+                        if too_close(&first_region, e.ends[0]) || too_close(&tail_region, e.ends[1])
+                        {
                             continue;
                         }
                         let mix_w: f64 = reach
@@ -1870,7 +1875,15 @@ fn grow_rooms(
     };
     // A box of 1..3 cells a side, mostly small.
     let pick_box = |rng: &mut Mulberry| -> (f64, f64, i32) {
-        let k = |u: f64| if u < 0.55 { 1 } else if u < 0.85 { 2 } else { 3 };
+        let k = |u: f64| {
+            if u < 0.55 {
+                1
+            } else if u < 0.85 {
+                2
+            } else {
+                3
+            }
+        };
         let (kw, kh) = (k(rng.next()), k(rng.next()));
         (
             kw as f64 * cw - 2.0 * p.gap,
@@ -1898,7 +1911,12 @@ fn grow_rooms(
             bounds,
             center: centroid(&shape),
             area: area_of(&shape),
-            rect: Rect { x0: bx.x0, y0: bx.y0, x1: bx.x1, y1: bx.y1 },
+            rect: Rect {
+                x0: bx.x0,
+                y0: bx.y0,
+                x1: bx.x1,
+                y1: bx.y1,
+            },
             ports: ports_of(id, &shape, p),
             shape,
             used: Vec::new(),
@@ -1913,7 +1931,12 @@ fn grow_rooms(
     // The first room, in the middle of the world.
     let (w0, h0, cells0) = pick_box(&mut g.rng);
     let (mx, my) = ((world.x0 + world.x1) / 2.0, (world.y0 + world.y1) / 2.0);
-    let bx0 = Bx { x0: mx - w0 / 2.0, y0: my - h0 / 2.0, x1: mx + w0 / 2.0, y1: my + h0 / 2.0 };
+    let bx0 = Bx {
+        x0: mx - w0 / 2.0,
+        y0: my - h0 / 2.0,
+        x1: mx + w0 / 2.0,
+        y1: my + h0 / 2.0,
+    };
     let Some((c0, s0)) = fit_room(g, bx0.clone(), cells0) else {
         return Vec::new();
     };
@@ -1966,7 +1989,12 @@ fn grow_rooms(
             if any.is_empty() {
                 break;
             }
-            (any[(g.rng.next() * any.len() as f64).floor() as usize], usize::MAX, 1, true)
+            (
+                any[(g.rng.next() * any.len() as f64).floor() as usize],
+                usize::MAX,
+                1,
+                true,
+            )
         } else {
             // The parent is drawn with weight e^(cluster·density): preferential attachment, so crowded spots keep growing.
             let ws: Vec<f64> = open
@@ -1976,7 +2004,12 @@ fn grow_rooms(
             let Some(k) = g.weighted(&ws) else {
                 break;
             };
-            (open[k], k, 1 + (g.rng.next() * branch as f64).floor() as usize, false)
+            (
+                open[k],
+                k,
+                1 + (g.rng.next() * branch as f64).floor() as usize,
+                false,
+            )
         };
         let mut failed = false;
         for _ in 0..children {
@@ -2016,8 +2049,14 @@ fn grow_rooms(
                         door.p[0] + u[0] * (reach + half) - u[1] * lateral * bw,
                         door.p[1] + u[1] * (reach + half) + u[0] * lateral * bh,
                     );
-                    let bx = Bx { x0: cx - bw / 2.0, y0: cy - bh / 2.0, x1: cx + bw / 2.0, y1: cy + bh / 2.0 };
-                    if bx.x0 < world.x0 || bx.y0 < world.y0 || bx.x1 > world.x1 || bx.y1 > world.y1 {
+                    let bx = Bx {
+                        x0: cx - bw / 2.0,
+                        y0: cy - bh / 2.0,
+                        x1: cx + bw / 2.0,
+                        y1: cy + bh / 2.0,
+                    };
+                    if bx.x0 < world.x0 || bx.y0 < world.y0 || bx.x1 > world.x1 || bx.y1 > world.y1
+                    {
                         continue;
                     }
                     let Some((c, shape)) = fit_room(g, bx.clone(), cells) else {
@@ -2036,7 +2075,12 @@ fn grow_rooms(
                         .into_iter()
                         .any(|e| {
                             e < g.edges.len()
-                                && region_shape_within(&g.edges[e].region, &room.shape, room.bounds, p.clear)
+                                && region_shape_within(
+                                    &g.edges[e].region,
+                                    &room.shape,
+                                    room.bounds,
+                                    p.clear,
+                                )
                         });
                     if crowded
                         || on_corridor
@@ -2081,10 +2125,11 @@ fn grow_rooms(
                 let (room, _) = proposals.swap_remove(k);
                 let id = room.id;
                 g.rooms.push(room);
-                let found: Vec<Candidate> = candidates_for_indexed(p, &g.rooms, parent, id, 4, &g.room_grid)
-                    .into_iter()
-                    .filter(|c| g.fits_now(c))
-                    .collect();
+                let found: Vec<Candidate> =
+                    candidates_for_indexed(p, &g.rooms, parent, id, 4, &g.room_grid)
+                        .into_iter()
+                        .filter(|c| g.fits_now(c))
+                        .collect();
                 let ws: Vec<f64> = found.iter().map(|c| c.weight).collect();
                 let Some(k) = g.weighted(&ws) else {
                     g.rooms.pop();
@@ -2095,7 +2140,9 @@ fn grow_rooms(
                     .insert_bounds(id, g.rooms[id].bounds.lo, g.rooms[id].bounds.hi);
                 g.nodes.push(Node::Room { room: id });
                 g.node_of_room.push(id);
-                report_progress(progress, || GenerationEvent::RoomAdded(g.rooms[id].shape.clone()));
+                report_progress(progress, || {
+                    GenerationEvent::RoomAdded(g.rooms[id].shape.clone())
+                });
                 let edge = g.add_edge(
                     g.node_of_room[parent],
                     g.node_of_room[id],
@@ -2157,7 +2204,11 @@ fn grow_rooms(
         ));
     }
     if islands > 1 || p.growth.islands > 1 {
-        g.log.push(format!("growth islands: {} of {} made", island_idx + 1, p.growth.islands.max(1)));
+        g.log.push(format!(
+            "growth islands: {} of {} made",
+            island_idx + 1,
+            p.growth.islands.max(1)
+        ));
     }
     island_of
 }
@@ -2527,7 +2578,8 @@ fn generate_inner(
     }
     g.room_grid = SpatialHash::new(room_index_cell);
     for room in &g.rooms {
-        g.room_grid.insert_bounds(room.id, room.bounds.lo, room.bounds.hi);
+        g.room_grid
+            .insert_bounds(room.id, room.bounds.lo, room.bounds.hi);
     }
     g.edge_index = SpatialHash::new(room_index_cell);
     for e in &g.edges {

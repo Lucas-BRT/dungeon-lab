@@ -1,12 +1,12 @@
 //! The map view: world-to-screen transform and egui painting of rooms, corridors and overlays.
 
 use crate::{class_label, point_along, role_label, view_box, BuildingMap, Overlays};
+use eframe::egui::{
+    epaint::PathShape, Align2, Color32, FontId, Mesh, Painter, Pos2, Rect, Shape as Draw, Stroke,
+    Vec2,
+};
 use tapiti_core::generate::{Dungeon, Node, Role};
 use tapiti_core::geom::{dir_of, Shape};
-use eframe::egui::{
-    epaint::PathShape, Align2, Color32, FontId, Mesh, Painter, Pos2, Rect, Shape as Draw,
-    Stroke, Vec2,
-};
 
 /// World (generator pixels) to screen.
 pub struct Xf {
@@ -178,7 +178,14 @@ pub fn triangulate(pts: &[[f64; 2]]) -> Vec<[usize; 3]> {
     out
 }
 
-fn polyline(painter: &Painter, xf: &Xf, points: &[[f64; 2]], color: Color32, width: f32, dashed: bool) {
+fn polyline(
+    painter: &Painter,
+    xf: &Xf,
+    points: &[[f64; 2]],
+    color: Color32,
+    width: f32,
+    dashed: bool,
+) {
     if points.len() < 2 {
         return;
     }
@@ -225,7 +232,12 @@ fn room_shape(
                         center + Vec2::angled(t) * radius
                     })
                     .collect();
-                painter.extend(Draw::dashed_line(&ring, Stroke::new(width, stroke), width * 3.0, width * 2.0));
+                painter.extend(Draw::dashed_line(
+                    &ring,
+                    Stroke::new(width, stroke),
+                    width * 3.0,
+                    width * 2.0,
+                ));
             } else {
                 painter.circle_stroke(center, radius, Stroke::new(width, stroke));
             }
@@ -245,7 +257,12 @@ fn room_shape(
             if dashed {
                 let mut closed = screen.clone();
                 closed.extend(screen.first().copied());
-                painter.extend(Draw::dashed_line(&closed, Stroke::new(width, stroke), width * 3.0, width * 2.0));
+                painter.extend(Draw::dashed_line(
+                    &closed,
+                    Stroke::new(width, stroke),
+                    width * 3.0,
+                    width * 2.0,
+                ));
             } else {
                 painter.add(PathShape::closed_line(screen, Stroke::new(width, stroke)));
             }
@@ -274,23 +291,60 @@ fn label(painter: &Painter, xf: &Xf, text: &str, at: [f64; 2], color: Color32, w
         return;
     }
     // Small rooms get only their number: the full label would spill over the neighbours.
-    let text = if size < 12.0 { text.split(' ').next().unwrap_or(text) } else { text };
-    painter.text(xf.pt(at), Align2::CENTER_CENTER, text, FontId::proportional(size.clamp(9.0, 40.0)), color);
+    let text = if size < 12.0 {
+        text.split(' ').next().unwrap_or(text)
+    } else {
+        text
+    };
+    painter.text(
+        xf.pt(at),
+        Align2::CENTER_CENTER,
+        text,
+        FontId::proportional(size.clamp(9.0, 40.0)),
+        color,
+    );
 }
 
-pub fn draw_building(painter: &Painter, xf: &Xf, building: &BuildingMap, overlays: Overlays, pal: &Palette) {
+pub fn draw_building(
+    painter: &Painter,
+    xf: &Xf,
+    building: &BuildingMap,
+    overlays: Overlays,
+    pal: &Palette,
+) {
     if overlays.cells {
         grid(painter, xf, &building.grid_x, &building.grid_y, pal.grid);
     }
     for points in &building.edges {
-        polyline(painter, xf, points, pal.corridor, building.corridor_width.max(2.0) as f32, false);
+        polyline(
+            painter,
+            xf,
+            points,
+            pal.corridor,
+            building.corridor_width.max(2.0) as f32,
+            false,
+        );
     }
     for shape in &building.rooms {
-        room_shape(painter, xf, shape, Some(pal.shape("rect").gamma_multiply(0.9)), pal.grid, 4.0, false);
+        room_shape(
+            painter,
+            xf,
+            shape,
+            Some(pal.shape("rect").gamma_multiply(0.9)),
+            pal.grid,
+            4.0,
+            false,
+        );
     }
 }
 
-pub fn draw_dungeon(painter: &Painter, xf: &Xf, dungeon: &Dungeon, overlays: Overlays, pal: &Palette) {
+pub fn draw_dungeon(
+    painter: &Painter,
+    xf: &Xf,
+    dungeon: &Dungeon,
+    overlays: Overlays,
+    pal: &Palette,
+) {
     if overlays.cells {
         grid(painter, xf, &dungeon.grid_x, &dungeon.grid_y, pal.grid);
     }
@@ -308,7 +362,14 @@ pub fn draw_dungeon(painter: &Painter, xf: &Xf, dungeon: &Dungeon, overlays: Ove
     }
     if overlays.candidates {
         for candidate in &dungeon.candidates {
-            polyline(painter, xf, &candidate.pts, pal.accent.gamma_multiply(0.45), 5.0, false);
+            polyline(
+                painter,
+                xf,
+                &candidate.pts,
+                pal.accent.gamma_multiply(0.45),
+                5.0,
+                false,
+            );
         }
     }
     for edge in &dungeon.edges {
@@ -324,7 +385,12 @@ pub fn draw_dungeon(painter: &Painter, xf: &Xf, dungeon: &Dungeon, overlays: Ove
         if gated {
             let middle = xf.pt(point_along(&edge.pts, 0.5));
             let radius = (13.0 * xf.scale).max(7.0);
-            painter.circle(middle, radius, pal.background, Stroke::new(2.0, pal.warning));
+            painter.circle(
+                middle,
+                radius,
+                pal.background,
+                Stroke::new(2.0, pal.warning),
+            );
             painter.text(
                 middle,
                 Align2::CENTER_CENTER,
@@ -405,7 +471,11 @@ pub fn draw_dungeon(painter: &Painter, xf: &Xf, dungeon: &Dungeon, overlays: Ove
                 room.id,
                 class_label(room.cls.name()),
                 role,
-                if inventory.is_empty() { String::new() } else { format!(" · {inventory}") }
+                if inventory.is_empty() {
+                    String::new()
+                } else {
+                    format!(" · {inventory}")
+                }
             );
             label(painter, xf, &text, room.center, pal.on_room(), 18.0);
         }
@@ -425,22 +495,51 @@ pub fn legend(painter: &Painter, rect: Rect, pal: &Palette, text_color: Color32)
         Pos2::new(rect.left() + 10.0, rect.bottom() - height - 10.0),
         Vec2::new(200.0, height),
     );
-    let bg = if pal.dark { Color32::from_black_alpha(150) } else { Color32::from_white_alpha(200) };
+    let bg = if pal.dark {
+        Color32::from_black_alpha(150)
+    } else {
+        Color32::from_white_alpha(200)
+    };
     painter.rect_filled(panel, 8.0, bg);
     let mut y = panel.top() + 12.0;
     for (color, name) in items {
-        painter.rect_filled(Rect::from_min_size(Pos2::new(panel.left() + 10.0, y - 6.0), Vec2::splat(12.0)), 3.0, color);
-        painter.text(Pos2::new(panel.left() + 30.0, y), Align2::LEFT_CENTER, name, font.clone(), text_color);
+        painter.rect_filled(
+            Rect::from_min_size(Pos2::new(panel.left() + 10.0, y - 6.0), Vec2::splat(12.0)),
+            3.0,
+            color,
+        );
+        painter.text(
+            Pos2::new(panel.left() + 30.0, y),
+            Align2::LEFT_CENTER,
+            name,
+            font.clone(),
+            text_color,
+        );
         y += row;
     }
     painter.line_segment(
-        [Pos2::new(panel.left() + 10.0, y), Pos2::new(panel.left() + 24.0, y)],
+        [
+            Pos2::new(panel.left() + 10.0, y),
+            Pos2::new(panel.left() + 24.0, y),
+        ],
         Stroke::new(3.0, pal.warning),
     );
-    painter.text(Pos2::new(panel.left() + 30.0, y), Align2::LEFT_CENTER, t!("gate (key/switch)"), font.clone(), text_color);
+    painter.text(
+        Pos2::new(panel.left() + 30.0, y),
+        Align2::LEFT_CENTER,
+        t!("gate (key/switch)"),
+        font.clone(),
+        text_color,
+    );
     y += row;
     painter.circle_filled(Pos2::new(panel.left() + 16.0, y), 4.0, pal.ink);
-    painter.text(Pos2::new(panel.left() + 30.0, y), Align2::LEFT_CENTER, t!("junction · outline = role"), font, text_color);
+    painter.text(
+        Pos2::new(panel.left() + 30.0, y),
+        Align2::LEFT_CENTER,
+        t!("junction · outline = role"),
+        font,
+        text_color,
+    );
 }
 
 #[cfg(test)]
@@ -464,10 +563,23 @@ mod tests {
 
     #[test]
     fn concave_l_and_star_are_covered_exactly() {
-        let l = [[0.0, 0.0], [4.0, 0.0], [4.0, 2.0], [2.0, 2.0], [2.0, 4.0], [0.0, 4.0]];
+        let l = [
+            [0.0, 0.0],
+            [4.0, 0.0],
+            [4.0, 2.0],
+            [2.0, 2.0],
+            [2.0, 4.0],
+            [0.0, 4.0],
+        ];
         let star = [
-            [0.0, -4.0], [1.0, -1.0], [4.0, 0.0], [1.0, 1.0],
-            [0.0, 4.0], [-1.0, 1.0], [-4.0, 0.0], [-1.0, -1.0],
+            [0.0, -4.0],
+            [1.0, -1.0],
+            [4.0, 0.0],
+            [1.0, 1.0],
+            [0.0, 4.0],
+            [-1.0, 1.0],
+            [-4.0, 0.0],
+            [-1.0, -1.0],
         ];
         for pts in [&l[..], &star[..], &[l[5], l[4], l[3], l[2], l[1], l[0]][..]] {
             let tris = triangulate(pts);

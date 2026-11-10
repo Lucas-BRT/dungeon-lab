@@ -1,8 +1,8 @@
 //! Phase timings and output sizes for the complete generator at increasing grid sizes.
 //! Run with `cargo run --release -p tapiti-core --features diagnostic-profile --example profile_generator_scale`.
 
-use tapiti_core::{generate, params, validate};
 use std::{io::Write, time::Instant};
+use tapiti_core::{generate, params, validate};
 
 fn main() {
     for (cols, rows) in [(10, 8), (16, 12), (30, 30)] {

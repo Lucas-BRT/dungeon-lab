@@ -10,12 +10,6 @@ mod map;
 mod panels;
 mod params_ui;
 
-use tapiti_core::generate::{Dungeon, GenerationEvent, Node, Role};
-use tapiti_core::geom::{dist, Shape};
-use tapiti_core::metrics::{metrics_of, Metrics};
-use tapiti_core::par;
-use tapiti_core::params::{params_of_level, Params};
-use tapiti_core::stage;
 use eframe::egui::{self, Key, Modifiers};
 use params_ui::ParamGroup;
 use serde_json::Value;
@@ -23,6 +17,12 @@ use std::collections::HashSet;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use tapiti_core::generate::{Dungeon, GenerationEvent, Node, Role};
+use tapiti_core::geom::{dist, Shape};
+use tapiti_core::metrics::{metrics_of, Metrics};
+use tapiti_core::par;
+use tapiti_core::params::{params_of_level, Params};
+use tapiti_core::stage;
 
 const APP_ID: &str = "dev.lucasbrt.Tapiti";
 /// Pause after the last edit before the map regenerates.
@@ -159,7 +159,14 @@ impl App {
             json_error: None,
             show_json: false,
             filter: String::new(),
-            overlays: Overlays { cells: true, labels: true, ports: false, pairs: false, candidates: false, legend: true },
+            overlays: Overlays {
+                cells: true,
+                labels: true,
+                ports: false,
+                pairs: false,
+                candidates: false,
+                legend: true,
+            },
             zoom: 1.0,
             pan: [0.0, 0.0],
             busy: false,
@@ -198,7 +205,8 @@ impl App {
         self.show_building = false;
         self.building = BuildingMap::default();
         self.status = t!("Generating the map…").into();
-        let (work_id, level, seed, params) = (self.work_id, self.level, self.seed, self.params.clone());
+        let (work_id, level, seed, params) =
+            (self.work_id, self.level, self.seed, self.params.clone());
         let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
         std::thread::spawn(move || {
             // One message per frame keeps generation fast and avoids waking the UI for every room and corridor.
@@ -259,7 +267,9 @@ impl App {
                             );
                             self.generated = Some(map);
                         }
-                        Err(error) => self.status = tf!("Generation failed: {error}", error = error),
+                        Err(error) => {
+                            self.status = tf!("Generation failed: {error}", error = error)
+                        }
                     }
                     if self.queued {
                         self.launch_generate();
@@ -268,7 +278,10 @@ impl App {
                 Event::Benchmark(text) => {
                     self.busy = false;
                     self.performance_status = Some(text);
-                    self.status = tf!("Native engine · {threads} threads in the Rayon pool", threads = par::threads());
+                    self.status = tf!(
+                        "Native engine · {threads} threads in the Rayon pool",
+                        threads = par::threads()
+                    );
                 }
             }
         }
@@ -282,9 +295,17 @@ impl App {
         for event in events {
             match event {
                 GenerationEvent::AttemptStarted { draw, seed } => {
-                    self.building = BuildingMap { draw, seed, ..BuildingMap::default() };
+                    self.building = BuildingMap {
+                        draw,
+                        seed,
+                        ..BuildingMap::default()
+                    };
                 }
-                GenerationEvent::Layout { grid_x, grid_y, corridor_width } => {
+                GenerationEvent::Layout {
+                    grid_x,
+                    grid_y,
+                    corridor_width,
+                } => {
                     self.building.grid_x = grid_x;
                     self.building.grid_y = grid_y;
                     self.building.corridor_width = corridor_width;
@@ -326,7 +347,9 @@ impl App {
             .groups
             .iter()
             .flat_map(|group| &group.fields)
-            .filter(|field| get_path(&current, &field.path) != get_path(&self.defaults, &field.path))
+            .filter(|field| {
+                get_path(&current, &field.path) != get_path(&self.defaults, &field.path)
+            })
             .map(|field| field.path.clone())
             .collect();
     }
@@ -470,7 +493,10 @@ impl App {
             )),
             _ => self.building.bounds().or_else(|| {
                 let d = &self.generated.as_ref()?.dungeon;
-                Some(([*d.grid_x.first()?, *d.grid_y.first()?], [*d.grid_x.last()?, *d.grid_y.last()?]))
+                Some((
+                    [*d.grid_x.first()?, *d.grid_y.first()?],
+                    [*d.grid_x.last()?, *d.grid_y.last()?],
+                ))
             }),
         }
     }
@@ -483,7 +509,10 @@ impl App {
 
     fn shortcuts(&mut self, ctx: &egui::Context) {
         let alt = |ctx: &egui::Context, key| ctx.input_mut(|i| i.consume_key(Modifiers::ALT, key));
-        for (index, key) in [Key::Num1, Key::Num2, Key::Num3, Key::Num4, Key::Num5].into_iter().enumerate() {
+        for (index, key) in [Key::Num1, Key::Num2, Key::Num3, Key::Num4, Key::Num5]
+            .into_iter()
+            .enumerate()
+        {
             if alt(ctx, key) {
                 self.set_level(index + 1);
             }
@@ -556,10 +585,18 @@ fn setup_style(ctx: &egui::Context) {
         style.visuals.window_corner_radius = 10.0.into();
         style.visuals.selection.bg_fill = egui::Color32::from_rgb(0x2f, 0x6f, 0xd6);
         style.visuals.selection.stroke.color = egui::Color32::WHITE;
-        style.text_styles.insert(egui::TextStyle::Heading, egui::FontId::proportional(20.0));
-        style.text_styles.insert(egui::TextStyle::Body, egui::FontId::proportional(14.5));
-        style.text_styles.insert(egui::TextStyle::Button, egui::FontId::proportional(14.5));
-        style.text_styles.insert(egui::TextStyle::Small, egui::FontId::proportional(12.0));
+        style
+            .text_styles
+            .insert(egui::TextStyle::Heading, egui::FontId::proportional(20.0));
+        style
+            .text_styles
+            .insert(egui::TextStyle::Body, egui::FontId::proportional(14.5));
+        style
+            .text_styles
+            .insert(egui::TextStyle::Button, egui::FontId::proportional(14.5));
+        style
+            .text_styles
+            .insert(egui::TextStyle::Small, egui::FontId::proportional(12.0));
     });
 }
 
@@ -604,7 +641,10 @@ pub fn translate_violation(message: &str) -> String {
 
 fn translate_log(message: &str) -> String {
     if let Some(value) = message.strip_prefix("tree stuck: near ") {
-        return tf!("The search widened the connection radius to {value}.", value = value);
+        return tf!(
+            "The search widened the connection radius to {value}.",
+            value = value
+        );
     }
     if let Some(value) = message.strip_prefix("layout jitter limited to ") {
         return tf!("Grid irregularity was limited to {value}.", value = value);
@@ -721,7 +761,11 @@ fn run_benchmark(level: usize, kind: BenchmarkKind) -> String {
 /// Multi-line description of a floor, built on demand so it follows the active language.
 pub fn summary(map: &GeneratedMap) -> String {
     let m = &map.metrics;
-    let validity = if map.violations.is_empty() { t!("valid") } else { t!("with violations") };
+    let validity = if map.violations.is_empty() {
+        t!("valid")
+    } else {
+        t!("with violations")
+    };
     let warnings = if map.violations.is_empty() {
         String::new()
     } else {
@@ -779,7 +823,12 @@ fn validate_params(p: &Params) -> Result<(), String> {
         if value.is_finite() && (min..=max).contains(&value) {
             Ok(())
         } else {
-            Err(tf!("{name} must be between {min} and {max}.", name = name, min = min, max = max))
+            Err(tf!(
+                "{name} must be between {min} and {max}.",
+                name = name,
+                min = min,
+                max = max
+            ))
         }
     }
 
@@ -787,7 +836,12 @@ fn validate_params(p: &Params) -> Result<(), String> {
         if (min..=max).contains(&value) {
             Ok(())
         } else {
-            Err(tf!("{name} must be between {min} and {max}.", name = name, min = min, max = max))
+            Err(tf!(
+                "{name} must be between {min} and {max}.",
+                name = name,
+                min = min,
+                max = max
+            ))
         }
     }
 
@@ -795,7 +849,11 @@ fn validate_params(p: &Params) -> Result<(), String> {
         if value <= max {
             Ok(())
         } else {
-            Err(tf!("{name} must be between 0 and {max}.", name = name, max = max))
+            Err(tf!(
+                "{name} must be between 0 and {max}.",
+                name = name,
+                max = max
+            ))
         }
     }
 
@@ -1010,7 +1068,11 @@ fn node_label(dungeon: &Dungeon, node: usize) -> String {
 fn map_object_at(dungeon: &Dungeon, point: [f64; 2], zoom: f64) -> String {
     for room in dungeon.rooms.iter().rev() {
         if room.alive && point_in_shape(&room.shape, point) {
-            let kind = if room.leaf { t!("leaf chamber") } else { t!("room") };
+            let kind = if room.leaf {
+                t!("leaf chamber")
+            } else {
+                t!("room")
+            };
             let items = [
                 (room.keys != 0).then(|| tf!("{n} key(s)", n = room.keys.count_ones())),
                 (room.switches != 0).then(|| tf!("{n} switch(es)", n = room.switches.count_ones())),
@@ -1038,7 +1100,11 @@ fn map_object_at(dungeon: &Dungeon, point: [f64; 2], zoom: f64) -> String {
     for (id, node) in dungeon.nodes.iter().enumerate() {
         if let Node::Junction { p } = node {
             if dist(**p, point) <= (8.0 / zoom.max(0.1)).max(6.0) {
-                let degree = dungeon.edges.iter().filter(|edge| edge.u == id || edge.v == id).count();
+                let degree = dungeon
+                    .edges
+                    .iter()
+                    .filter(|edge| edge.u == id || edge.v == id)
+                    .count();
                 return tf!(
                     "Corridor junction\n{degree} arms connected\nPosition: {x}, {y} px",
                     degree = degree,
@@ -1053,11 +1119,20 @@ fn map_object_at(dungeon: &Dungeon, point: [f64; 2], zoom: f64) -> String {
             distance_to_segment(point, segment[0], segment[1])
                 <= dungeon.params.width / 2.0 + 5.0 / zoom.max(0.1)
         }) {
-            let length = edge.pts.windows(2).map(|segment| dist(segment[0], segment[1])).sum::<f64>();
+            let length = edge
+                .pts
+                .windows(2)
+                .map(|segment| dist(segment[0], segment[1]))
+                .sum::<f64>();
             let gates = [
-                (edge.requires_keys != 0).then(|| tf!("key {bits}", bits = format!("{:08b}", edge.requires_keys))),
-                (edge.requires_switches != 0)
-                    .then(|| tf!("switch {bits}", bits = format!("{:08b}", edge.requires_switches))),
+                (edge.requires_keys != 0)
+                    .then(|| tf!("key {bits}", bits = format!("{:08b}", edge.requires_keys))),
+                (edge.requires_switches != 0).then(|| {
+                    tf!(
+                        "switch {bits}",
+                        bits = format!("{:08b}", edge.requires_switches)
+                    )
+                }),
             ]
             .into_iter()
             .flatten()
@@ -1072,7 +1147,11 @@ fn map_object_at(dungeon: &Dungeon, point: [f64; 2], zoom: f64) -> String {
                 gates = if gates.is_empty() {
                     String::new()
                 } else {
-                    format!("\n{}: {}", t!("Locked"), gates.join(&format!(" {} ", t!("and"))))
+                    format!(
+                        "\n{}: {}",
+                        t!("Locked"),
+                        gates.join(&format!(" {} ", t!("and")))
+                    )
                 }
             );
         }

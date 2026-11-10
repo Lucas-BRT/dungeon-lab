@@ -21,7 +21,10 @@ pub fn layout_stats(d: &Dungeon) -> LayoutStats {
     let rooms: Vec<_> = d.rooms.iter().filter(|r| r.alive).collect();
     let n = rooms.len();
     if n < 3 {
-        return LayoutStats { rooms: n, ..Default::default() };
+        return LayoutStats {
+            rooms: n,
+            ..Default::default()
+        };
     }
     let (cw, ch) = (d.params.cell_w.max(1.0), d.params.cell_h.max(1.0));
     let c: Vec<[f64; 2]> = rooms.iter().map(|r| r.center).collect();
@@ -81,10 +84,19 @@ pub fn layout_stats(d: &Dungeon) -> LayoutStats {
     let (am, av) = mean_var(&areas);
     let area_cv = if am > 0.0 { av.sqrt() / am } else { 0.0 };
 
-    LayoutStats { rooms: n, alignment, clark_evans, dispersion, area_cv }
+    LayoutStats {
+        rooms: n,
+        alignment,
+        clark_evans,
+        dispersion,
+        area_cv,
+    }
 }
 
 fn mean_var(xs: &[f64]) -> (f64, f64) {
     let m = xs.iter().sum::<f64>() / xs.len() as f64;
-    (m, xs.iter().map(|x| (x - m).powi(2)).sum::<f64>() / xs.len() as f64)
+    (
+        m,
+        xs.iter().map(|x| (x - m).powi(2)).sum::<f64>() / xs.len() as f64,
+    )
 }

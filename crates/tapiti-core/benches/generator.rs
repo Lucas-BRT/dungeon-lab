@@ -1,10 +1,10 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use std::hint::black_box;
 use tapiti_core::{
     generate, metrics,
     params::{self, TopologyProfile},
     stage, validate,
 };
-use std::hint::black_box;
 
 fn generation(c: &mut Criterion) {
     let mut group = c.benchmark_group("generate");

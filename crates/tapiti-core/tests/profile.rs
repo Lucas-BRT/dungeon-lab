@@ -1,6 +1,6 @@
+use std::collections::BTreeMap;
 use tapiti_core::generate::generate;
 use tapiti_core::params::params_of_level;
-use std::collections::BTreeMap;
 
 /// Where a stage's time goes at each level (`cargo test --release -p tapiti-core profile -- --nocapture`).
 #[test]

@@ -159,7 +159,7 @@ async fn header(cx: &Cx) -> Result<impl View> {
 #[component]
 async fn footer(cx: &Cx) -> Result<impl View> {
     Ok(view! {
-        <footer class="site-footer">
+        <footer class="site-footer" data-layer="deep">
             <span>(t!(footer_license))</span>
             <a href=(GITHUB)>(t!(footer_source))</a>
             <a href=(GITHUB_ISSUES)>(t!(footer_issues))</a>

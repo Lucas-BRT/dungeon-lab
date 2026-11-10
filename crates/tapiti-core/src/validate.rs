@@ -250,8 +250,16 @@ pub fn validate(d: &Dungeon) -> Vec<String> {
             };
             let (ra, rb) = if shared {
                 (
-                    if inside_cut(a) { Vec::new() } else { trim_for(a, cut) },
-                    if inside_cut(b) { Vec::new() } else { trim_for(b, cut) },
+                    if inside_cut(a) {
+                        Vec::new()
+                    } else {
+                        trim_for(a, cut)
+                    },
+                    if inside_cut(b) {
+                        Vec::new()
+                    } else {
+                        trim_for(b, cut)
+                    },
                 )
             } else {
                 (a.region.clone(), b.region.clone())

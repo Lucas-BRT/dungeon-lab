@@ -54,7 +54,9 @@ fn table(lang: Lang) -> Option<&'static HashMap<&'static str, &'static str>> {
 }
 
 pub fn tr(key: &str) -> &str {
-    table(get()).and_then(|t| t.get(key).copied()).unwrap_or(key)
+    table(get())
+        .and_then(|t| t.get(key).copied())
+        .unwrap_or(key)
 }
 
 pub fn fill(template: &str, args: &[(&str, String)]) -> String {
@@ -106,7 +108,9 @@ mod tests {
                     let before = rest[..at].chars().last();
                     rest = &rest[at + marker.len()..];
                     let trimmed = rest.trim_start();
-                    if before.is_some_and(|c| c.is_alphanumeric() || c == '_') || !trimmed.starts_with('"') {
+                    if before.is_some_and(|c| c.is_alphanumeric() || c == '_')
+                        || !trimmed.starts_with('"')
+                    {
                         continue;
                     }
                     let mut text = String::new();
@@ -144,12 +148,19 @@ mod tests {
         let used = keys();
         let table: HashSet<&str> = PT.iter().map(|(en, _)| *en).collect();
         assert_eq!(table.len(), PT.len(), "duplicate key in pt.rs");
-        let missing: Vec<_> = used.iter().filter(|k| !table.contains(k.as_str())).collect();
+        let missing: Vec<_> = used
+            .iter()
+            .filter(|k| !table.contains(k.as_str()))
+            .collect();
         assert!(missing.is_empty(), "keys without a pt entry: {missing:#?}");
         let stale: Vec<_> = table.iter().filter(|k| !used.contains(**k)).collect();
         assert!(stale.is_empty(), "pt entries no longer used: {stale:#?}");
         for (en, pt) in PT {
-            assert_eq!(placeholders(en), placeholders(pt), "placeholders differ: {en}");
+            assert_eq!(
+                placeholders(en),
+                placeholders(pt),
+                "placeholders differ: {en}"
+            );
         }
     }
 }

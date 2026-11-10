@@ -1,12 +1,12 @@
 //! Experimental CPU/GPU proximity graph comparison.
 //! Run with `cargo run -p tapiti-core --example gpu_proximity --release`.
 
-use tapiti_core::{generate, params};
 use std::{
     error::Error,
     sync::mpsc,
     time::{Duration, Instant},
 };
+use tapiti_core::{generate, params};
 
 const ITERATIONS: usize = 25;
 const SHADER: &str = r#"

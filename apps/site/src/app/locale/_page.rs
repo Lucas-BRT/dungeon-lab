@@ -28,7 +28,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
         href!(leaf::page, path_locale: locale(cx)).resolve(cx)
     ));
     Ok(view! {
-        <section class="hero">
+        <section class="hero" data-layer="dawn">
             <div class="hero-copy">
                 <h1>(t!(hero_title))</h1>
                 <p>(t!(hero_text))</p>
@@ -61,7 +61,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
             </figure>
         </section>
 
-        <section class="proof" aria-label=(t!(proof_label))>
+        <section class="proof" data-layer="soil" aria-label=(t!(proof_label))>
             <div class="stat">
                 <p class="stat-value">(t!(proof_speed_value, ms: speed.median_ms))</p>
                 <p class="stat-label">(t!(proof_speed_label))</p>
@@ -78,7 +78,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
             </div>
         </section>
 
-        <section class="feature">
+        <section class="feature" data-layer="soil">
             <div class="feature-copy">
                 <h2>(t!(shapes_title))</h2>
                 <p>(t!(shapes_text))</p>
@@ -108,7 +108,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
             <figure class="feature-figure">(shapes)</figure>
         </section>
 
-        <section class="feature reverse">
+        <section class="feature reverse" data-layer="clay">
             <div class="feature-copy">
                 <h2>(t!(validator_title))</h2>
                 <p>(t!(validator_text))</p>
@@ -124,7 +124,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
             <figure class="feature-figure">(rejected)</figure>
         </section>
 
-        <section class="descent" aria-labelledby="descent-title">
+        <section class="descent" data-layer="rock" aria-labelledby="descent-title">
             <h2 id="descent-title">(t!(descent_title))</h2>
             <ol>
                 chamber(
@@ -150,7 +150,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
             </ol>
         </section>
 
-        <section class="run" aria-labelledby="run-title">
+        <section class="run" data-layer="rock" aria-labelledby="run-title">
             <h2 id="run-title">(t!(run_title))</h2>
             <dl class="run-panel">
                 <div>
@@ -180,7 +180,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
 
         (hint)
 
-        <section class="final-cta">
+        <section class="final-cta" data-layer="deep">
             <h2>(t!(final_title))</h2>
             <div class="cta-row">
                 <a class="button primary" href=(href!(crate::app::lab))>
