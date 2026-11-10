@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Tapiti">
+  <style>
+    .b { fill: #f2e9dc; }
+    .d { fill: #f08a3c; }
+    @media (prefers-color-scheme: light) { .b { fill: #2a2118; } .d { fill: #c4620f; } }
+  </style>
+  <rect class="b" x="17" y="2" width="10" height="32" rx="5" transform="rotate(-9 22 18)"/>
+  <rect class="b" x="37" y="2" width="10" height="32" rx="5" transform="rotate(9 42 18)"/>
+  <path class="b" d="M9 61V41a23 23 0 0 1 46 0v20z"/>
+  <path class="d" d="M24 61V46a8 8 0 0 1 16 0v15z"/>
+</svg>

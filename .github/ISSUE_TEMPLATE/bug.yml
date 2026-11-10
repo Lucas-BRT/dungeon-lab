@@ -1,0 +1,22 @@
+name: Bug report
+description: Something does not work, or a floor is wrong.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what did you get instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce it
+      description: The seed, the level and any changed parameter ("Copy JSON" in the desktop app or the lab copies all of it). The same seed and parameters always give the same floor.
+      render: json
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: Desktop app, lab in the browser, the website, or the `tapiti-core` crate; and your platform.

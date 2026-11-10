@@ -20,13 +20,13 @@ printf 'Bench log: %s\n' "$log_file"
     fi
 
     printf '\n=== CPU: full generator Criterion suite ===\n'
-    cargo bench --offline -p dungeon-lab-core --bench generator
+    cargo bench --offline -p tapiti-core --bench generator
 
     printf '\n=== Vulkan: proximity GPU comparison ===\n'
-    cargo run --offline --release -p dungeon-lab-core --example gpu_proximity
+    cargo run --offline --release -p tapiti-core --example gpu_proximity
 
     printf '\n=== CPU: full generator phase profile at larger grids ===\n'
-    cargo run --offline --release -p dungeon-lab-core --features diagnostic-profile --example profile_generator_scale
+    cargo run --offline --release -p tapiti-core --features diagnostic-profile --example profile_generator_scale
 } 2>&1 | tee "$log_file"
 
 printf '\nFinished. Send this file: %s\n' "$log_file"

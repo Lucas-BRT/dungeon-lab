@@ -1,12 +1,11 @@
-# dungeon-lab-wasm
+# Tapiti
 
-The dungeon model of the game (`docs/dungeon-model.md` in `pokemon-survivors`) rewritten in Rust and compiled to WebAssembly: rooms of
-many shapes (rect, disc, octagon, L, truncated star), continuous doors, octilinear corridors (I, L, Z/U, T, X), leaf chambers, a validator
-(V1 to V5) and the graph's measures (β, δ, bridges, Menger routes, λ₂), with a page to generate any level and edit every parameter of Λ.
+Tapiti digs dungeon floors from a seed, in Rust and WebAssembly: rooms of many shapes (rect, disc, octagon, L, truncated star), continuous doors,
+octilinear corridors (I, L, Z/U, T, X), leaf chambers, a validator (V1 to V5) and the graph's measures (β, δ, bridges, Menger routes, λ₂), with a
+desktop app and a page to generate any level and edit every parameter of Λ.
 
-It is a faithful port of the TypeScript prototype (`src/dungeonLab` there): the same seed and Λ draw the same stage (the rng is the game's
-Mulberry32). Every optimization below was checked against it: `cargo run --release -p dungeon-lab-core --example dump` hashes 150 stages (5 levels × 30 seeds)
-and the hashes did not move, single-threaded or parallel.
+The same seed and Λ always draw the same stage (the rng is Mulberry32). Every optimization below was checked against that: `cargo run --release -p tapiti-core --example dump`
+hashes 150 stages (5 levels × 30 seeds) and the hashes did not move, single-threaded or parallel.
 
 ## Speed
 
@@ -29,9 +28,9 @@ Large maps and batches expose enough work to benefit from the Rayon pool. Use
 Criterion for comparable single-map measurements and `scale` for throughput:
 
 ```bash
-cargo bench --release -p dungeon-lab-core --bench generator
-cargo test --release -p dungeon-lab-core scale -- --nocapture
-cargo test --release -p dungeon-lab-core --no-default-features scale -- --nocapture
+cargo bench --release -p tapiti-core --bench generator
+cargo test --release -p tapiti-core scale -- --nocapture
+cargo test --release -p tapiti-core --no-default-features scale -- --nocapture
 ```
 
 ### What it took, in the order it paid
@@ -61,34 +60,37 @@ each with its own single-threaded instance** (`web/pool.js`): no shared memory, 
 ## Run
 
 ```bash
-cargo run                           # opens the native COSMIC desktop app (workspace default; fast dev build)
+cargo run                           # opens the native desktop app (egui) (workspace default; fast dev build)
 cargo run --release                 # optimized desktop build
-cargo run --release -p dungeon-lab-web-server  # serves the web frontend on http://localhost:8090/
-cargo run --release -p dungeon-lab-web-server -- --port 9000 --host 0.0.0.0 --build   # another port, reachable from a phone, rebuild the module first
+./build.sh && topcoat dev -p tapiti-site     # the website (landing, docs, lab) on http://127.0.0.1:3000/, rebuilt on every change (`cargo install topcoat-cli`)
+docker compose -f compose.local.yml up --build   # the same site as a container on http://localhost:8090/
 ./build.sh                          # only the module: cargo build --release --target wasm32-unknown-unknown + wasm-bindgen → web/pkg
-cargo test --release -p dungeon-lab-core   # validity of the 5 levels, determinism, density; add `profile`, `scale`, `bench -- --nocapture` for timings
-cargo test --release -p dungeon-lab-core --no-default-features   # the same, single-threaded
-cargo bench --release -p dungeon-lab-core --bench generator  # Criterion benchmarks
-cargo run --release -p dungeon-lab-core --example dump  # a hash per stage, to compare two builds
+cargo test --release -p tapiti-core   # validity of the 5 levels, determinism, density; add `profile`, `scale`, `bench -- --nocapture` for timings
+cargo test --release -p tapiti-core --no-default-features   # the same, single-threaded
+cargo bench --release -p tapiti-core --bench generator  # Criterion benchmarks
+cargo run --release -p tapiti-core --example dump  # a hash per stage, to compare two builds
 ./build.sh simd && node bench.mjs 5 100      # SIMD vs not, in Node
 ```
 
 The code is split into workspace packages so frontend changes do not require rebuilding the generator, WASM bindings, web server, and desktop app together.
-Cargo keeps one shared `target/` cache: `cargo run` builds only the default desktop app and its core dependency; `./build.sh` builds the WASM package and core; the web server is compiled only when selected. The desktop enables only the libcosmic features it uses: Tokio, accessibility, X11, and Wayland. For everyday UI work, use the incremental development profile with plain `cargo run`; release builds retain optimization and thin LTO for performance measurements.
+Cargo keeps one shared `target/` cache: `cargo run` builds only the default desktop app and its core dependency; `./build.sh` builds the WASM package and core; the site is compiled only when selected. The desktop (egui/eframe, glow renderer) enables only the Wayland and X11 backends. For everyday UI work, use the incremental development profile with plain `cargo run`; release builds retain optimization and thin LTO for performance measurements.
 
-The root virtual workspace sets only `apps/cosmic` as its default member, so plain `cargo run` still opens the desktop app. To build a package directly, use `cargo build -p dungeon-lab-core`, `cargo build -p dungeon-lab-wasm --target wasm32-unknown-unknown`, or `cargo build -p dungeon-lab-web-server`. Cargo compiles the selected package and its dependency graph, rather than every workspace member. Development builds omit debug symbols and optimize only the generator core; release builds use thin LTO and multiple codegen units to shorten link times while retaining native optimization.
+The root virtual workspace sets only `apps/desktop` as its default member, so plain `cargo run` still opens the desktop app. To build a package directly, use `cargo build -p tapiti-core`, `cargo build -p tapiti-wasm --target wasm32-unknown-unknown`, or `cargo build -p tapiti-site`. Cargo compiles the selected package and its dependency graph, rather than every workspace member. Development builds omit debug symbols and optimize only the generator core; release builds use thin LTO and multiple codegen units to shorten link times while retaining native optimization.
 
-The server is `apps/web-server/src/main.rs` (axum + tower-http's `ServeDir`): it serves `web/` with the right types (`.wasm` as `application/wasm`) and no cache,
-so an edit to the page or a rebuilt module shows on reload. `PORT` also sets the port.
+The website is a [Topcoat](https://github.com/tokio-rs/topcoat) app (`apps/site`): server-rendered pages in English and Portuguese (`/en`, `/pt-BR`), with the browser lab at `/lab` (the WebAssembly module and `web/`, served from fixed URLs). `HOST` and `PORT` set the address; `compose.yml` is the Dokploy deployment.
 
-Needs the `wasm32-unknown-unknown` target and the `wasm-bindgen` CLI at the version in `crates/dungeon-wasm/Cargo.toml` (`=0.2.130`).
+Needs the `wasm32-unknown-unknown` target and the `wasm-bindgen` CLI at the version in `crates/tapiti-wasm/Cargo.toml` (`=0.2.130`).
 
-The native COSMIC frontend is the workspace's default application. It calls the shared Rust generator directly with Rayon enabled and renders the map
-without WebAssembly. Its controls include all level presets and Λ parameters, guided experiments, JSON editing and copying, five map overlays,
-pan/zoom/hover inspection, validation, and metrics. Each interactive request generates one floor; a 2D Canvas preview draws rooms and corridor
-connections as the generator creates them. A separate benchmark remains for comparing single-thread and multi-thread throughput over many independent maps.
-`libcosmic` is fetched from the upstream COSMIC toolkit repository, so building this binary needs network access on the first build and the platform
-libraries listed in the [libcosmic README](https://github.com/pop-os/libcosmic#dependencies).
+The native egui frontend is the workspace's default application. It calls the shared Rust generator directly with Rayon enabled and renders the map
+without WebAssembly. The map fills the window; a right-hand panel has three tabs (floor reading and layout, every Λ parameter, analysis). Controls: all level
+presets, Λ parameters with per-field reset and a filter, guided experiments, JSON editing and copying, five map overlays and a legend,
+pan/zoom/hover inspection, validation, and metrics. Edits regenerate the map after a short pause. Each interactive request generates one floor;
+a slow generation shows rooms and corridor connections as the generator creates them. A separate benchmark compares single-thread and
+multi-thread throughput over many independent maps. Shortcuts: Alt+1–5 level, Alt+R random seed, Alt+left/right seed.
+The UI is in English by default; the language selector in the bottom bar switches to Portuguese. Texts use `t!("English text")` / `tf!("… {name}", name = x)`
+(`apps/desktop/src/i18n.rs`), and a language is one table of `(english, translation)` pairs, e.g. `i18n/pt.rs`; a unit test fails when a text has no
+entry, an entry is unused, or the placeholders differ. The choice is not persisted between runs.
+Building needs the usual eframe system libraries on Linux (xkbcommon, Wayland and/or X11, OpenGL).
 
 The desktop's single-map latency and progressive-rendering design is documented in [docs/desktop-generation-rendering.md](docs/desktop-generation-rendering.md).
 
@@ -96,18 +98,25 @@ The desktop's single-map latency and progressive-rendering design is documented 
 
 | file | what |
 |---|---|
-| `crates/dungeon-core/src/geom.rs` | directions Θ₈, shapes, distances (exact and with a limit), corridor bands and joints |
-| `crates/dungeon-core/src/params.rs` | Λ (serde, camelCase JSON as in the prototype) and the five levels |
-| `crates/dungeon-core/src/generate.rs` | the generator, valid by construction: scaffold, shapes, doors, candidates, tree, cycles with T/X, leaf chambers; per-phase times |
-| `crates/dungeon-core/src/validate.rs` | V1 to V5 from the stage alone |
-| `crates/dungeon-core/src/metrics.rs` | β, δ, bridges, articulation rooms, Menger routes, diameter, λ₂ |
-| `crates/dungeon-core/src/stage.rs` | a valid stage: redraws from a derived seed when the validator objects |
-| `crates/dungeon-core/src/par.rs` | the one place that decides parallel or sequential (rayon, or plain loops) |
-| `crates/dungeon-core/src/clock.rs` | `performance.now()` in the browser, the system clock natively |
-| `apps/cosmic/` | native COSMIC desktop application; selected by bare `cargo run` |
-| `apps/web-server/` | local HTTP server for the browser frontend (`cargo run -p dungeon-lab-web-server`) |
-| `crates/dungeon-wasm/` | the WASM API: `default_params(level)`, `stage_json(seed, params)`, `bench(level, from, count)`, `threads()` |
-| `crates/dungeon-core/tests/`, `benches/`, `examples/` | model tests, Criterion benchmarks, profiling and deterministic dumps |
+| `crates/tapiti-core/src/geom.rs` | directions Θ₈, shapes, distances (exact and with a limit), corridor bands and joints |
+| `crates/tapiti-core/src/params.rs` | Λ (serde, camelCase JSON) and the five levels |
+| `crates/tapiti-core/src/generate.rs` | the generator, valid by construction: scaffold, shapes, doors, candidates, tree, cycles with T/X, leaf chambers; per-phase times |
+| `crates/tapiti-core/src/validate.rs` | V1 to V5 from the stage alone |
+| `crates/tapiti-core/src/metrics.rs` | β, δ, bridges, articulation rooms, Menger routes, diameter, λ₂ |
+| `crates/tapiti-core/src/stage.rs` | a valid stage: redraws from a derived seed when the validator objects |
+| `crates/tapiti-core/src/par.rs` | the one place that decides parallel or sequential (rayon, or plain loops) |
+| `crates/tapiti-core/src/clock.rs` | `performance.now()` in the browser, the system clock natively |
+| `apps/desktop/` | native desktop application (egui); selected by bare `cargo run` |
+| `apps/site/` | the website: landing page, docs and the lab (Topcoat; `topcoat dev -p tapiti-site`) |
+| `crates/tapiti-render/` | SVG rendering of floors for the site, docs and social images |
+| `crates/tapiti-schema/` | the parameters of Λ as data (groups, ranges, help in English and Portuguese), shared by the desktop app and the docs |
+| `docs/`, `docs/pt-BR/` | the documentation (Markdown, math as `$…$`), rendered by the site and readable on GitHub |
+| `crates/tapiti-wasm/` | the WASM API: `default_params(level)`, `stage_json(seed, params)`, `bench(level, from, count)`, `threads()` |
+| `crates/tapiti-core/tests/`, `benches/`, `examples/` | model tests, Criterion benchmarks, profiling and deterministic dumps |
 | `web/` | the page (`index.html`, `main.js`), the worker pool (`pool.js`, `worker.js`), no bundler |
 
 Floats: only `+ − × ÷`, `sqrt` and the libm inside the module, so every browser rounds the same.
+
+## License
+
+[MIT](LICENSE).

@@ -1,104 +1,104 @@
-# Auditoria de desempenho e memória
+# Performance and memory audit
 
-Esta auditoria cobre os structs e enums de `src/`, priorizando o que vive em vetores, o que duplica geometria e o que pode crescer com a quantidade de salas e corredores.
+This audit covers the structs and enums in `src/`, prioritizing what lives in vectors, what duplicates geometry, and what can grow with the number of rooms and corridors.
 
-## Como ler os tamanhos
+## How to read the sizes
 
-Os números abaixo vêm de `std::mem::size_of` no alvo nativo de 64 bits. Eles medem somente o espaço inline do valor: não incluem alocações de `Vec`, `String`, `Box` ou mapas, nem a capacidade reservada desses contêineres.
+The numbers below come from `std::mem::size_of` on the native 64-bit target. They measure only the inline space of the value: they do not include allocations of `Vec`, `String`, `Box` or maps, nor the reserved capacity of those containers.
 
-| Tipo | Bytes | Observação |
+| Type | Bytes | Note |
 |---|---:|---|
-| `Shape` | 32 | Enum de disco ou polígono; os dois payloads maiores têm 24 bytes. |
-| `Bounds` | 32 | Dois pontos, sem geometria própria. |
-| `Bounded` | 64 | Shape inline mais limites; usado nas regiões de colisão. |
-| `ShapeClass` / `Proximity` / `TopologyProfile` / `Role` / `RouteType` | 1 cada | Enumerações compactas. |
-| `ByClass` | 40 | Cinco `f64`; tamanho adequado para valores fixos. |
-| `TopologySpec` | 48 | Cinco requisitos e o perfil. |
-| `ProgressionSpec` | 16 | Dois contadores `usize`; os itens ativos são limitados a oito de cada tipo. |
-| `PacingSpec` | 1 | Uma opção booleana. |
-| `LeafRoles` | 24 | Três pesos `f64`. |
-| `Params` | 488 | Inclui `BTreeMap<String, f64>` para compatibilidade entre formas. |
-| `Port` | 40 | Posição, direção, índice de aresta, sala e embutimento. |
-| `Rect` | 32 | Retângulo de alocação da sala na grade. |
-| `Room` | 184 | Forma, limites, portas, portas usadas e dados de papel. |
-| `Node` | 16 | A posição de uma junção é indireta com `Box<V>`. |
-| `Edge` | 176 | Inclui duas pontas opcionais, polilinha e vetor da região de colisão. |
-| `Candidate` | 168 | Candidato completo usado na busca, com portas, pesos e região. |
-| `CandidateView` | 48 | Versão reduzida enviada ao visualizador. |
-| `Dungeon` | 784 | Agrega os parâmetros e os vetores do andar. |
-| `Metrics` | 208 | Resultados escalares e contagem por classe. |
-| `Stage` | 816 | Mantém o `Dungeon`, violações e número de tentativas. |
-| `Mulberry` / `Const` | 4 / 8 | Estado dos geradores de números aleatórios. |
+| `Shape` | 32 | Disc or polygon enum; the two largest payloads are 24 bytes. |
+| `Bounds` | 32 | Two points, no geometry of its own. |
+| `Bounded` | 64 | Inline shape plus bounds; used in collision regions. |
+| `ShapeClass` / `Proximity` / `TopologyProfile` / `Role` / `RouteType` | 1 each | Compact enumerations. |
+| `ByClass` | 40 | Five `f64`; a fitting size for fixed values. |
+| `TopologySpec` | 48 | Five requirements and the profile. |
+| `ProgressionSpec` | 16 | Two `usize` counters; active items are capped at eight of each kind. |
+| `PacingSpec` | 1 | One boolean option. |
+| `LeafRoles` | 24 | Three `f64` weights. |
+| `Params` | 488 | Includes a `BTreeMap<String, f64>` for shape compatibility. |
+| `Port` | 40 | Position, direction, edge index, room and inset. |
+| `Rect` | 32 | The room's allocation rectangle on the grid. |
+| `Room` | 184 | Shape, bounds, ports, used ports and role data. |
+| `Node` | 16 | A junction's position is indirect through `Box<V>`. |
+| `Edge` | 176 | Includes two optional ends, polyline and the collision-region vector. |
+| `Candidate` | 168 | Full candidate used by the search, with ports, weights and region. |
+| `CandidateView` | 48 | Reduced version sent to the viewer. |
+| `Dungeon` | 784 | Aggregates the parameters and the floor's vectors. |
+| `Metrics` | 208 | Scalar results and the count per class. |
+| `Stage` | 816 | Holds the `Dungeon`, violations and number of attempts. |
+| `Mulberry` / `Const` | 4 / 8 | State of the random number generators. |
 
-## Otimizações aplicadas
+## Optimizations applied
 
-- **Uma forma por sala.** Antes, `Room` guardava a forma em `shape` e uma segunda cópia dentro de `bb: Bounded`. Agora guarda `shape` e `Bounds`; isso reduz 32 bytes inline por sala e evita duplicar o vetor de vértices do polígono.
-- **Nós menores.** `Node` tinha 24 bytes porque a posição `[f64; 2]` da variante `Junction` era embutida. A posição agora usa `Box<V>`: cada nó ocupa 16 bytes, com uma alocação extra por junção. O JSON continua apresentando `p` como um par de coordenadas.
-- **Candidatas de saída menores.** A busca usa `Candidate`; o `Dungeon` guarda `CandidateView`, que mantém somente os IDs e a polilinha usados pela página. O tipo inline cai de 168 para 48 bytes por candidata retida, e regiões de colisão e portas auxiliares deixam de ser mantidas no resultado.
-- **Sem clones de candidatas entre fases.** As candidatas vivas são transferidas do cache para a lista estática. Depois que a árvore é montada, os vetores temporários da busca e o cache de pares são liberados antes da fase de ciclos.
-- **Opção T sem porta duplicada.** `Action::Branch` guardava a porta e também o índice dessa porta na sala. A ação conserva o índice e recupera o valor quando precisa dele.
-- **Matriz contínua.** A matriz densa usada para calcular \(\lambda_2\) agora ocupa um único `Vec<f64>`, evitando uma alocação e um cabeçalho de `Vec` por linha.
-- **Payload JSON menor.** `Edge.region` continua disponível para colisão e validação em Rust, mas não é serializada porque o visualizador usa a polilinha `pts`.
-- **Atalhos no caso comum.** A validação pula a busca no espaço de estados quando não há travas; o perfil clássico pula cálculo de cortes, hubs e ramos quando não os exige. A métrica de menor ciclo também retorna cedo quando \(\beta=0\).
+- **One shape per room.** Before, `Room` stored the shape in `shape` and a second copy inside `bb: Bounded`. Now it stores `shape` and `Bounds`; this saves 32 inline bytes per room and avoids duplicating the polygon's vertex vector.
+- **Smaller nodes.** `Node` was 24 bytes because the `[f64; 2]` position of the `Junction` variant was embedded. The position now uses `Box<V>`: each node takes 16 bytes, with one extra allocation per junction. The JSON still presents `p` as a coordinate pair.
+- **Smaller output candidates.** The search uses `Candidate`; the `Dungeon` keeps `CandidateView`, which holds only the IDs and the polyline the page uses. The inline type drops from 168 to 48 bytes per retained candidate, and collision regions and auxiliary ports are no longer kept in the result.
+- **No candidate clones between phases.** Live candidates are moved from the cache to the static list. After the tree is built, the search's temporary vectors and the pair cache are freed before the cycles phase.
+- **T option without a duplicate port.** `Action::Branch` stored the port and also that port's index in the room. The action now keeps the index and recovers the value when it needs it.
+- **Contiguous matrix.** The dense matrix used to compute $\lambda_2$ now takes a single `Vec<f64>`, avoiding one allocation and one `Vec` header per row.
+- **Smaller JSON payload.** `Edge.region` is still available for collision and validation in Rust, but is not serialized because the viewer uses the `pts` polyline.
+- **Shortcuts for the common case.** Validation skips the state-space search when there are no locks; the classic profile skips cut, hub and branch computations when it does not require them. The shortest-cycle metric also returns early when $\beta=0$.
 
-## Revisão dos demais tipos
+## Review of the other types
 
-### Geometria
+### Geometry
 
-`Shape` não é um bom alvo para colocar `Box` somente no polígono: o disco e o vetor de pontos ocupam 24 bytes cada, então essa mudança não reduziria o enum. Colocar as duas variantes atrás de ponteiros diminuiria o tamanho inline, mas adicionaria uma alocação e indireção a cada forma, inclusive às muitas formas temporárias das regiões de corredor.
+`Shape` is not a good target for putting a `Box` only on the polygon: the disc and the point vector take 24 bytes each, so that change would not shrink the enum. Putting both variants behind pointers would reduce the inline size, but would add an allocation and an indirection to every shape, including the many temporary shapes of corridor regions.
 
-`Bounded` ainda ocupa 64 bytes e aparece em vetores de regiões de corredor. Ele é um dos próximos alvos a medir. Reduzi-lo exige separar armazenamento geométrico e limites sem espalhar caixas e clones em todas as operações de distância.
+`Bounded` still takes 64 bytes and appears in vectors of corridor regions. It is one of the next targets to measure. Reducing it requires separating geometric storage from bounds without spreading boxes and clones through every distance operation.
 
-### Parâmetros
+### Parameters
 
-`ByClass`, `LeafRoles`, `ProgressionSpec` e `PacingSpec` são pequenos valores fixos. `Params` é grande sobretudo por causa de `mix`, que armazena 25 chaves `String` e valores em um `BTreeMap`. Uma matriz `[[f64; 5]; 5]` reduziria alocações e tornaria o acesso mais direto, mas exigiria manter o formato JSON `"classe-classe"` na fronteira de serialização. Como há apenas 25 entradas e a conversão afeta a interface, isso deve ser comparado no benchmark antes de mudar.
+`ByClass`, `LeafRoles`, `ProgressionSpec` and `PacingSpec` are small fixed values. `Params` is large mostly because of `mix`, which stores 25 `String` keys and values in a `BTreeMap`. A `[[f64; 5]; 5]` matrix would reduce allocations and make access more direct, but it would require keeping the `"class-class"` JSON format at the serialization boundary. Since there are only 25 entries and the conversion affects the interface, this should be compared in the benchmark before changing.
 
-### Grafo e busca
+### Graph and search
 
-`Port` é copiado entre portas possíveis, portas usadas, pontas de aresta e candidatas. Os campos `room` e `edge` podem ser redundantes quando a porta está armazenada dentro de uma sala, mas uma porta pode ser deslocada continuamente para alinhar um corredor. Substituí-los por índices exige preservar esse caso sem perder a posição exata.
+`Port` is copied among possible ports, used ports, edge ends and candidates. The `room` and `edge` fields may be redundant when the port is stored inside a room, but a port can be shifted continuously to align a corridor. Replacing them with indices requires preserving that case without losing the exact position.
 
-`Edge` é grande e contém geometria que deve continuar viva durante a validação. `ends` pode ser simplificado se o modelo de porta for refeito como uma referência compacta, mas as portas deslocadas impedem trocar cada valor por um simples índice sem mudança semântica. `region` não é enviada ao navegador.
+`Edge` is large and holds geometry that must stay alive during validation. `ends` can be simplified if the port model is redone as a compact reference, but shifted ports prevent replacing each value with a plain index without a semantic change. `region` is not sent to the browser.
 
-`Candidate` é grande por projeto enquanto a busca está ativa: os pesos, portas e regiões são necessários para avaliar e aplicar ações. A lista final usa o tipo menor `CandidateView`. `Dungeon` e `Stage` carregam esses valores por composição; colocar o andar atrás de `Box` reduziria o tamanho do valor pai, mas não a memória total e adicionaria uma alocação.
+`Candidate` is large by design while the search is active: the weights, ports and regions are needed to evaluate and apply actions. The final list uses the smaller `CandidateView` type. `Dungeon` and `Stage` carry these values by composition; putting the floor behind a `Box` would reduce the parent value's size, but not the total memory, and would add an allocation.
 
-`Action`, `Opt`, `SegRef`, `Changes` e `Block` são auxiliares temporários. `Action::Branch` perdeu o campo duplicado; `Block` é um valor `Copy` de quatro inteiros. `Gen` concentra caches e mapas temporários, e a liberação entre fases evita manter esses dados até a serialização.
+`Action`, `Opt`, `SegRef`, `Changes` and `Block` are temporary helpers. `Action::Branch` lost the duplicated field; `Block` is a `Copy` value of four integers. `Gen` concentrates caches and temporary maps, and freeing between phases avoids keeping that data until serialization.
 
-### Métricas, validação e infraestrutura
+### Metrics, validation and infrastructure
 
-`Metrics` contém principalmente números e o mapa final de contagens. A matriz de Laplace, que não faz parte do resultado, agora usa memória contígua. `Tarjan` conserva vetores de visitação por nó; essa memória é linear no tamanho do grafo e necessária para pontes e articulações.
+`Metrics` is mostly numbers and the final map of counts. The Laplacian matrix, which is not part of the result, now uses contiguous memory. `Tarjan` keeps per-node visit vectors; that memory is linear in the graph size and needed for bridges and articulation points.
 
-O `Arc` residual do fluxo e o `State` de progressão são internos. O espaço de estados é limitado por oito bits de chave e oito de interruptor; no pior caso há até \(2^{16}\) combinações por nó. Só se percorre esse espaço quando há ao menos uma trava.
+The residual `Arc` of the flow and the progression `State` are internal. The state space is bounded by eight key bits and eight switch bits; in the worst case there are up to $2^{16}$ combinations per node. That space is only traversed when there is at least one lock.
 
-`SpatialHash` usa um `HashMap` de células e vetores de índices. Essa representação evita comparar todo par geométrico em mapas maiores; o overhead de buckets deve ser medido em mapas pequenos e grandes antes de trocá-la.
+`SpatialHash` uses a `HashMap` of cells and index vectors. This representation avoids comparing every geometric pair on larger maps; the bucket overhead should be measured on small and large maps before replacing it.
 
-`Answer` contém referências ao resultado e as métricas. `Options` guarda host e argumentos do servidor. `Mulberry` e `Const` são estados pequenos. Nenhum deles domina o uso de memória do gerador.
+`Answer` holds references to the result and the metrics. `Options` holds the server's host and arguments. `Mulberry` and `Const` are small states. None of them dominates the generator's memory use.
 
-`Rect` ocupa 32 bytes dentro de cada sala e não é usado pelo código atual da página. Ele ainda sai no JSON como `box` e pode ser útil para outros consumidores. Uma etapa futura pode substituí-lo por coordenadas inteiras do bloco ou removê-lo depois de confirmar que nenhum consumidor externo depende desse campo.
+`Rect` takes 32 bytes inside each room and is not used by the page's current code. It still goes out in the JSON as `box` and may be useful to other consumers. A future step could replace it with integer block coordinates or remove it after confirming that no external consumer depends on that field.
 
-## Estrutura da API Rust
+## Rust API structure
 
-Os métodos associados já aparecem onde há estado ou regras que pertencem a um tipo: `Gen` mantém a busca e os caches; `SpatialHash` controla seus buckets; `TopologySpec::requirements` transforma o perfil em requisitos efetivos. As operações em `geom` são funções puras sobre formas e vetores, então agrupá-las em métodos não traria por si só mais segurança.
+Associated methods already appear where state or rules belong to a type: `Gen` holds the search and the caches; `SpatialHash` controls its buckets; `TopologySpec::requirements` turns the profile into effective requirements. The operations in `geom` are pure functions over shapes and vectors, so grouping them into methods would not by itself bring more safety.
 
-O ponto mais promissor para uma API tipada é `topology`: hoje funções como `shortest_path` recebem separadamente `node_count`, `edges`, `start` e `goal`, e cada uma pode reconstruir a adjacência. Um `NavigationGraph` ou `GraphView` poderia validar os endpoints uma vez, manter a adjacência e expor métodos como `shortest_path`, `edge_connectivity` e `cycle_girth`. `metrics` e `validate` poderiam compartilhar essa visão. É uma refatoração maior e deve ser comparada no Criterion, pois manter a adjacência também tem custo de memória.
+The most promising point for a typed API is `topology`: today functions such as `shortest_path` receive `node_count`, `edges`, `start` and `goal` separately, and each may rebuild the adjacency. A `NavigationGraph` or `GraphView` could validate the endpoints once, keep the adjacency and expose methods such as `shortest_path`, `edge_connectivity` and `cycle_girth`. `metrics` and `validate` could share that view. It is a larger refactor and should be compared in Criterion, since keeping the adjacency also has a memory cost.
 
-## Benchmarks Criterion
+## Criterion benchmarks
 
-O benchmark nativo mede separadamente a geração (`generate`), geração com validação e tentativas (`stage_with_validation`), validação isolada e cálculo de métricas. Inclui os níveis 1–5, um cenário com grade irregular, formas giradas e rotas W, e um cenário de espinha dorsal com chaves, interruptor e ritmo ativados.
+The native benchmark measures generation (`generate`), generation with validation and attempts (`stage_with_validation`), isolated validation and the metrics computation separately. It includes levels 1–5, a scenario with an irregular grid, rotated shapes and W routes, and a backbone scenario with keys, a switch and pacing enabled.
 
 ```sh
 cargo bench --bench generator
 ```
 
-Para guardar e comparar uma referência local:
+To save and compare a local baseline:
 
 ```sh
-cargo bench --bench generator -- --save-baseline antes
-# depois de uma otimização:
-cargo bench --bench generator -- --baseline antes
+cargo bench --bench generator -- --save-baseline before
+# after an optimization:
+cargo bench --bench generator -- --baseline before
 ```
 
-Criterion guarda os dados e relatórios sob `target/criterion`. O benchmark mede código Rust nativo; ele não mede serialização WebAssembly, transferência JSON nem desenho no navegador. Para memória heap e contagem de alocações, o próximo passo é acrescentar um profiler como DHAT ou heaptrack e comparar com estes mesmos cenários.
+Criterion stores its data and reports under `target/criterion`. The benchmark measures native Rust code; it does not measure WebAssembly serialization, JSON transfer or drawing in the browser. For heap memory and allocation counts, the next step is to add a profiler such as DHAT or heaptrack and compare it with these same scenarios.
 
-Com a biblioteca publicada como `cdylib` e `rlib`, o Cargo atual mostra um aviso de colisão de nomes de artefatos ao compilar o benchmark. A execução termina normalmente. Se uma versão futura do Cargo transformar esse aviso em erro, a saída do benchmark precisará ser movida para um pacote nativo separado.
+With the library published as `cdylib` and `rlib`, the current Cargo shows an artifact-name collision warning when building the benchmark. The run finishes normally. If a future Cargo version turns that warning into an error, the benchmark output will need to move to a separate native package.
 
-Uma execução curta durante esta auditoria, com 10 amostras e 0,5 s de coleta, estimou: geração dos níveis 1–5 em 2,60 ms, 4,14 ms, 15,66 ms, 26,19 ms e 21,15 ms; cenário estendido em 91,68 ms; cenário de progressão no nível 5 em 34,33 ms; validação do nível 5 em 573 µs; métricas em 61,5 µs. Esses números são uma referência inicial do alvo nativo atual, não uma comparação antes/depois nem uma medição de precisão máxima. Para decisões pequenas, use a coleta padrão mais longa e repita em uma máquina ociosa.
+A short run during this audit, with 10 samples and 0.5 s of collection, estimated: generation of levels 1–5 at 2.60 ms, 4.14 ms, 15.66 ms, 26.19 ms and 21.15 ms; extended scenario at 91.68 ms; progression scenario at level 5 at 34.33 ms; level 5 validation at 573 µs; metrics at 61.5 µs. These numbers are an initial reference for the current native target, not a before/after comparison nor a maximum-precision measurement. For small decisions, use the longer default collection and repeat on an idle machine.

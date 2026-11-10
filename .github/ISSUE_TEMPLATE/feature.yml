@@ -1,0 +1,11 @@
+name: Idea or feature request
+description: Something Tapiti could do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like to see?
+      description: The problem first, then the idea. The roadmap page lists what is already planned.
+    validations:
+      required: true

@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push to the same branch makes the running build pointless.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  CARGO_NET_RETRY: "10"
+
+jobs:
+  # Format, lints and tests of the Rust crates. Dependencies and build outputs are cached by rust-cache.
+  rust:
+    name: Rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: System libraries of the desktop app
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxi-dev libxrandr-dev libgl1-mesa-dev
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: workspace
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - run: cargo fmt --check -p tapiti-site -p tapiti-render -p tapiti-schema
+      - run: cargo clippy -p tapiti-site -p tapiti-render -p tapiti-schema -p tapiti-desktop --no-deps -- -D warnings
+      - run: cargo test --release -p tapiti-core -p tapiti-render -p tapiti-schema -p tapiti-site -p tapiti-desktop
+
+  # Topcoat's own formatter and the translation check (English and Portuguese must stay in step).
+  site:
+    name: Site checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: workspace
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Topcoat CLI (cached by version)
+        id: topcoat
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/topcoat
+            ~/.cargo/bin/cargo-topcoat
+          key: topcoat-cli-0.12.0
+      - if: steps.topcoat.outputs.cache-hit != 'true'
+        run: cargo install topcoat-cli --version 0.12.0 --locked
+      - name: Macro bodies are formatted
+        working-directory: apps/site
+        run: topcoat fmt --check $(find src -name '*.rs')
+      - name: Translations are complete
+        run: topcoat l10n check --package tapiti-site
+
+  # The lab's WebAssembly module builds, and its script parses.
+  wasm:
+    name: WebAssembly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: wasm
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: wasm-bindgen CLI (cached by version)
+        id: bindgen
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/wasm-bindgen
+          key: wasm-bindgen-cli-0.2.130
+      - if: steps.bindgen.outputs.cache-hit != 'true'
+        run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
+      - run: ./build.sh
+      - run: node --check web/main.js
+
+  # The image builds (multi-stage, dependencies cached in the GitHub Actions cache). Nothing is pushed.
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: tapiti:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

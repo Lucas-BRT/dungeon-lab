@@ -1,0 +1,13 @@
+# Local run: `docker compose -f compose.local.yml up --build` serves http://localhost:8090/. Deployments use compose.yml.
+services:
+  web:
+    build: .
+    init: true
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8090"
+      # The public address, for canonical links and social previews. In Dokploy set it to https://your.domain.
+      TAPITI_SITE_URL: "${TAPITI_SITE_URL:-http://localhost:8090}"

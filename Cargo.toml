@@ -1,22 +1,20 @@
 [workspace]
 members = [
-    "apps/cosmic",
-    "apps/web-server",
-    "crates/dungeon-core",
-    "crates/dungeon-wasm",
+    "apps/desktop",
+    "apps/site",
+    "crates/tapiti-core",
+    "crates/tapiti-render",
+    "crates/tapiti-schema",
+    "crates/tapiti-wasm",
 ]
-default-members = ["apps/cosmic"]
+default-members = ["apps/desktop"]
 resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-
-# libcosmic currently names this package while the upstream repository's latest
-# main branch renamed it to `cosmic-settings-daemon-zbus`; use its last compatible revision.
-[patch."https://github.com/pop-os/dbus-settings-bindings"]
-cosmic-settings-daemon = { git = "https://github.com/pop-os/dbus-settings-bindings//", rev = "85502fb865695a15261a80dea0eef38a8c23e349" }
-switcheroo-control = { git = "https://github.com/pop-os/dbus-settings-bindings//", rev = "85502fb865695a15261a80dea0eef38a8c23e349" }
+license = "MIT"
+repository = "https://github.com/Lucas-BRT/tapiti"
 
 [profile.release]
 opt-level = 3
@@ -30,9 +28,9 @@ panic = "abort"
 debug = 0
 incremental = true
 
-# Dependencies (iced, wgpu, the tessellator) at opt-level 2: unoptimised, drawing the map costs tens of milliseconds a frame.
+# Dependencies (egui, the tessellator) at opt-level 2: unoptimised, drawing the map costs tens of milliseconds a frame.
 [profile.dev.package."*"]
 opt-level = 2
 
-[profile.dev.package.dungeon-lab-core]
+[profile.dev.package.tapiti-core]
 opt-level = 3

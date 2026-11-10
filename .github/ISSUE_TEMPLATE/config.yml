@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/Lucas-BRT/tapiti/tree/main/docs
+    about: The model, the parameters and how to run Tapiti.

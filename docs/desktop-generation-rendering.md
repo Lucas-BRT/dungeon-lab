@@ -1,34 +1,34 @@
-# Geração e preview ao vivo no desktop
+# Generation and live preview on the desktop
 
-## Objetivo
+## Goal
 
-Cada solicitação interativa gera um andar e mostra sua construção no desktop. A geração continua fora da thread da interface, que recebe eventos pequenos de geometria para atualizar o mapa sem esperar o resultado final.
+Each interactive request generates one floor and shows how it is built on the desktop. Generation stays off the UI thread, which receives small geometry events so it can update the map without waiting for the final result.
 
-## Fluxo implementado
+## Implemented flow
 
-`stage_with_progress` encaminha eventos de cada tentativa: início da tentativa, grade pronta, salas criadas e trechos de corredor adicionados ou alterados. O gerador envia mudanças de topologia escolhidas pelo algoritmo. Simulações usadas apenas para calcular β máximo não aparecem no preview.
+`stage_with_progress` forwards events for each attempt: attempt started, grid ready, rooms created, and corridor segments added or changed. The generator publishes the topology changes the algorithm chooses. Simulations used only to compute the maximum β do not appear in the preview.
 
-O desktop consome esses eventos numa stream do Iced. Um `work_id` descarta mensagens atrasadas de uma solicitação anterior. Quando a validação pede uma nova tentativa, o preview é limpo e passa a mostrar a construção dessa tentativa. Ao final, o mapa validado substitui o estado parcial e habilita inspeção, sobreposições, pan e zoom.
+The desktop receives these events over an mpsc channel; the worker thread calls `egui::Context::request_repaint` after each batch. A `work_id` discards late messages from an earlier request. When validation asks for a new attempt, the preview is cleared and shows that attempt's construction. At the end, the validated map replaces the partial state and enables inspection, overlays, pan and zoom.
 
-O preview é desenhado por um widget `Canvas` 2D. Durante a geração, ele mostra grade, salas e conexões; após a validação, desenha também portas, junções, rótulos e as sobreposições selecionadas. Pan, zoom e tema atualizam o desenho diretamente na interface, sem serializar SVG.
+The preview is drawn with egui's `Painter`. A fast generation (under 120 ms) swaps the map in one step, without flicker; a slow one shows the floor being built. During generation it shows the grid, rooms and connections; after validation it also draws doors, junctions, labels and the selected overlays. Pan, zoom and theme update the drawing directly in the interface, without serializing SVG.
 
-## Responsabilidades
+## Responsibilities
 
-- **Gerador:** executa numa thread de trabalho e publica alterações de geometria ao construir cada tentativa.
-- **Interface:** aplica eventos da tentativa atual e redesenha o Canvas; a thread principal permanece disponível para interação.
-- **Canvas:** desenha o estado atual do mapa; o cálculo do mapa continua sendo executado no CPU pelo gerador.
-- **Validação:** determina qual tentativa se torna o mapa final. Desenhos de tentativas descartadas são substituídos quando a próxima tentativa começa.
+- **Generator:** runs on a worker thread and publishes geometry changes while building each attempt.
+- **Interface:** applies the events of the current attempt and redraws the map; the main thread stays available for interaction.
+- **Map:** draws the current state of the map; the map computation still runs on the CPU, in the generator.
+- **Validation:** decides which attempt becomes the final map. Drawings of discarded attempts are replaced when the next attempt starts.
 
-## Medições
+## Measurements
 
-O painel registra o tempo total de `stage`, incluindo tentativas e validação. O custo de desenho ocorre durante a construção e não é somado ao tempo do gerador. Para comparar desempenho do algoritmo, use a duração de `stage`; para avaliar a experiência, observe se a interface mostra atualizações parciais e continua respondendo durante gerações maiores.
+The panel records the total time of `stage`, including attempts and validation. Drawing cost happens during construction and is not added to the generator time. To compare algorithm performance, use the duration of `stage`; to judge the experience, check that the interface shows partial updates and keeps responding during larger generations.
 
-## Critérios
+## Criteria
 
-- Uma solicitação interativa gera um único andar, com tentativas internas de validação quando necessárias.
-- A interface recebe eventos de sala e corredor antes do resultado final.
-- O Canvas mostra as conexões à medida que o grafo do mapa é construído.
-- Uma tentativa nova limpa eventos da tentativa anterior.
-- Mensagens de solicitações antigas não substituem o mapa atual.
-- O resultado validado substitui o preview parcial e oferece todas as inspeções e sobreposições existentes.
-- O benchmark de vários mapas permanece separado do caminho interativo de um andar.
+- An interactive request generates a single floor, with internal validation attempts when needed.
+- The interface receives room and corridor events before the final result.
+- The map shows connections as the map graph is built.
+- A new attempt clears the events of the previous attempt.
+- Messages from old requests do not replace the current map.
+- The validated result replaces the partial preview and offers all existing inspections and overlays.
+- The multi-map benchmark stays separate from the interactive single-floor path.
