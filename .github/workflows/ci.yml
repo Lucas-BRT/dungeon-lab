@@ -37,7 +37,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: workspace
-          save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo fmt --check -p tapiti-site -p tapiti-render -p tapiti-schema
       - run: cargo clippy -p tapiti-site -p tapiti-render -p tapiti-schema -p tapiti-desktop --no-deps -- -D warnings
       - run: cargo test --release -p tapiti-core -p tapiti-render -p tapiti-schema -p tapiti-site -p tapiti-desktop
@@ -52,7 +51,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: workspace
-          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Topcoat CLI (cached by version)
         id: topcoat
         uses: actions/cache@v4
@@ -81,7 +79,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: wasm
-          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: wasm-bindgen CLI (cached by version)
         id: bindgen
         uses: actions/cache@v4
