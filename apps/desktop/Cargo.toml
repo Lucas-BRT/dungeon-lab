@@ -1,0 +1,13 @@
+[package]
+name = "tapiti-desktop"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Native desktop frontend (egui) for Tapiti"
+
+[dependencies]
+eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "wayland", "x11"] }
+tapiti-core = { path = "../../crates/tapiti-core" }
+tapiti-schema = { path = "../../crates/tapiti-schema" }
+serde_json = "1"

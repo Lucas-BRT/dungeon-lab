@@ -1,5 +1,5 @@
 // One worker of the pool: its own instance of the module (own memory and allocator), asked for slices of a batch.
-import init, { bench } from './pkg/dungeon_lab.js'
+import init, { bench } from './pkg/tapiti.js'
 
 const ready = init()
 

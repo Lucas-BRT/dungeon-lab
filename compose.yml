@@ -1,6 +1,27 @@
+# Dokploy (Compose type). Dokploy's Traefik reaches the container through `dokploy-network`, so no host port is published here:
+# in the application's "Domains" tab choose service `web`, container port 8090, and enable HTTPS.
+# For a local run use `docker compose -f compose.local.yml up --build` (http://localhost:8090/).
 services:
   web:
     build: .
-    ports:
-      - "8090:8090"
+    init: true
     restart: unless-stopped
+    expose:
+      - "8090"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8090"
+      # The public address, for canonical links and social previews. In Dokploy set it to https://your.domain.
+      TAPITI_SITE_URL: "${TAPITI_SITE_URL:-http://localhost:8090}"
+    healthcheck:
+      test: ["CMD", "./tapiti-site", "--healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - dokploy-network
+
+networks:
+  dokploy-network:
+    external: true
