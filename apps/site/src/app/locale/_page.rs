@@ -28,8 +28,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
         href!(leaf::page, path_locale: locale(cx)).resolve(cx)
     ));
     Ok(view! {
-        <div class="gauge" aria-hidden="true"><i></i></div>
-        <section class="hero" data-layer="dawn">
+        <section class="hero">
             <div class="hero-copy">
                 <h1>(t!(hero_title))</h1>
                 <p>(t!(hero_text))</p>
@@ -62,24 +61,22 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
             </figure>
         </section>
 
-        <section class="proof" data-layer="soil" aria-label=(t!(proof_label))>
-            <div class="stat">
-                <p class="stat-value">(t!(proof_speed_value, ms: speed.median_ms))</p>
-                <p class="stat-label">(t!(proof_speed_label))</p>
+        <dl class="register" aria-label=(t!(proof_label))>
+            <div>
+                <dt>(t!(proof_speed_label))</dt>
+                <dd>(t!(proof_speed_value, ms: speed.median_ms))</dd>
             </div>
-            <div class="stat">
-                <p class="stat-value">
-                    (t!(proof_valid_value, valid: speed.valid, total: speed.total))
-                </p>
-                <p class="stat-label">(t!(proof_valid_label, total: speed.total))</p>
+            <div>
+                <dt>(t!(proof_valid_label, total: speed.total))</dt>
+                <dd>(t!(proof_valid_value, valid: speed.valid, total: speed.total))</dd>
             </div>
-            <div class="stat">
-                <p class="stat-value">(t!(proof_seeds_value))</p>
-                <p class="stat-label">(t!(proof_seeds_label))</p>
+            <div>
+                <dt>(t!(proof_seeds_label))</dt>
+                <dd>(t!(proof_seeds_value))</dd>
             </div>
-        </section>
+        </dl>
 
-        <section class="feature" data-layer="soil">
+        <section class="feature">
             <div class="feature-copy">
                 <h2>(t!(shapes_title))</h2>
                 <p>(t!(shapes_text))</p>
@@ -109,7 +106,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
             <figure class="feature-figure">(shapes)</figure>
         </section>
 
-        <section class="feature reverse" data-layer="clay">
+        <section class="feature reverse">
             <div class="feature-copy">
                 <h2>(t!(validator_title))</h2>
                 <p>(t!(validator_text))</p>
@@ -125,7 +122,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
             <figure class="feature-figure">(rejected)</figure>
         </section>
 
-        <section class="descent" data-layer="rock" aria-labelledby="descent-title">
+        <section class="descent" aria-labelledby="descent-title">
             <h2 id="descent-title">(t!(descent_title))</h2>
             <ol>
                 chamber(
@@ -151,7 +148,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
             </ol>
         </section>
 
-        <section class="run" data-layer="rock" aria-labelledby="run-title">
+        <section class="run" aria-labelledby="run-title">
             <h2 id="run-title">(t!(run_title))</h2>
             <dl class="run-panel">
                 <div>
@@ -181,7 +178,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
 
         (hint)
 
-        <section class="final-cta" data-layer="deep">
+        <section class="final-cta">
             <h2>(t!(final_title))</h2>
             <div class="cta-row">
                 <a class="button primary" href=(href!(crate::app::lab))>
@@ -225,10 +222,7 @@ async fn chamber(cx: &Cx, shape: &'static str, #[default] child: Child<'_>) -> R
                     }
                 }
             </svg>
-            <div>
-                <span class="depth" aria-hidden="true"></span>
-                (child)
-            </div>
+            <div>(child)</div>
         </li>
     })
 }

@@ -1,23 +1,5 @@
 // Progressive enhancement only: the site works without this file.
 (() => {
-  const fine = matchMedia("(hover: hover) and (pointer: fine)").matches;
-  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  // Lantern: a soft light follows the pointer in the deepest layers.
-  if (fine && !still) {
-    for (const layer of document.querySelectorAll('[data-layer="rock"], [data-layer="deep"]')) {
-      layer.addEventListener("pointermove", (e) => {
-        const r = layer.getBoundingClientRect();
-        layer.style.setProperty("--lx", `${e.clientX - r.left}px`);
-        layer.style.setProperty("--ly", `${e.clientY - r.top}px`);
-      });
-      layer.addEventListener("pointerleave", () => {
-        layer.style.removeProperty("--lx");
-        layer.style.removeProperty("--ly");
-      });
-    }
-  }
-
   // Docs: a copy button on every code block.
   const pt = document.documentElement.lang.startsWith("pt");
   const label = pt ? ["Copiar", "Copiado"] : ["Copy", "Copied"];

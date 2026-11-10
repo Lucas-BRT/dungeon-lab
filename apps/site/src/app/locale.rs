@@ -61,7 +61,7 @@ async fn layer(cx: &Cx, body: Body, next: Next<'_>) -> Result<Response> {
     with(Metadata::new()
         .title(t!(title))
         .description(t!(description))
-        .theme_color("#15110e")
+        .theme_color("#f4efe3")
         .canonical(Url::Current)
         .open_graph(
             OpenGraph::new().site_name("Tapiti").image(asset!("assets/brand/og.png")),
@@ -171,7 +171,7 @@ async fn header(cx: &Cx) -> Result<impl View> {
 #[component]
 async fn footer(cx: &Cx) -> Result<impl View> {
     Ok(view! {
-        <footer class="site-footer" data-layer="deep">
+        <footer class="site-footer">
             <div class="footer-about">
                 <a class="brand" href=(href!(_page::page, path_locale: locale(cx)))>
                     <img

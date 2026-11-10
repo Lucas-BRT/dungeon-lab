@@ -6,7 +6,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
-- Site redesign: burrow cross-section (strata dividers, depth gauge, lantern light in the deep layers), cutaway hero, single-tunnel timeline, sticky header, three-column footer; docs get copy buttons, scroll shadows, callouts and a live table of contents; the language links keep the current page.
+- Site redesign: a drawing sheet (paper by day, blueprint by night), hairline rules instead of boxes, the floors on a drafting grid, a plain register of measured facts, the procedure as a table of rows, docs as a calm document with copy buttons and a live table of contents; the language links keep the current page.
 - Site: colour tokens by soil layer (dawn, soil, clay, rock, deep) with a carrot accent; landing sections are full-bleed layers.
 - Site: canonical link and `hreflang` alternates on every page.
 - The Tapiti website: landing page, documentation (English and Portuguese, with math as MathML, a generated parameter reference and search), the browser lab, sitemap and robots.txt.
