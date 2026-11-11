@@ -1,8 +1,11 @@
 //! The landing page as a walk down one floor: seven rooms, a depth gauge, a minimap and the floor itself as the backdrop.
 //! Everything here is plain HTML and CSS; with scripts off, the page reads the same and its links still move you between rooms.
 
+use std::sync::OnceLock;
+
 use topcoat::{
     Result,
+    asset::asset,
     context::Cx,
     view::{Child, View, component, view},
 };
@@ -11,6 +14,13 @@ use crate::{
     app::t,
     floor::{self, STATIONS},
 };
+
+/// Whether the page loads its 3D scene. `TAPITI_SCENE=off` turns it off for everyone without a deploy: the dimmed map of the same floor
+/// stays behind the page. Read once, at the first request.
+fn scene_enabled() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| std::env::var("TAPITI_SCENE").map_or(true, |value| value != "off"))
+}
 
 /// The id of each room's section, in walking order. The minimap and the gauge link to these.
 pub const ROOM_IDS: [&str; STATIONS] = [
@@ -65,6 +75,14 @@ pub async fn depth_gauge(cx: &Cx) -> Result<impl View> {
     let names: Vec<(usize, String)> = (0..STATIONS).map(|i| (i, station_name(cx, i))).collect();
     Ok(view! {
         <nav class="depth" aria-label=(t!(nav_sections))>
+            <button
+                class="depth-pause"
+                type="button"
+                hidden=(true)
+                aria-pressed="false"
+                data-pause=(t!(walk_pause).resolve(cx).into_owned())
+                data-resume=(t!(walk_resume).resolve(cx).into_owned())
+            ></button>
             <ol>
                 for (i, name) in &names {
                     <li>
@@ -87,6 +105,7 @@ pub async fn minimap(cx: &Cx) -> Result<impl View> {
     Ok(view! {
         <div class="minimap">
             <div class="minimap-floor" aria-hidden="true">(svg)</div>
+            <span class="you" aria-hidden="true"></span>
             for (i, station) in stations.iter().enumerate() {
                 <a
                     class="stop"
@@ -110,7 +129,27 @@ pub async fn minimap(cx: &Cx) -> Result<impl View> {
 #[component]
 pub async fn walk_backdrop(cx: &Cx) -> Result<impl View> {
     let svg = floor::walk_svg(floor_label(cx));
-    Ok(view! { <div class="walk-backdrop" aria-hidden="true">(svg)</div> })
+    let scene = scene_enabled();
+    Ok(view! {
+        <div
+            class="walk-backdrop"
+            aria-hidden="true"
+            if scene {
+                data-three=(asset!("assets/vendor/three-subset.min.js"))
+                data-build=(asset!("assets/walk/build.js"))
+                data-seed=(floor::WALK_SEED.to_string())
+                data-level=(floor::WALK_LEVEL.to_string())
+            }
+        >
+            (svg)
+            if scene {
+                <canvas></canvas>
+            }
+        </div>
+        if scene {
+            <script type="module" src=(asset!("assets/walk/scene.js"))></script>
+        }
+    })
 }
 
 /// One step of "how a floor is dug": a room token, drawn in the shape it stands for, beside the step's text.

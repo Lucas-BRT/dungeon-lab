@@ -46,6 +46,7 @@ cargo run --release                 # optimized desktop build
 scripts/build-wasm.sh && topcoat dev -p tapiti-site     # the website (landing, docs, lab) on http://127.0.0.1:3000/, rebuilt on every change (`cargo install topcoat-cli`)
 docker compose -f compose.local.yml up --build   # the same site as a container on http://localhost:8090/
 node scripts/lab-smoke.mjs                   # smoke test of the lab in headless Firefox (site running)
+node scripts/site-smoke.mjs                  # smoke test of the landing page's 3D walk (site running)
 scripts/build-wasm.sh                          # only the module: cargo build --release --target wasm32-unknown-unknown + wasm-bindgen → apps/site/pkg
 cargo test --release -p tapiti-core   # validity of the 5 levels, determinism, density; add `profile`, `scale`, `bench -- --nocapture` for timings
 cargo test --release -p tapiti-core --no-default-features   # the same, single-threaded
@@ -59,7 +60,7 @@ Cargo keeps one shared `target/` cache: `cargo run` builds only the default desk
 
 The root virtual workspace sets only `apps/desktop` as its default member, so plain `cargo run` still opens the desktop app. To build a package directly, use `cargo build -p tapiti-core`, `cargo build -p tapiti-wasm --target wasm32-unknown-unknown`, or `cargo build -p tapiti-site`. Cargo compiles the selected package and its dependency graph, rather than every workspace member. Development builds omit debug symbols and optimize only the generator core; release builds use thin LTO and multiple codegen units to shorten link times while retaining native optimization.
 
-The website is a [Topcoat](https://github.com/tokio-rs/topcoat) app (`apps/site`): server-rendered pages in English, with the browser lab at `/lab` (a Topcoat page; its script, `apps/site/assets/lab/`, drives the WebAssembly module served from `/lab/pkg/`). `HOST` and `PORT` set the address; `compose.yml` is the Dokploy deployment.
+The website is a [Topcoat](https://github.com/tokio-rs/topcoat) app (`apps/site`): server-rendered pages in English, with the browser lab at `/lab` (a Topcoat page; its script, `apps/site/assets/lab/`, drives the WebAssembly module served from `/lab/pkg/`). `HOST` and `PORT` set the address; `TAPITI_SCENE=off` turns off the 3D scene behind the landing page (the dimmed map stays); `compose.yml` is the Dokploy deployment.
 
 Needs the `wasm32-unknown-unknown` target and the `wasm-bindgen` CLI at the version in `crates/tapiti-wasm/Cargo.toml` (`=0.2.130`).
 

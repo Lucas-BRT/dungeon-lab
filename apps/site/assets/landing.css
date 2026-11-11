@@ -1,8 +1,11 @@
 /* The landing page: seven rooms on one floor. The floor is the backdrop; each room is a plaque on a scrim. A gauge and a minimap
    (links, so they work without scripts) move you between rooms. */
 @layer pages {
-  .walk-backdrop { position: fixed; inset: 0; z-index: 0; display: grid; place-items: center; pointer-events: none; background: radial-gradient(60vw 50vh at 72% 38%, rgb(255 138 61 / .1), transparent 70%), var(--abyss); }
-  .walk-backdrop svg { width: 100%; height: 100%; opacity: .32; }
+  .walk-backdrop { position: fixed; inset: 0 0 auto 0; height: 100lvh; z-index: 0; display: grid; place-items: center; pointer-events: none; background: radial-gradient(60vw 50vh at 72% 38%, rgb(255 138 61 / .1), transparent 70%), var(--abyss); }
+  .walk-backdrop svg { width: 100%; height: 100%; opacity: .32; transition: opacity .4s; }
+  .walk-backdrop canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity .4s; }
+  html.walk-on .walk-backdrop canvas { opacity: 1; }
+  html.walk-on .walk-backdrop svg { opacity: 0; }
   .walk-backdrop::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 70% 45%, transparent 25%, var(--abyss) 85%); }
   .rooms { position: relative; z-index: 1; }
 
@@ -51,6 +54,11 @@
   .run-panel dd { margin: 0; overflow-wrap: anywhere; }
 
   /* Depth gauge: one tick per room, at the right edge. */
+  .depth-pause { display: block; margin: 0 0 10px auto; padding: 3px 8px; font: 700 .72rem var(--font-body); color: var(--ash); background: var(--stone-900); border: 1px solid var(--stone-600); border-radius: var(--radius-sm); cursor: pointer; opacity: 0; transition: opacity .15s, color .15s; }
+  .depth:hover .depth-pause, .depth:focus-within .depth-pause { opacity: 1; }
+  .depth-pause:hover { color: var(--bone); }
+  .depth-pause[hidden] { display: none; }
+  .you { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--carrot); box-shadow: 0 0 10px 3px rgb(240 138 60 / .7); pointer-events: none; }
   .depth { position: fixed; right: 14px; top: 50%; z-index: 10; transform: translateY(-50%); }
   .depth ol { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
   .depth a { position: relative; display: block; width: 20px; height: 14px; text-decoration: none; }
@@ -72,6 +80,7 @@
     .room { padding: 72px 34px 40px var(--gutter); align-items: flex-start; }
     .plaque { padding: 20px 18px; }
     .depth { right: 6px; }
+    .depth-pause { display: none; }
     .run-panel > div { grid-template-columns: 1fr; gap: 4px; }
   }
 }
