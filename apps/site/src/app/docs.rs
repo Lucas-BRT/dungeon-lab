@@ -4,19 +4,17 @@ pub mod slug;
 use topcoat::{
     Result,
     context::Cx,
-    l10n::locale,
     router::href,
     view::{Child, View, component, view},
 };
 
-use super::{path_locale, search};
+use super::search;
 use crate::{app::t, docs::docs};
 
 /// The documentation's frame: the search box and the list of pages beside whatever `child` shows. `current` is the slug being read.
 #[component]
 pub async fn frame(cx: &Cx, current: &str, #[default] child: Child<'_>) -> Result<impl View> {
-    let here = locale(cx).clone();
-    let pages = docs().pages(&here.id().to_string());
+    let pages = docs().pages();
     Ok(view! {
         <div class="docs">
             <aside class="docs-nav">
@@ -24,7 +22,7 @@ pub async fn frame(cx: &Cx, current: &str, #[default] child: Child<'_>) -> Resul
                     class="docs-search"
                     role="search"
                     method="get"
-                    action=(href!(search::page, path_locale: &here))
+                    action=(href!(search::page))
                 >
                     <label class="visually-hidden" for="docs-q">
                         (t!(docs_search_label))
@@ -42,7 +40,7 @@ pub async fn frame(cx: &Cx, current: &str, #[default] child: Child<'_>) -> Resul
                         for page in pages {
                             <li>
                                 <a
-                                    href=(href!(slug::_page::page, path_locale: &here, slug: page.slug))
+                                    href=(href!(slug::_page::page, slug: page.slug))
                                     if page.slug == current {
                                         aria-current="page"
                                     }

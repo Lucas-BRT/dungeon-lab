@@ -1,23 +1,32 @@
-mod locale;
+pub mod _page;
+pub mod docs;
+pub mod lab;
+pub mod leaf;
+mod legacy;
+pub mod search;
 
 use std::path::PathBuf;
 use topcoat::{
     Result,
-    asset::{AssetBundle, RouterBuilderAssetExt},
+    asset::{AssetBundle, RouterBuilderAssetExt, asset},
     context::{BaseUrl, Cx},
-    l10n::{accept_language, fluent::messages, locale, negotiate},
+    font::{Font, fontsource::fontsource_font},
+    l10n::{fluent::messages, locale},
+    metadata::{Metadata, OpenGraph, Url},
     router::{
-        HeaderName, HeaderValue, Router, RouterBuilderDirectoryExt, RouterBuilderDiscoverExt,
+        Body, HeaderName, HeaderValue, Next, Router, RouterBuilderDirectoryExt,
+        RouterBuilderDiscoverExt, Slot,
         content::sitemap::{ChangeFrequency, Sitemap, SitemapUrl},
-        error::redirect,
         header::CONTENT_TYPE,
-        href, module_router, page, route,
+        href, layer, layout, module_router,
+        response::Response,
+        route,
     },
     runtime::RuntimeLayer,
-    view::View,
+    view::{View, component, view},
 };
 
-// Loads `src/l10n/en.ftl`, `src/l10n/pt-BR.ftl`, and creates `t!`. English is the source language.
+// Loads `src/l10n/en.ftl` and creates `t!`. The site is English only.
 messages!("./l10n/{locale}.ftl");
 
 pub fn router() -> Router {
@@ -53,26 +62,6 @@ fn pkg_dir() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("apps/site/pkg"))
 }
 
-/// Sends the visitor from `/` to the language that best fits their browser.
-#[page]
-async fn redirect_to_locale(cx: &Cx) -> Result<impl View> {
-    let locale = negotiate(accept_language(cx), t::locales())
-        .cloned()
-        .unwrap_or(locale!("en"));
-    Err::<(), _>(
-        redirect(href!(locale::_page::page, locale::path_locale: locale).resolve(cx)).into(),
-    )
-}
-
-/// The lab used to live at `/lab`: send that address to the language that best fits the browser.
-#[route(GET "/lab")]
-async fn lab(cx: &Cx) -> Result<()> {
-    let locale = negotiate(accept_language(cx), t::locales())
-        .cloned()
-        .unwrap_or(locale!("en"));
-    Err(redirect(href!(locale::lab::page, locale::path_locale: locale).resolve(cx)).into())
-}
-
 /// Browsers ask for this path on their own, whatever the page links to.
 #[route(GET "/favicon.ico")]
 async fn favicon(cx: &Cx) -> Result<([(HeaderName, HeaderValue); 1], Vec<u8>)> {
@@ -99,29 +88,26 @@ async fn robots(cx: &Cx) -> Result<([(HeaderName, HeaderValue); 1], String)> {
     ))
 }
 
-/// Every page of every language: the landing page and each documentation page.
+/// Every page: the landing page, the lab and each documentation page.
 #[route(GET "/sitemap.xml")]
 async fn sitemap(cx: &Cx) -> Result<Sitemap> {
-    let mut sitemap = Sitemap::new();
-    for locale in crate::docs::LOCALES {
-        sitemap = sitemap
-            .url(
-                SitemapUrl::new(format!("/{locale}"))
-                    .change_frequency(ChangeFrequency::Monthly)
-                    .priority(1.0),
-            )
-            .url(
-                SitemapUrl::new(format!("/{locale}/lab"))
-                    .change_frequency(ChangeFrequency::Monthly)
-                    .priority(0.8),
-            );
-        for page in crate::docs::docs().pages(locale) {
-            sitemap = sitemap.url(
-                SitemapUrl::new(format!("/{locale}/docs/{}", page.slug))
-                    .change_frequency(ChangeFrequency::Monthly)
-                    .priority(0.7),
-            );
-        }
+    let mut sitemap = Sitemap::new()
+        .url(
+            SitemapUrl::new("/")
+                .change_frequency(ChangeFrequency::Monthly)
+                .priority(1.0),
+        )
+        .url(
+            SitemapUrl::new("/lab")
+                .change_frequency(ChangeFrequency::Monthly)
+                .priority(0.8),
+        );
+    for page in crate::docs::docs().pages() {
+        sitemap = sitemap.url(
+            SitemapUrl::new(format!("/docs/{}", page.slug))
+                .change_frequency(ChangeFrequency::Monthly)
+                .priority(0.7),
+        );
     }
     Ok(sitemap)
 }
@@ -154,4 +140,131 @@ pub fn healthcheck() -> bool {
     }
     let mut head = [0u8; 12];
     stream.read_exact(&mut head).is_ok() && head.ends_with(b" 200")
+}
+
+const GITHUB: &str = "https://github.com/Lucas-BRT/tapiti";
+const GITHUB_ISSUES: &str = "https://github.com/Lucas-BRT/tapiti/issues";
+
+// Self-hosted: the font files are bundled as assets and served by this app.
+// rustfmt and `topcoat fmt` wrap this macro differently; keep the Topcoat layout.
+#[rustfmt::skip]
+const FRAUNCES: Font =
+    fontsource_font!(
+        FRAUNCES,
+        weight: [600],
+        style: Normal,
+        subset: [Latin],
+        host: Asset,
+    );
+#[rustfmt::skip]
+const DM_SANS: Font =
+    fontsource_font!(
+        DM_SANS,
+        weight: [400, 600],
+        style: Normal,
+        subset: [Latin],
+        host: Asset,
+    );
+
+// Every request is rendered in English: Topcoat's `t!` needs a language in the context.
+#[layer]
+async fn language(cx: &Cx, body: Body, next: Next<'_>) -> Result<Response> {
+    let cx = cx.with(locale!("en"));
+    next.run(&cx, body).await
+}
+
+#[layout(
+    with(Metadata::new()
+        .title(t!(title))
+        .description(t!(description))
+        .theme_color("#f4efe3")
+        .canonical(Url::Current)
+        .open_graph(
+            OpenGraph::new().site_name("Tapiti").image(asset!("assets/brand/og.png")),
+        ))
+)]
+async fn layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
+    Ok(view! {
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                <meta name="color-scheme" content="dark light">
+                topcoat::metadata::tags()
+                topcoat::font::link(font: FRAUNCES)
+                topcoat::font::link(font: DM_SANS)
+                <link
+                    rel="icon"
+                    href=(asset!("assets/brand/mark.svg"))
+                    type="image/svg+xml"
+                >
+                <link rel="icon" href="/favicon.ico" sizes="32x32">
+                <link
+                    rel="apple-touch-icon"
+                    href=(asset!("assets/brand/apple-touch-icon.png"))
+                >
+                <link rel="stylesheet" href=(asset!("assets/styles.css"))>
+                topcoat::runtime::script()
+                <script src=(asset!("assets/site.js")) defer="defer"></script>
+                topcoat::dev::script()
+            </head>
+            <body>
+                <a class="skip-link" href="#main">(t!(skip_link))</a>
+                header()
+                <main id="main">(slot)</main>
+                footer()
+            </body>
+        </html>
+    })
+}
+
+#[component]
+async fn header(cx: &Cx) -> Result<impl View> {
+    Ok(view! {
+        <header class="site-header">
+            <a class="brand" href=(href!(_page::page))>
+                <img
+                    src=(asset!("assets/brand/mark.svg"))
+                    alt=""
+                    width="28"
+                    height="28"
+                >
+                "tapiti"
+            </a>
+            <nav class="site-nav" aria-label=(t!(nav_label))>
+                <a href=(href!(docs::_page::page))>(t!(nav_docs))</a>
+                <a href=(href!(lab::page))>(t!(nav_lab))</a>
+                <a href=(GITHUB)>"GitHub"</a>
+            </nav>
+        </header>
+    })
+}
+
+#[component]
+async fn footer(cx: &Cx) -> Result<impl View> {
+    Ok(view! {
+        <footer class="site-footer">
+            <div class="footer-about">
+                <a class="brand" href=(href!(_page::page))>
+                    <img
+                        src=(asset!("assets/brand/mark.svg"))
+                        alt=""
+                        width="28"
+                        height="28"
+                    >
+                    "tapiti"
+                </a>
+                <p>(t!(footer_license))</p>
+            </div>
+            <nav aria-label=(t!(footer_explore))>
+                <h2>(t!(footer_explore))</h2>
+                <a href=(href!(docs::_page::page))>(t!(nav_docs))</a>
+                <a href=(href!(lab::page))>(t!(nav_lab))</a>
+            </nav>
+            <nav aria-label=(t!(footer_project))>
+                <h2>(t!(footer_project))</h2>
+                <a href=(GITHUB)>(t!(footer_source))</a>
+                <a href=(GITHUB_ISSUES)>(t!(footer_issues))</a>
+            </nav>
+        </footer>
+    })
 }

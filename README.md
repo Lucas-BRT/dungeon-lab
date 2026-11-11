@@ -59,7 +59,7 @@ Cargo keeps one shared `target/` cache: `cargo run` builds only the default desk
 
 The root virtual workspace sets only `apps/desktop` as its default member, so plain `cargo run` still opens the desktop app. To build a package directly, use `cargo build -p tapiti-core`, `cargo build -p tapiti-wasm --target wasm32-unknown-unknown`, or `cargo build -p tapiti-site`. Cargo compiles the selected package and its dependency graph, rather than every workspace member. Development builds omit debug symbols and optimize only the generator core; release builds use thin LTO and multiple codegen units to shorten link times while retaining native optimization.
 
-The website is a [Topcoat](https://github.com/tokio-rs/topcoat) app (`apps/site`): server-rendered pages in English and Portuguese (`/en`, `/pt-BR`), with the browser lab at `/en/lab` (a Topcoat page; its script, `apps/site/assets/lab/`, drives the WebAssembly module served from `/lab/pkg/`). `HOST` and `PORT` set the address; `compose.yml` is the Dokploy deployment.
+The website is a [Topcoat](https://github.com/tokio-rs/topcoat) app (`apps/site`): server-rendered pages in English, with the browser lab at `/lab` (a Topcoat page; its script, `apps/site/assets/lab/`, drives the WebAssembly module served from `/lab/pkg/`). `HOST` and `PORT` set the address; `compose.yml` is the Dokploy deployment.
 
 Needs the `wasm32-unknown-unknown` target and the `wasm-bindgen` CLI at the version in `crates/tapiti-wasm/Cargo.toml` (`=0.2.130`).
 
@@ -92,7 +92,7 @@ The desktop's single-map latency and progressive-rendering design is documented 
 | `apps/site/` | the website: landing page, docs and the lab (Topcoat; `topcoat dev -p tapiti-site`) |
 | `crates/tapiti-render/` | SVG rendering of floors for the site, docs and social images |
 | `crates/tapiti-schema/` | the parameters of Λ as data (groups, ranges, help in English and Portuguese), shared by the desktop app and the docs |
-| `docs/`, `docs/pt-BR/` | the documentation (Markdown, math as `$…$`), rendered by the site and readable on GitHub |
+| `docs/` | the documentation (Markdown, math as `$…$`), rendered by the site and readable on GitHub |
 | `crates/tapiti-wasm/` | the WASM API: `default_params(level)`, `stage_json(seed, params)`, `bench(level, from, count)`, `threads()` |
 | `crates/tapiti-core/tests/`, `benches/`, `examples/` | model tests, Criterion benchmarks, profiling and deterministic dumps |
 

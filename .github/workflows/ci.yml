@@ -41,7 +41,7 @@ jobs:
       - run: cargo clippy -p tapiti-core -p tapiti-site -p tapiti-render -p tapiti-schema -p tapiti-desktop --no-deps -- -D warnings
       - run: cargo test --release -p tapiti-core -p tapiti-render -p tapiti-schema -p tapiti-site -p tapiti-desktop
 
-  # Topcoat's own formatter and the translation check (English and Portuguese must stay in step).
+  # Topcoat's own formatter and the translation check (no unused or missing message).
   site:
     name: Site checks
     runs-on: ubuntu-latest

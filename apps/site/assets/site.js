@@ -1,8 +1,7 @@
 // Progressive enhancement only: the site works without this file.
 (() => {
   // Docs: a copy button on every code block.
-  const pt = document.documentElement.lang.startsWith("pt");
-  const label = pt ? ["Copiar", "Copiado"] : ["Copy", "Copied"];
+  const label = ["Copy", "Copied"];
   for (const pre of document.querySelectorAll(".docs-article pre")) {
     if (!navigator.clipboard) break;
     const wrap = document.createElement("div");

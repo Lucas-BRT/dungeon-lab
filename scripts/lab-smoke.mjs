@@ -1,12 +1,12 @@
 // Smoke test of the lab in headless Firefox, over WebDriver BiDi (no driver to install; needs Node 22+ and `firefox`).
-//   node scripts/lab-smoke.mjs [url]        default: http://127.0.0.1:3000/en/lab (start the site first: topcoat dev -p tapiti-site)
+//   node scripts/lab-smoke.mjs [url]        default: http://127.0.0.1:3000/lab (start the site first: topcoat dev -p tapiti-site)
 // Checks that the floor is drawn and the panel filled, that editing a parameter and a bad value behave, and that a benchmark runs.
 import { spawn } from 'node:child_process'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const url = process.argv[2] ?? 'http://127.0.0.1:3000/en/lab'
+const url = process.argv[2] ?? 'http://127.0.0.1:3000/lab'
 const port = 9333
 const profile = mkdtempSync(join(tmpdir(), 'tapiti-lab-'))
 const firefox = spawn('firefox', ['--headless', '--no-remote', '--profile', profile, `--remote-debugging-port=${port}`], { stdio: 'ignore' })

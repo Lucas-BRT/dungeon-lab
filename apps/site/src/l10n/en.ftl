@@ -1,7 +1,5 @@
 title = Tapiti
 description = Tapiti digs connected, validated floors from a seed: rooms of five shapes, corridors with real clearance, the same map every time.
-# This language's own name, used by the language links.
-language = English
 skip_link = Skip to content
 nav_label = Main
 nav_lab = Lab
@@ -55,7 +53,6 @@ docs_search_label = Search the documentation
 docs_search_placeholder = Search the docs
 docs_toc_label = On this page
 docs_edit = Edit this page on GitHub
-docs_fallback = This page is not translated yet; here it is in English.
 search_title = Search
 search_button = Search
 search_none = Nothing found for “{ $query }”.

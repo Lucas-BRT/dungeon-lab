@@ -1,16 +1,12 @@
 use topcoat::{
     Result,
     context::Cx,
-    l10n::locale,
     metadata::Metadata,
     router::{href, page, query_params},
     view::{View, view},
 };
 
-use super::{
-    docs::{self, slug},
-    path_locale,
-};
+use super::docs::{self, slug};
 use crate::{
     app::t,
     docs::{MAX_QUERY, search},
@@ -24,7 +20,6 @@ struct Query {
 /// Documentation search: a plain GET form, so it works without a script and can be linked.
 #[page(with(Metadata::new().title(t!(search_title))))]
 pub async fn page(cx: &Cx) -> Result<impl View> {
-    let here = locale(cx).clone();
     let query: String = query_params::<Query>(cx)?
         .q
         .clone()
@@ -32,7 +27,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
         .chars()
         .take(MAX_QUERY)
         .collect();
-    let hits = search(&here.id().to_string(), &query);
+    let hits = search(&query);
     let searched = !query.trim().is_empty();
     let count = hits.len();
     Ok(view! {
@@ -40,11 +35,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
             current: "",
             <div class="docs-content search-page">
                 <h1>(t!(search_title))</h1>
-                <form
-                    role="search"
-                    method="get"
-                    action=(href!(page, path_locale: &here))
-                >
+                <form role="search" method="get" action=(href!(page))>
                     <label class="visually-hidden" for="search-q">
                         (t!(docs_search_label))
                     </label>
@@ -71,7 +62,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
                             for hit in hits {
                                 <li>
                                     <a
-                                        href=(href!(slug::_page::page, path_locale: &here, slug: hit.slug).fragment(
+                                        href=(href!(slug::_page::page, slug: hit.slug).fragment(
                                             hit.id.as_str(),
                                         ))
                                     >

@@ -27,7 +27,7 @@ scripts/build-wasm.sh                      # the WebAssembly module of the lab
 topcoat dev -p tapiti-site      # http://127.0.0.1:3000
 ```
 
-The lab (`/en/lab`) runs the generator in your browser, compiled to WebAssembly. Its form is built from the same parameter schema as the desktop app. The lab is in English only.
+The lab (`/lab`) runs the generator in your browser, compiled to WebAssembly. Its form is built from the same parameter schema as the desktop app. The lab is in English only.
 
 ## Docker
 

@@ -1,6 +1,6 @@
 //! The browser lab. Topcoat renders the whole page, including the parameter form (from `tapiti-schema`, so it never drifts from the
 //! desktop app and the docs). `assets/lab/lab.js` only binds to that markup and drives the WebAssembly generator, the worker pool and
-//! the canvas. The lab is written in English only; the page around it follows the URL's language.
+//! the canvas. The whole site is in English.
 
 use tapiti_schema::{FieldKind, ParamField, ParamGroup};
 use topcoat::{
@@ -13,10 +13,10 @@ use topcoat::{
     view::{View, component, view},
 };
 
-// `lab/l10n/en.ftl`: this module's own messages, so the site's two-language files stay as they are.
+// `lab/l10n/en.ftl`: this module's own messages, kept next to the page.
 messages!("{mod}/l10n/{locale}.ftl");
 
-/// A message of this module, always in English whatever the URL's language is.
+/// A message of this module.
 macro_rules! e {
     ($($t:tt)*) => {
         t!($($t)*).resolve_in(&locale!("en"))

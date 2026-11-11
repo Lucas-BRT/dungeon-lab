@@ -18,6 +18,6 @@ Besides the default layout (one room per grid block), the generator can *grow* r
 
 - Rust generator, validator (V1 to V5) and graph measures, byte-for-byte deterministic.
 - Native desktop app with progressive drawing, English and Portuguese.
-- This website, in English and Portuguese.
+- This website.
 
 Found something missing? [Open an issue](https://github.com/Lucas-BRT/tapiti/issues).

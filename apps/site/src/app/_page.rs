@@ -1,17 +1,14 @@
 use topcoat::{
     Result,
     context::Cx,
-    l10n::{Locale, locale},
+    l10n::locale,
     router::{href, page},
     runtime::{shard, signal},
     view::{Child, View, component, view},
 };
 
 use crate::{
-    app::{
-        locale::{leaf, path_locale},
-        t,
-    },
+    app::{leaf, t},
     floor::{self, TrustedHtml},
 };
 
@@ -25,7 +22,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
     // For whoever reads the source.
     let hint = TrustedHtml(format!(
         "<!-- a dead end, off the map: {} -->",
-        href!(leaf::page, path_locale: locale(cx)).resolve(cx)
+        href!(leaf::page).resolve(cx)
     ));
     Ok(view! {
         <section class="hero">
@@ -33,22 +30,16 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
                 <h1>(t!(hero_title))</h1>
                 <p>(t!(hero_text))</p>
                 <div class="cta-row">
-                    <a class="button primary" href=(href!(crate::app::lab))>
+                    <a class="button primary" href=(href!(crate::app::lab::page))>
                         (t!(cta_lab))
                     </a>
-                    <a
-                        class="button"
-                        href=(href!(
-                            crate::app::locale::docs::_page::page,
-                            path_locale: locale(cx),
-                        ))
-                    >
+                    <a class="button" href=(href!(crate::app::docs::_page::page))>
                         (t!(cta_docs))
                     </a>
                 </div>
             </div>
             <figure class="hero-floor">
-                hero_floor(seed: $(seed.get()), lang: locale(cx).id().to_string())
+                hero_floor(seed: $(seed.get()))
                 <figcaption>
                     <button
                         class="dig-again"
@@ -157,7 +148,11 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
                 </div>
                 <div>
                     <dt>(t!(run_browser))</dt>
-                    <dd><a href=(href!(crate::app::lab))>(t!(run_browser_link))</a></dd>
+                    <dd>
+                        <a href=(href!(crate::app::lab::page))>
+                            (t!(run_browser_link))
+                        </a>
+                    </dd>
                 </div>
                 <div>
                     <dt>(t!(run_crate))</dt>
@@ -181,16 +176,10 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
         <section class="final-cta">
             <h2>(t!(final_title))</h2>
             <div class="cta-row">
-                <a class="button primary" href=(href!(crate::app::lab))>
+                <a class="button primary" href=(href!(crate::app::lab::page))>
                     (t!(cta_lab))
                 </a>
-                <a
-                    class="button"
-                    href=(href!(
-                        crate::app::locale::docs::_page::page,
-                        path_locale: locale(cx),
-                    ))
-                >
+                <a class="button" href=(href!(crate::app::docs::_page::page))>
                     (t!(cta_docs))
                 </a>
             </div>
@@ -229,14 +218,9 @@ async fn chamber(cx: &Cx, shape: &'static str, #[default] child: Child<'_>) -> R
 
 /// The floor of the hero, dug on the server for the seed asked for. A visitor can only change the seed, which is validated here.
 #[shard]
-async fn hero_floor(cx: &Cx, seed: usize, lang: String) -> Result<impl View> {
-    // A shard's endpoint runs without the page's layers, so the language comes along as an argument (and is checked).
-    let language = lang
-        .parse::<Locale>()
-        .ok()
-        .filter(|language| t::locales().contains(language))
-        .unwrap_or(locale!("en"));
-    let cx = cx.with(language);
+async fn hero_floor(cx: &Cx, seed: usize) -> Result<impl View> {
+    // A shard's endpoint runs without the page's layers, so the language is set here.
+    let cx = cx.with(locale!("en"));
     let seed = u32::try_from(seed).unwrap_or(floor::HERO_SEED);
     let (seed, svg) = floor::dig(seed, t!(hero_floor_label).resolve(&cx).into_owned());
     Ok(view! {
