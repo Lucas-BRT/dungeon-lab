@@ -6,9 +6,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
-- Site redesign: a drawing sheet (paper by day, blueprint by night), hairline rules instead of boxes, the floors on a drafting grid, a plain register of measured facts, the procedure as a table of rows, docs as a calm document with copy buttons and a live table of contents; the language links keep the current page.
-- Site: colour tokens by soil layer (dawn, soil, clay, rock, deep) with a carrot accent; landing sections are full-bleed layers.
-- Site: canonical link and `hreflang` alternates on every page.
+- Site redesign: a drawing sheet (paper by day, blueprint by night), docs as a calm document with copy buttons and a live table of contents; canonical link and `hreflang` alternates on every page.
 - The Tapiti website: landing page, documentation (English and Portuguese, with math as MathML, a generated parameter reference and search), the browser lab, sitemap and robots.txt.
 - `tapiti-render` (SVG floors) and `tapiti-schema` (the parameters of Λ as data, in English and Portuguese).
 - "Dig again" on the landing page: dig the floor of any seed on the server (cached, with a bounded budget).
@@ -17,6 +15,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Changed
 
+- The browser lab is a Topcoat page (`/{locale}/lab`, English only) whose form is built from `tapiti-schema`; the generator still runs in the browser with WebAssembly.
+- `Dungeon` is now `Floor`; `generate.rs` is split into one file per phase. The generator output is unchanged.
 - Accessibility pass on the website: axe-core reports no violations in light and dark, and no page scrolls sideways at 360 px.
 - Renamed the project to Tapiti.
 - The desktop app now uses egui instead of libcosmic, with a new layout: the map always visible, and tabs for the floor, the parameters and the analysis.
@@ -24,4 +24,5 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Removed
 
+- The plain `web/` lab page, the `frontier-growth` experiment and the `gpu_proximity` example (with the `wgpu` dev-dependency).
 - The `apps/web-server` development server: the website serves the lab.

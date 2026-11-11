@@ -72,5 +72,5 @@ cargo bench -p tapiti-core --bench generator                    # benchmarks Cri
 
 - [O modelo matemático](model): o que é um andar, como é validado e medido.
 - [Parâmetros](parameters): cada parâmetro de Λ, com sua faixa.
-- [Desempenho e memória](performance): para onde vão o tempo e os bytes.
+- [Benchmarks](performance): como medir o gerador.
 - [Roteiro](roadmap): o que está inacabado.

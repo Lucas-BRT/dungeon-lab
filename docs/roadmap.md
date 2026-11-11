@@ -4,13 +4,7 @@ Tapiti is young. This page says plainly what is unfinished, so you know what to 
 
 ## Growth layout (prototype)
 
-Besides the default layout (one room per grid block), the generator can *grow* rooms one from another, off a parent's door, in free space. It gives an organic, non-lattice floor and scales well to large worlds (about 165 ms for 81 rooms on a 16×12 grid), but it is marked as a prototype because:
-
-- **It often stops short of the room count you ask for.** On the default parameters it reaches roughly 75 to 80% of the rooms the grid layout would give.
-- **Too many floors are rejected for the stairs being too close to the entrance** (5 to 10% fail after all draws on levels 1 and 5, and floors cost two to four draws instead of one). Growth should favour depth, and the interface should check `depth` against `minHops`.
-- **Topology profiles mostly do not fit it** (`backbone`, `redundantExit` and `longLoop` rarely validate); `hub` works.
-- **Leaf chambers are not generated**, although their parameters stay visible.
-- **It has no automated tests** yet.
+Besides the default layout (one room per grid block), the generator can *grow* rooms one from another, off a parent's door, in free space. It gives an organic, non-lattice floor and scales well to large worlds (about 165 ms for 81 rooms on a 16×12 grid), but it is marked as a prototype: it often stops short of the room count you ask for, many floors are rejected for the stairs being too close to the entrance, most topology profiles do not fit it, and leaf chambers are not generated. It has no automated tests yet.
 
 ## Other open items
 

@@ -4,13 +4,7 @@ O Tapiti é jovem. Esta página diz com franqueza o que está inacabado, para vo
 
 ## Layout por crescimento (protótipo)
 
-Além do layout padrão (uma sala por bloco da grade), o gerador pode *crescer* salas uma a partir da outra, na porta de uma sala-pai, em espaço livre. Isso dá um andar orgânico, fora da malha, e escala bem em mundos grandes (cerca de 165 ms para 81 salas numa grade 16×12), mas continua marcado como protótipo porque:
-
-- **Muitas vezes para antes do número de salas pedido.** Com os parâmetros padrão chega a cerca de 75 a 80% das salas que o layout em grade daria.
-- **Andares demais são rejeitados porque a escada fica perto da entrada** (5 a 10% falham depois de todas as tentativas nos níveis 1 e 5, e um andar custa de duas a quatro tentativas em vez de uma). O crescimento deveria favorecer profundidade, e a interface deveria checar `depth` contra `minHops`.
-- **Os perfis de topologia quase não combinam com ele** (`backbone`, `redundantExit` e `longLoop` raramente validam); `hub` funciona.
-- **Câmaras-folha não são geradas**, embora seus parâmetros continuem visíveis.
-- **Ainda não tem testes automatizados.**
+Além do layout padrão (uma sala por bloco da grade), o gerador pode *crescer* salas uma a partir da outra, na porta de uma sala-pai, em espaço livre. Isso dá um andar orgânico, fora da malha, e escala bem em mundos grandes (cerca de 165 ms para 81 salas numa grade 16×12), mas continua marcado como protótipo: muitas vezes fica abaixo do número de salas pedido, muitos andares são rejeitados porque a escada fica perto demais da entrada, a maioria dos perfis de topologia não se encaixa nele e as câmaras-folha não são geradas. Ainda não tem testes automatizados.
 
 ## Outros itens em aberto
 

@@ -33,26 +33,7 @@ cargo test --release -p tapiti-core scale -- --nocapture
 cargo test --release -p tapiti-core --no-default-features scale -- --nocapture
 ```
 
-### What it took, in the order it paid
-
-1. **A distance query with a limit (`shape_within`, `region_within`).** The profile said 77% of a stage was `seg_seg`, 1.66 million calls per
-   stage, almost all asking "is this closer than σ?". The query skips a pair of edges whose boxes are σ apart and stops at the first pair that
-   is closer. `seg_seg` now runs ~2,000 times per stage (1% of it). This alone is the 10×.
-2. **Corridor candidates computed up front, in parallel.** They depend only on the rooms and every pair is needed anyway, so one batch
-   split over rayon's threads (`par.rs`) gives the same list in the same order: 21 ms → 5 ms on 14 threads in the first port.
-3. **T branches indexed by axis.** A door only meets segments perpendicular to it; filing the segments by axis (in edge order, so the choices
-   made are the same) halved the cycles phase on big grids.
-4. Remembering for good what can never fit again (corridors and doors only accumulate), and doors checked after the cheap geometry.
-
-### What did not pay (measured)
-
-* **SIMD.** `+simd128` made no difference (6.47 vs 6.47 ms; the binary does not even change size): after step 1 the geometry kernel is 1% of the
-  time, so there is nothing for 2-lane `f64` vectors to speed up. `scripts/build-wasm.sh simd` and `node scripts/bench-wasm.mjs` keep the comparison.
-* **WebAssembly threads** (rayon over Web Workers sharing one memory, `wasm-bindgen-rayon`). It built and ran in the browser, and was about
-  16× *slower* than one thread (106 ms vs 6.5 ms per stage, level 5): the generator allocates many small `Vec`s, and the allocator's global lock
-  serializes the threads. It also needs a cross-origin isolated page. Removed.
-* **Threads inside one small stage, natively.** At 3 ms a stage there is too little work to split (2.7 ms vs 3.1 ms); the threads pay on big
-  floors and batches, which is why `par.rs` keeps a size threshold on each split.
+Profile first: one distance query with a limit (instead of testing every segment pair) gave the 10×. SIMD and WebAssembly threads were measured and did not pay.
 
 So the parallelism is: rayon natively (`parallel` feature, on by default; also used by the tests), and in the browser a **pool of Web Workers,
 each with its own single-threaded instance** (`apps/site/assets/lab/lab.js`): no shared memory, no special headers, each worker with its own allocator.
@@ -64,6 +45,7 @@ cargo run                           # opens the native desktop app (egui) (works
 cargo run --release                 # optimized desktop build
 scripts/build-wasm.sh && topcoat dev -p tapiti-site     # the website (landing, docs, lab) on http://127.0.0.1:3000/, rebuilt on every change (`cargo install topcoat-cli`)
 docker compose -f compose.local.yml up --build   # the same site as a container on http://localhost:8090/
+node scripts/lab-smoke.mjs                   # smoke test of the lab in headless Firefox (site running)
 scripts/build-wasm.sh                          # only the module: cargo build --release --target wasm32-unknown-unknown + wasm-bindgen → apps/site/pkg
 cargo test --release -p tapiti-core   # validity of the 5 levels, determinism, density; add `profile`, `scale`, `bench -- --nocapture` for timings
 cargo test --release -p tapiti-core --no-default-features   # the same, single-threaded

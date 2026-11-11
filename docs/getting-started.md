@@ -72,5 +72,5 @@ cargo bench -p tapiti-core --bench generator                    # Criterion benc
 
 - [The mathematical model](model): what a floor is, how it is validated and measured.
 - [Parameters](parameters): every parameter of Λ, with its range.
-- [Performance and memory](performance): where the time and the bytes go.
+- [Benchmarks](performance): how to measure the generator.
 - [Roadmap](roadmap): what is unfinished.
