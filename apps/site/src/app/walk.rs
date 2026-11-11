@@ -125,23 +125,29 @@ pub async fn minimap(cx: &Cx) -> Result<impl View> {
     })
 }
 
-/// The floor behind the page. The scene of a later phase draws over it; without that scene, it stays as a dimmed map.
+/// The slot the 3D scene draws into: a fixed backdrop with a canvas and the data the script needs. `mode` is `landing` or `leaf`; what
+/// the backdrop holds without the scene (the dimmed map, or nothing) is its child. Off with `TAPITI_SCENE=off`: then only the child shows.
 #[component]
-pub async fn walk_backdrop(cx: &Cx) -> Result<impl View> {
-    let svg = floor::walk_svg(floor_label(cx));
+pub async fn scene_backdrop(
+    cx: &Cx,
+    mode: &'static str,
+    class: &'static str,
+    #[default] child: Child<'_>,
+) -> Result<impl View> {
     let scene = scene_enabled();
     Ok(view! {
         <div
-            class="walk-backdrop"
+            class=(class)
             aria-hidden="true"
             if scene {
+                data-mode=(mode)
                 data-three=(asset!("assets/vendor/three-subset.min.js"))
                 data-build=(asset!("assets/walk/build.js"))
                 data-seed=(floor::WALK_SEED.to_string())
                 data-level=(floor::WALK_LEVEL.to_string())
             }
         >
-            (svg)
+            (child)
             if scene {
                 <canvas></canvas>
             }
@@ -150,6 +156,13 @@ pub async fn walk_backdrop(cx: &Cx) -> Result<impl View> {
             <script type="module" src=(asset!("assets/walk/scene.js"))></script>
         }
     })
+}
+
+/// The floor behind the page. The scene draws over it; without that scene, it stays as a dimmed map.
+#[component]
+pub async fn walk_backdrop(cx: &Cx) -> Result<impl View> {
+    let svg = floor::walk_svg(floor_label(cx));
+    Ok(view! { scene_backdrop(mode: "landing", class: "walk-backdrop", (svg)) })
 }
 
 /// One step of "how a floor is dug": a room token, drawn in the shape it stands for, beside the step's text.

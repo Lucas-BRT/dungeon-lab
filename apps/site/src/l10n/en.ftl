@@ -75,3 +75,6 @@ station_dig = Digging
 station_numbers = Numbers
 station_run = Run it
 station_stairs = Stairs
+missing_title = Nothing here
+missing_text = This path leads nowhere on the map.
+missing_back = Back to the entrance

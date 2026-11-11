@@ -73,6 +73,21 @@ await open('/?motion=reduce')
 await until("return document.documentElement.classList.contains('walk-on')")
 check('reduced motion steps the camera', (await run('return window.__walk && window.__walk.stepped')) === true)
 
+// A dead end, and every address that leads nowhere, in the same room (with the right status).
+await open('/leaf')
+const robots = await run("return document.querySelector('meta[name=robots]')?.content")
+check('/leaf is noindex', /noindex/.test(robots ?? ''), robots)
+const leafOn = await until("return document.documentElement.classList.contains('walk-on')")
+check('the leaf chamber draws its room', leafOn && (await run('return window.__walk && window.__walk.poolSize')) === 1)
+for (const path of ['/nope', '/a/b/c', '/docs/nope']) {
+  const status = await run(`return (await fetch('${path}')).status`)
+  const title = await run(`return (await (await fetch('${path}')).text()).includes('Nothing here')`)
+  check(`${path} is a 404 with the leaf chamber`, status === 404 && title === true, `${status}`)
+}
+await open('/leaf?motion=reduce')
+await until("return document.documentElement.classList.contains('walk-on')")
+check('reduced motion keeps the leaf chamber still', (await run('return window.__walk && window.__walk.stepped')) === true)
+
 await open('/docs/model')
 await sleep(1500)
 const heavy = await run("return performance.getEntriesByType('resource').map((r) => r.name).filter((n) => /three-subset|tapiti_bg\\.wasm|scene\\.js/.test(n)).length")

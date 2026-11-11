@@ -3,6 +3,7 @@ pub mod docs;
 pub mod lab;
 pub mod leaf;
 mod legacy;
+mod missing;
 pub mod search;
 mod walk;
 

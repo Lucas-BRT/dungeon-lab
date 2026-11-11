@@ -119,6 +119,14 @@
 }
 
 @layer components {
+  /* The fixed backdrop of the 3D scene (landing page, leaf chamber): the dimmed map or nothing until the scene is ready. */
+  .walk-backdrop { position: fixed; inset: 0 0 auto 0; height: 100lvh; z-index: 0; display: grid; place-items: center; pointer-events: none; background: radial-gradient(60vw 50vh at 72% 38%, rgb(255 138 61 / .1), transparent 70%), var(--abyss); }
+  .walk-backdrop svg { width: 100%; height: 100%; opacity: .32; transition: opacity .4s; }
+  .walk-backdrop canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity .4s; }
+  html.walk-on .walk-backdrop canvas { opacity: 1; }
+  html.walk-on .walk-backdrop svg { opacity: 0; }
+  .walk-backdrop::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 70% 45%, transparent 25%, var(--abyss) 85%); }
+
   .button { display: inline-flex; align-items: center; padding: 11px 22px; border-radius: var(--radius-sm); font-weight: 700; text-decoration: none; border: 1px solid var(--stone-500); background: transparent; color: var(--bone); transition: background-color .15s, border-color .15s, color .15s; }
   .button:hover { background: var(--stone-800); border-color: var(--ash); }
   .button.primary { background: var(--carrot); border-color: var(--carrot); color: var(--soil); }
@@ -143,13 +151,5 @@
 }
 
 @layer pages {
-/* The leaf chamber */
-.chamber-page { max-width: 34rem; margin: 0 auto; padding: clamp(64px, 14vh, 160px) var(--gutter); background: radial-gradient(28rem 20rem at 20% 8rem, rgb(255 138 61 / .1), transparent); }
-.chamber-page svg { display: block; width: 14rem; margin-bottom: 28px; }
-.chamber-page .tunnel { stroke: var(--map-corridor); stroke-linecap: round; }
-.chamber-page .room { fill: var(--plate); stroke: var(--stone-500); stroke-width: 3; }
-.chamber-page .carrot { fill: var(--accent); }
-.chamber-page h1 { margin: 0 0 16px; font: 700 clamp(2.2rem, 4.4vw, 3.2rem)/1.05 var(--font-display); letter-spacing: -.015em; }
-.chamber-page p { color: var(--muted); text-wrap: pretty; }
 
 }

@@ -4,6 +4,7 @@
 // server-rendered SVG of the same floor behind it. Geometry comes from build.js (pure data); this file owns everything that touches the GPU.
 
 const root = document.querySelector('.walk-backdrop[data-three]')
+const sceneMode = root?.dataset.mode ?? 'landing'
 
 const params = new URLSearchParams(location.search)
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches || params.get('motion') === 'reduce'
@@ -14,6 +15,7 @@ const css = (name) => getComputedStyle(document.documentElement).getPropertyValu
 const clamp = (x, lo, hi) => (x < lo ? lo : x > hi ? hi : x)
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t) }
 const lerp = (a, b, t) => a + (b - a) * t
+const centreOfBounds = ([x0, y0, x1, y1]) => [(x0 + x1) / 2, (y0 + y1) / 2]
 
 /** A number in [0, 1) from an integer, with no randomness: every visitor sees the same flicker. */
 const hash = (n) => (Math.imul(n + 1, 2654435761) >>> 0) / 4294967296
@@ -182,10 +184,12 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
 
   /* The stairwell: a square cut into the floor, steps going down, and cold light rising from it. */
   const stairs = built.stairs
+  const landingMode = mode === 'landing'
+  const leafMode = mode === 'leaf'
   const side = Math.min(stairs.radius * 1.1, 110)
   const stepMaterial = new THREE.MeshLambertMaterial({ color: '#5a5f6a' })
   const steps = []
-  for (let k = 0; k < 8; k++) {
+  for (let k = 0; landingMode && k < 8; k++) {
     const step = new THREE.Mesh(new THREE.BoxGeometry(side, 20, side / 8), stepMaterial)
     step.position.set(stairs.center[0], -10 - k * 20, stairs.center[1] - side / 2 + (k + 0.5) * (side / 8))
     steps.push(step)
@@ -193,7 +197,7 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
   }
   const below = new THREE.PointLight(css('--light-below') || '#5a7bb0', 30000, 380, 2)
   below.position.set(stairs.center[0], -90, stairs.center[1])
-  scene.add(below)
+  if (landingMode) scene.add(below)
 
   /* Torches: brackets and flames (two draw calls), lit by a fixed pool of lights that follows the camera. */
   const count = built.torches.length / 4
@@ -218,6 +222,16 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
   flames.material = new THREE.ShaderMaterial({ vertexShader: FLAME_VERTEX, fragmentShader: FLAME_FRAGMENT, uniforms: flameUniforms, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })
   flames.frustumCulled = false
   scene.add(brackets, flames)
+  // In the leaf chamber there is one torch, brought from the nearest wall into the room.
+  const leafCenter = built.leafRoom ? built.leafRoom.center : centreOfBounds(built.bounds)
+  let leafTorch = -1
+  if (leafMode && count) {
+    let best = Infinity
+    spots.forEach(([x, , z], i) => { const d = (x - leafCenter[0]) ** 2 + (z - leafCenter[1]) ** 2; if (d < best) { best = d; leafTorch = i } })
+    spots[leafTorch] = [leafCenter[0] + 42, 44, leafCenter[1] - 34]
+    brackets.setMatrixAt(leafTorch, m4.makeTranslation(spots[leafTorch][0], 34, spots[leafTorch][2]))
+    flames.setMatrixAt(leafTorch, m4.makeTranslation(spots[leafTorch][0], 44, spots[leafTorch][2]))
+  }
   // Torches light up outwards from the entrance: delay by distance from the first station.
   const entrance = built.stations[0]
   let farthest = 1
@@ -238,7 +252,7 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
     pool.push({ light, torch: -1 })
     scene.add(light)
   }
-  let poolSize = POOL
+  let poolSize = leafMode ? 1 : POOL
 
   /* The path */
   const pts = built.path.points
@@ -262,12 +276,26 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
     return ALTITUDE[ALTITUDE.length - 1]
   }
   const centre = [(bx0 + bx1) / 2, (by0 + by1) / 2]
+  const leafAngle = (t) => 0.5 + (stepped ? 0 : 0.14 * Math.sin(t * 0.35))
   const aheadU = 0.035
 
   /* The camera pose for walk position `u` and footer descent `dive` (0 to 1). */
   const here = [0, 0, 0]
   const ahead = [0, 0, 0]
   const pose = { px: 0, py: 0, pz: 0, lx: 0, ly: 0, lz: 0, bird: 1 }
+  const poseLeaf = (t) => {
+    const a = leafAngle(t)
+    pose.px = leafCenter[0] + Math.sin(a) * 175
+    pose.py = 105
+    pose.pz = leafCenter[1] + Math.cos(a) * 175
+    pose.lx = leafCenter[0]
+    pose.ly = 18
+    pose.lz = leafCenter[1]
+    pose.bird = 0
+    here[0] = leafCenter[0]
+    here[2] = leafCenter[1]
+    return pose
+  }
   const poseAt = (u, dive) => {
     pointAt(u, here)
     pointAt(Math.min(1, u + aheadU), ahead)
@@ -393,20 +421,20 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
     const t = (now - started) / 1000
     const ignition = stepped ? 1 : null
     // Lights: the pool goes to the torches nearest to where the camera looks.
-    const p = poseAt(state.u, state.dive)
+    const p = leafMode ? poseLeaf(t) : poseAt(state.u, state.dive)
     camera.position.set(p.px, p.py, p.pz)
     camera.lookAt(p.lx, p.ly, p.lz)
     camera.fov = innerWidth < innerHeight * 0.8 ? lerp(50, 60, p.bird) : 50
     camera.updateProjectionMatrix()
-    scene.fog.density = lerp(0.0016, 0.0004, p.bird)
-    hemisphere.intensity = lerp(1.1, 2.8, p.bird)
+    scene.fog.density = leafMode ? 0.0035 : lerp(0.0016, 0.0004, p.bird)
+    hemisphere.intensity = leafMode ? 0.8 : lerp(1.1, 2.8, p.bird)
     hemisphere.color.lerpColors(fill, dayFill, p.bird)
     for (let i = 0; i < count; i++) scratch[i] = (spots[i][0] - p.lx) ** 2 + (spots[i][2] - p.lz) ** 2
     for (let i = 0; i < count; i++) ordered[i] = i
     ordered.sort((a, b) => scratch[a] - scratch[b])
     let changed = false
     for (let i = 0; i < count; i++) {
-      const level = ignition ?? smooth(0, 0.45, t - delays[i])
+      const level = leafMode ? (i === leafTorch ? smooth(0, 0.6, t) : 0) : (ignition ?? smooth(0, 0.45, t - delays[i]))
       if (lit[i] !== level) { lit[i] = level; changed = true }
     }
     if (changed) litAttribute.needsUpdate = true
@@ -422,8 +450,8 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
       slot.light.intensity = 18000 * (0.86 + 0.14 * n) * lit[torch]
     }
     carried.position.set(p.px + (p.lx - p.px) * 0.15, Math.max(p.py - 40, -40), p.pz + (p.lz - p.pz) * 0.15)
-    carried.intensity = 24000 * smooth(0, 0.45, t) * (1 - p.bird * 0.7)
-    below.intensity = 30000 * smooth(0.6, 1, state.u) * (1 - state.dive * 0.4)
+    carried.intensity = (leafMode ? 9000 : 24000) * smooth(0, 0.45, t) * (1 - p.bird * 0.7)
+    below.intensity = landingMode ? 30000 * smooth(0.6, 1, state.u) * (1 - state.dive * 0.4) : 0
     renderer.render(scene, camera)
     if (first) {
       first = false
@@ -463,6 +491,13 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
     frameId = 0
     timer = 0
     if (stopped || document.hidden) return
+    if (leafMode) {
+      adapt(now)
+      render(now)
+      if (stepped) { stillDrawn = true; return }
+      frameId = requestAnimationFrame(step)
+      return
+    }
     want = target()
     if (stepped) want.u = stationU[want.station]
     const k = stepped ? 1 : 1 - Math.exp(-(Math.min(now - prev, 100) / 1000) / 0.18)
@@ -528,7 +563,7 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
 
 /* ---------------- The landing page ---------------- */
 
-async function landing() {
+async function boot() {
   if (!root || params.get('scene') === 'off' || saveData() || !hasWebGL2()) return
   const canvas = root.querySelector('canvas')
   const seed = Number(root.dataset.seed)
@@ -538,7 +573,7 @@ async function landing() {
   const answer = JSON.parse(wasm.stage_json(seed, wasm.default_params(level)))
   const floor = answer.floor
   const built = build.build(floor)
-  const handle = mount({ THREE, canvas, floor, scene: built, page: document.querySelector('.rooms') })
+  const handle = mount({ THREE, canvas, floor, scene: built, mode: sceneMode, page: document.querySelector('.rooms') })
 
   const toggle = document.querySelector('.depth-pause')
   if (toggle) {
@@ -555,7 +590,7 @@ async function landing() {
 }
 
 if (root) {
-  const start = () => landing().catch((error) => console.warn('walk: the scene did not start, the map stays', error))
+  const start = () => boot().catch((error) => console.warn('walk: the scene did not start, the map stays', error))
   const idle = () => (window.requestIdleCallback ? requestIdleCallback(start, { timeout: 2000 }) : setTimeout(start, 200))
   document.readyState === 'complete' ? idle() : addEventListener('load', idle, { once: true })
 }
