@@ -148,19 +148,37 @@ const GITHUB_ISSUES: &str = "https://github.com/Lucas-BRT/tapiti/issues";
 // Self-hosted: the font files are bundled as assets and served by this app.
 // rustfmt and `topcoat fmt` wrap this macro differently; keep the Topcoat layout.
 #[rustfmt::skip]
-const FRAUNCES: Font =
+const GRENZE: Font =
     fontsource_font!(
-        FRAUNCES,
-        weight: [600],
+        GRENZE,
+        weight: [600, 700],
         style: Normal,
         subset: [Latin],
         host: Asset,
     );
 #[rustfmt::skip]
-const DM_SANS: Font =
+const ALEGREYA_SANS: Font =
     fontsource_font!(
-        DM_SANS,
-        weight: [400, 600],
+        ALEGREYA_SANS,
+        weight: [400, 500, 700],
+        style: Normal,
+        subset: [Latin],
+        host: Asset,
+    );
+#[rustfmt::skip]
+const ALEGREYA_SANS_ITALIC: Font =
+    fontsource_font!(
+        ALEGREYA_SANS,
+        weight: [400],
+        style: Italic,
+        subset: [Latin],
+        host: Asset,
+    );
+#[rustfmt::skip]
+const JETBRAINS_MONO: Font =
+    fontsource_font!(
+        JETBRAINS_MONO,
+        weight: [400],
         style: Normal,
         subset: [Latin],
         host: Asset,
@@ -177,7 +195,7 @@ async fn language(cx: &Cx, body: Body, next: Next<'_>) -> Result<Response> {
     with(Metadata::new()
         .title(t!(title))
         .description(t!(description))
-        .theme_color("#f4efe3")
+        .theme_color("#0b0e12")
         .canonical(Url::Current)
         .open_graph(
             OpenGraph::new().site_name("Tapiti").image(asset!("assets/brand/og.png")),
@@ -188,10 +206,12 @@ async fn layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
         <!DOCTYPE html>
         <html lang="en">
             <head>
-                <meta name="color-scheme" content="dark light">
+                <meta name="color-scheme" content="dark">
                 topcoat::metadata::tags()
-                topcoat::font::link(font: FRAUNCES)
-                topcoat::font::link(font: DM_SANS)
+                topcoat::font::link(font: GRENZE)
+                topcoat::font::link(font: ALEGREYA_SANS)
+                topcoat::font::link(font: ALEGREYA_SANS_ITALIC)
+                topcoat::font::link(font: JETBRAINS_MONO)
                 <link
                     rel="icon"
                     href=(asset!("assets/brand/mark.svg"))

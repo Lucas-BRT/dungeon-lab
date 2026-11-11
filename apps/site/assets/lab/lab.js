@@ -451,7 +451,7 @@ const draw = () => {
       if (!room.alive) continue
       const inventory = [room.keys ? `K${popcount(room.keys)}` : '', room.switches ? `S${popcount(room.switches)}` : ''].filter(Boolean).join(' ')
       const label = `#${room.id} ${className(room.cls)}${room.role !== 'plain' ? ` · ${roleName(room.role)}` : ''}${inventory ? ` · ${inventory}` : ''}`
-      ctx.lineWidth = 3 * px
+      ctx.lineWidth = 2.2 * px
       ctx.strokeStyle = halo
       ctx.strokeText(label, room.center[0], room.center[1] + 4 * px)
       ctx.fillStyle = text

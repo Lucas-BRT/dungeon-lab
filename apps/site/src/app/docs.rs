@@ -3,6 +3,7 @@ pub mod slug;
 
 use topcoat::{
     Result,
+    asset::asset,
     context::Cx,
     router::href,
     view::{Child, View, component, view},
@@ -16,6 +17,7 @@ use crate::{app::t, docs::docs};
 pub async fn frame(cx: &Cx, current: &str, #[default] child: Child<'_>) -> Result<impl View> {
     let pages = docs().pages();
     Ok(view! {
+        <link rel="stylesheet" href=(asset!("assets/docs.css"))>
         <div class="docs">
             <aside class="docs-nav">
                 <form

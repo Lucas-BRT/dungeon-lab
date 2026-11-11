@@ -46,7 +46,7 @@ const run = async (body) => {
 
 const checks = [
   ['panel is filled', `return document.getElementById('results').innerText.includes('Valid map')`, (v) => v === true],
-  ['level button works', `document.querySelector('[data-level="3"]').click(); await new Promise(r => setTimeout(r, 700)); return document.getElementById('results').innerText.includes('LEVEL 3')`, (v) => v === true],
+  ['level button works', `document.querySelector('[data-level="3"]').click(); await new Promise(r => setTimeout(r, 700)); return document.getElementById('results').innerText.includes('Level 3, seed')`, (v) => v === true],
   ['a parameter change is counted', `const el = document.querySelector('[name="cols"]'); el.value = '9'; el.dispatchEvent(new Event('change', { bubbles: true })); return document.getElementById('changed-status').textContent`, (v) => /1 parameter/.test(v)],
   ['a bad value is refused', `const el = document.querySelector('[name="rows"]'); el.value = '999'; el.dispatchEvent(new Event('change', { bubbles: true })); return el.parentElement.querySelector('.field-error').textContent`, (v) => v.length > 0],
   ['benchmark runs', `document.getElementById('bench-40').click(); return document.getElementById('bench-status').textContent`, (v) => /invalid of 40/.test(v)],

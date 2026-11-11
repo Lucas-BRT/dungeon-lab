@@ -1,0 +1,80 @@
+/* Documentation and search: Read mode. A calm column on stone, no scene. The current page and the current heading carry a lit sconce:
+   a small carrot dot with a soft glow. Everything else is ash. */
+@layer pages {
+  .docs { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: clamp(20px, 4vw, 56px); max-width: 1320px; margin: 0 auto; padding: 24px var(--gutter) 80px; }
+  body:has(.docs) { background-image: radial-gradient(60rem 40rem at 0 0, rgb(255 138 61 / .06), transparent); background-repeat: no-repeat; }
+  .docs-nav { position: sticky; top: 76px; align-self: start; max-height: calc(100vh - 92px); overflow-y: auto; }
+  .docs-nav ul { margin: 12px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--stone-600); }
+  .docs-nav li a { position: relative; display: block; padding: 8px 10px 8px 22px; border-bottom: 1px solid var(--stone-600); color: var(--ash); text-decoration: none; font-size: .98rem; transition: color .15s, background-color .15s; }
+  .docs-nav li a:hover { color: var(--bone); background: var(--stone-900); }
+  .docs-nav li a[aria-current] { color: var(--bone); font-weight: 700; background: var(--stone-900); }
+  .docs-nav li a[aria-current]::before, .docs-toc a[aria-current]::before { content: ""; position: absolute; left: 8px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--carrot); box-shadow: 0 0 8px 2px rgb(240 138 60 / .55); }
+  .docs-search { margin-bottom: 0; }
+
+  input[type=search] { width: 100%; padding: 9px 12px; font: inherit; color: var(--bone); background: var(--stone-800); border: 1px solid var(--stone-500); border-radius: var(--radius-sm); }
+  input[type=search]::placeholder { color: var(--ash); }
+
+  .docs-content { display: grid; grid-template-columns: minmax(0, 1fr) 13rem; gap: clamp(20px, 4vw, 48px); align-items: start; }
+  .docs-article { min-width: 0; max-width: 68ch; }
+  .docs-article > :first-child { margin-top: 0; }
+  .docs-article h1 { margin: 0 0 24px; padding-bottom: 16px; border-bottom: 1px solid var(--stone-600); font-size: clamp(2.2rem, 4.4vw, 3.1rem); line-height: 1.05; font-weight: 700; }
+  .docs-article h2 { margin: 2.4em 0 .6em; font-size: clamp(1.5rem, 2.6vw, 1.95rem); line-height: 1.15; scroll-margin-top: 84px; }
+  .docs-article h3 { margin: 1.8em 0 .5em; font-size: 1.3rem; scroll-margin-top: 84px; }
+  .docs-article h4 { margin: 1.4em 0 .4em; font-size: 1.1rem; scroll-margin-top: 84px; }
+  .docs-article a { color: var(--carrot); }
+  .docs-article a:hover { color: #ff9d57; }
+  .docs-article .anchor { margin-left: .4em; color: var(--ash); text-decoration: none; opacity: 0; transition: opacity .15s; }
+  .docs-article :is(h2, h3, h4):hover .anchor, .docs-article .anchor:focus-visible { opacity: 1; }
+  .docs-article :is(pre, .table-wrap, .math-display):focus-visible { outline-offset: 2px; }
+  .docs-article pre { overflow-x: auto; padding: 14px 16px; font-size: 14.5px; background: var(--stone-800); border: 1px solid var(--stone-600); border-radius: var(--radius-sm); line-height: 1.55; }
+  .docs-article :not(pre) > code { padding: .1em .35em; background: var(--stone-800); border: 1px solid var(--stone-600); border-radius: 2px; }
+  .docs-article kbd { padding: .1em .45em; font-size: .85em; background: var(--stone-800); border: 1px solid var(--stone-600); border-bottom-width: 2px; border-radius: 4px; }
+  .docs-article blockquote { margin: 1.2em 0; padding: .7em 1.1em; background: var(--stone-900); border: 1px solid var(--stone-600); border-radius: var(--radius-sm); }
+  .docs-article blockquote > :first-child { margin-top: 0; }
+  .docs-article blockquote > :last-child { margin-bottom: 0; }
+
+  .code-block { position: relative; margin: 1em 0; }
+  .code-block pre { margin: 0; }
+  .copy { position: absolute; top: 8px; right: 8px; padding: 4px 10px; font: 700 .78rem var(--font-body); color: var(--ash); background: var(--stone-900); border: 1px solid var(--stone-600); border-radius: var(--radius-sm); cursor: pointer; opacity: 0; transition: opacity .15s, color .15s; }
+  .code-block:hover .copy, .copy:focus-visible { opacity: 1; }
+  .copy:hover { color: var(--bone); }
+  @media (hover: none) { .copy { opacity: 1; } }
+
+  .table-wrap { overflow-x: auto; margin: 1em 0; border: 1px solid var(--stone-600); border-radius: var(--radius-sm); }
+  .table-wrap table { width: 100%; border-collapse: collapse; font-size: .95rem; font-variant-numeric: tabular-nums; }
+  .table-wrap th, .table-wrap td { padding: 9px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--stone-600); }
+  .table-wrap th { background: var(--stone-900); font-weight: 700; white-space: nowrap; }
+  .table-wrap tr:last-child td { border-bottom: 0; }
+  .table-wrap td:nth-child(3) { white-space: nowrap; }
+  math { font-size: 1.08em; }
+  .math-display { overflow-x: auto; margin: 1.1em 0; padding: 4px 0; }
+  .math-display math { display: block math; }
+  .docs-edit { margin-top: 3em; font-size: .95rem; }
+
+  .docs-toc { position: sticky; top: 76px; font-size: .92rem; }
+  .docs-toc ul { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--stone-600); max-height: calc(100vh - 48px); overflow-y: auto; }
+  .docs-toc li { border-bottom: 1px solid var(--stone-600); }
+  .docs-toc li.sub a { padding-left: 30px; }
+  .docs-toc a { position: relative; display: block; padding: 6px 0 6px 18px; color: var(--ash); text-decoration: none; transition: color .15s; }
+  .docs-toc a:hover, .docs-toc a[aria-current] { color: var(--bone); }
+  .docs-toc a[aria-current] { font-weight: 700; }
+
+  /* Search */
+  .docs-content.search-page { display: block; }
+  .search-page form { display: flex; gap: 10px; max-width: 36rem; margin: 16px 0 24px; }
+  .search-page h1 { margin: 0; font-size: 2.2rem; line-height: 1.1; font-weight: 700; }
+  .search-results { display: grid; gap: 22px; margin: 12px 0 0; padding: 0; list-style: none; max-width: 68ch; }
+  .search-results a { display: flex; flex-direction: column; gap: 2px; text-decoration: none; }
+  .hit-page { color: var(--ash); font-size: .88rem; }
+  .hit-heading { color: var(--carrot); font-weight: 700; font-size: 1.1rem; }
+  .search-results a:hover .hit-heading { text-decoration: underline; }
+  .search-results p { margin: 4px 0 0; color: var(--ash); font-size: .98rem; }
+  .search-none, .search-count { color: var(--ash); }
+
+  @media (max-width: 860px) {
+    .docs { grid-template-columns: 1fr; }
+    .docs-nav { position: static; max-height: none; }
+    .docs-content { grid-template-columns: 1fr; }
+    .docs-toc { display: none; }
+  }
+}
