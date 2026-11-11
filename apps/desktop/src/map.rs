@@ -5,7 +5,7 @@ use eframe::egui::{
     epaint::PathShape, Align2, Color32, FontId, Mesh, Painter, Pos2, Rect, Shape as Draw, Stroke,
     Vec2,
 };
-use tapiti_core::generate::{Dungeon, Node, Role};
+use tapiti_core::generate::{Floor, Node, Role};
 use tapiti_core::geom::{dir_of, Shape};
 
 /// World (generator pixels) to screen.
@@ -338,19 +338,13 @@ pub fn draw_building(
     }
 }
 
-pub fn draw_dungeon(
-    painter: &Painter,
-    xf: &Xf,
-    dungeon: &Dungeon,
-    overlays: Overlays,
-    pal: &Palette,
-) {
+pub fn draw_floor(painter: &Painter, xf: &Xf, floor: &Floor, overlays: Overlays, pal: &Palette) {
     if overlays.cells {
-        grid(painter, xf, &dungeon.grid_x, &dungeon.grid_y, pal.grid);
+        grid(painter, xf, &floor.grid_x, &floor.grid_y, pal.grid);
     }
     if overlays.pairs {
-        for [a, b] in &dungeon.pairs {
-            if let (Some(first), Some(second)) = (dungeon.rooms.get(*a), dungeon.rooms.get(*b)) {
+        for [a, b] in &floor.pairs {
+            if let (Some(first), Some(second)) = (floor.rooms.get(*a), floor.rooms.get(*b)) {
                 painter.add(Draw::dashed_line(
                     &[xf.pt(first.center), xf.pt(second.center)],
                     Stroke::new(2.0, pal.accent.gamma_multiply(0.6)),
@@ -361,7 +355,7 @@ pub fn draw_dungeon(
         }
     }
     if overlays.candidates {
-        for candidate in &dungeon.candidates {
+        for candidate in &floor.candidates {
             polyline(
                 painter,
                 xf,
@@ -372,14 +366,14 @@ pub fn draw_dungeon(
             );
         }
     }
-    for edge in &dungeon.edges {
+    for edge in &floor.edges {
         let gated = edge.requires_keys > 0 || edge.requires_switches > 0;
         polyline(
             painter,
             xf,
             &edge.pts,
             if gated { pal.warning } else { pal.corridor },
-            dungeon.params.width.max(2.0) as f32,
+            floor.params.width.max(2.0) as f32,
             gated,
         );
         if gated {
@@ -400,7 +394,7 @@ pub fn draw_dungeon(
             );
         }
     }
-    for room in &dungeon.rooms {
+    for room in &floor.rooms {
         if room.alive {
             let alpha = if room.leaf { 0.65 } else { 0.92 };
             room_shape(
@@ -417,7 +411,7 @@ pub fn draw_dungeon(
         }
     }
     if overlays.ports {
-        for room in &dungeon.rooms {
+        for room in &floor.rooms {
             for port in &room.ports {
                 let half = (4.0 * xf.scale).max(1.5);
                 painter.rect_filled(
@@ -428,7 +422,7 @@ pub fn draw_dungeon(
             }
         }
     }
-    for room in &dungeon.rooms {
+    for room in &floor.rooms {
         for port in &room.used {
             let d = dir_of(port.k);
             polyline(
@@ -441,7 +435,7 @@ pub fn draw_dungeon(
             );
         }
     }
-    for node in &dungeon.nodes {
+    for node in &floor.nodes {
         if let Node::Junction { p } = node {
             painter.circle(
                 xf.pt(**p),
@@ -452,7 +446,7 @@ pub fn draw_dungeon(
         }
     }
     if overlays.labels {
-        for room in dungeon.rooms.iter().filter(|room| room.alive) {
+        for room in floor.rooms.iter().filter(|room| room.alive) {
             let inventory = [
                 (room.keys != 0).then(|| format!("K{}", room.keys.count_ones())),
                 (room.switches != 0).then(|| format!("S{}", room.switches.count_ones())),

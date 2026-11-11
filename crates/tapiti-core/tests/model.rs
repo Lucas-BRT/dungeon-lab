@@ -4,7 +4,7 @@ use tapiti_core::params::params_of_level;
 use tapiti_core::stage::stage;
 use tapiti_core::validate::validate;
 
-/// The model's promise (`docs/dungeon-model.md` §9): every level's stages pass the validator.
+/// The model's promise (`docs/model.md` §9): every level's stages pass the validator.
 #[test]
 fn every_level_gives_only_valid_stages() {
     for level in 1..=5 {

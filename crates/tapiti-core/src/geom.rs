@@ -1,4 +1,4 @@
-//! Plane geometry of the dungeon model (`docs/dungeon-model.md`): directions of the alphabet Θ₈ (multiples of 45°), shapes (polygons
+//! Plane geometry of the Tapiti model (`docs/model.md`): directions of the alphabet Θ₈ (multiples of 45°), shapes (polygons
 //! and discs), the distance between two shapes and the band a corridor segment covers. Only `+ − × ÷`, `sqrt` and the libm that ships
 //! inside the WASM module, so it rounds the same in every browser.
 
@@ -20,7 +20,7 @@ pub const DIRS: [V; 8] = [
 ];
 
 pub fn dir_of(k: i32) -> V {
-    DIRS[(((k % 8) + 8) % 8) as usize]
+    DIRS[k.rem_euclid(8) as usize]
 }
 
 /// The turn between directions `a` and `b`, in steps of 45° (0..4).

@@ -275,8 +275,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         .into_iter()
         .map(|level| {
             let p = params::params_of_level(level);
-            let dungeon = generate::generate(0xD06E_0000 + level as u32, &p);
-            let centers: Vec<_> = dungeon.rooms.iter().map(|room| room.center).collect();
+            let floor = generate::generate(0xD06E_0000 + level as u32, &p);
+            let centers: Vec<_> = floor.rooms.iter().map(|room| room.center).collect();
             (format!("level {level}"), p, centers)
         })
         .collect();

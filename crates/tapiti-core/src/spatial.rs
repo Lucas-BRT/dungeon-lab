@@ -55,7 +55,7 @@ impl SpatialHash {
             self.wide.push(id);
             return;
         };
-        if Self::cell_count(range).map_or(true, |n| n > 4096) {
+        if Self::cell_count(range).is_none_or(|n| n > 4096) {
             self.wide.push(id);
             return;
         }
@@ -107,7 +107,7 @@ impl SpatialHash {
         let Some(range) = self.range(lo, hi, margin) else {
             return false;
         };
-        if Self::cell_count(range).map_or(true, |n| n > 100_000) {
+        if Self::cell_count(range).is_none_or(|n| n > 100_000) {
             return false;
         }
         out.extend_from_slice(&self.wide);

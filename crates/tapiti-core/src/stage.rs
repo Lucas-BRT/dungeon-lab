@@ -1,9 +1,9 @@
-use crate::generate::{generate_with_progress, Dungeon, GenerationEvent};
+use crate::generate::{generate_with_progress, Floor, GenerationEvent};
 use crate::params::Params;
 use crate::validate::validate;
 
 pub struct Stage {
-    pub d: Dungeon,
+    pub d: Floor,
     pub violations: Vec<String>,
     pub draws: u32,
 }

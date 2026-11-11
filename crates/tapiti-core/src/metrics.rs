@@ -93,7 +93,7 @@ fn room_hops_in_adj(nodes: &[Node], adj: &[Vec<(usize, usize)>], from: usize) ->
     out
 }
 
-pub fn metrics_of(d: &Dungeon) -> Metrics {
+pub fn metrics_of(d: &Floor) -> Metrics {
     let live: Vec<usize> = (0..d.nodes.len())
         .filter(|i| match d.nodes[*i] {
             Node::Junction { .. } => true,

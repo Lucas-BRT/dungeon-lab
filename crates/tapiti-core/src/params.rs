@@ -1,4 +1,4 @@
-//! The parameter vector Λ of the dungeon model (§8): one generator, a different Λ per level. The JSON field names are camelCase,
+//! The parameter vector Λ of the Tapiti model (§8): one generator, a different Λ per level. The JSON field names are camelCase,
 //! so a Λ copied from one frontend (desktop or web) loads in the other.
 
 use serde::{Deserialize, Serialize};

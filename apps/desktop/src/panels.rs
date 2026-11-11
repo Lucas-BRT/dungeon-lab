@@ -2,9 +2,10 @@
 
 use crate::map::{self, Palette, Xf};
 use crate::params_ui::field_row;
+use crate::pick::map_object_at;
 use crate::{
-    class_label, format_number, get_path, level_description, map_object_at, set_path, summary,
-    translate_log, translate_violation, App, BenchmarkKind, Experiment, GeneratedMap, Tab,
+    class_label, format_number, get_path, level_description, set_path, summary, translate_log,
+    translate_violation, App, BenchmarkKind, Experiment, GeneratedMap, Tab,
 };
 use eframe::egui::{
     self, Align, Button, Color32, CursorIcon, Frame, Grid, Layout, Panel, RichText, ScrollArea,
@@ -584,9 +585,9 @@ fn analysis_tab(app: &mut App, ui: &mut Ui) {
             ui.label(format!("{}: {count}", class_label(class)));
         }
     });
-    if !map.dungeon.log.is_empty() {
+    if !map.floor.log.is_empty() {
         card(ui, t!("What the generator did"), |ui| {
-            for line in &map.dungeon.log {
+            for line in &map.floor.log {
                 ui.label(muted(ui, translate_log(line)));
             }
         });
@@ -797,7 +798,7 @@ pub fn central(app: &mut App, ui: &mut Ui) {
             if app.showing_building() {
                 map::draw_building(&painter, &xf, &app.building, overlays, &pal);
             } else if let Some(generated) = &app.generated {
-                map::draw_dungeon(&painter, &xf, &generated.dungeon, overlays, &pal);
+                map::draw_floor(&painter, &xf, &generated.floor, overlays, &pal);
             }
             if app.overlays.legend && rect.width() > 520.0 && rect.height() > 380.0 {
                 map::legend(&painter, rect, &pal, ui.visuals().text_color());
@@ -814,7 +815,7 @@ pub fn central(app: &mut App, ui: &mut Ui) {
 
             if response.hovered() && !response.dragged() && !app.showing_building() {
                 if let (Some(pos), Some(generated)) = (response.hover_pos(), &app.generated) {
-                    let info = map_object_at(&generated.dungeon, xf.to_world(pos), app.zoom);
+                    let info = map_object_at(&generated.floor, xf.to_world(pos), app.zoom);
                     if !info.is_empty() {
                         response.on_hover_text_at_pointer(info);
                     }

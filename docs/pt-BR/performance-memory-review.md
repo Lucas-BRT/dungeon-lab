@@ -25,16 +25,16 @@ Os números abaixo vêm de `std::mem::size_of` no alvo nativo de 64 bits. Eles m
 | `Edge` | 176 | Inclui duas pontas opcionais, polilinha e vetor da região de colisão. |
 | `Candidate` | 168 | Candidato completo usado na busca, com portas, pesos e região. |
 | `CandidateView` | 48 | Versão reduzida enviada ao visualizador. |
-| `Dungeon` | 784 | Agrega os parâmetros e os vetores do andar. |
+| `Floor` | 784 | Agrega os parâmetros e os vetores do andar. |
 | `Metrics` | 208 | Resultados escalares e contagem por classe. |
-| `Stage` | 816 | Mantém o `Dungeon`, violações e número de tentativas. |
+| `Stage` | 816 | Mantém o `Floor`, violações e número de tentativas. |
 | `Mulberry` / `Const` | 4 / 8 | Estado dos geradores de números aleatórios. |
 
 ## Otimizações aplicadas
 
 - **Uma forma por sala.** Antes, `Room` guardava a forma em `shape` e uma segunda cópia dentro de `bb: Bounded`. Agora guarda `shape` e `Bounds`; isso reduz 32 bytes inline por sala e evita duplicar o vetor de vértices do polígono.
 - **Nós menores.** `Node` tinha 24 bytes porque a posição `[f64; 2]` da variante `Junction` era embutida. A posição agora usa `Box<V>`: cada nó ocupa 16 bytes, com uma alocação extra por junção. O JSON continua apresentando `p` como um par de coordenadas.
-- **Candidatas de saída menores.** A busca usa `Candidate`; o `Dungeon` guarda `CandidateView`, que mantém somente os IDs e a polilinha usados pela página. O tipo inline cai de 168 para 48 bytes por candidata retida, e regiões de colisão e portas auxiliares deixam de ser mantidas no resultado.
+- **Candidatas de saída menores.** A busca usa `Candidate`; o `Floor` guarda `CandidateView`, que mantém somente os IDs e a polilinha usados pela página. O tipo inline cai de 168 para 48 bytes por candidata retida, e regiões de colisão e portas auxiliares deixam de ser mantidas no resultado.
 - **Sem clones de candidatas entre fases.** As candidatas vivas são transferidas do cache para a lista estática. Depois que a árvore é montada, os vetores temporários da busca e o cache de pares são liberados antes da fase de ciclos.
 - **Opção T sem porta duplicada.** `Action::Branch` guardava a porta e também o índice dessa porta na sala. A ação conserva o índice e recupera o valor quando precisa dele.
 - **Matriz contínua.** A matriz densa usada para calcular $\lambda_2$ agora ocupa um único `Vec<f64>`, evitando uma alocação e um cabeçalho de `Vec` por linha.
@@ -59,7 +59,7 @@ Os números abaixo vêm de `std::mem::size_of` no alvo nativo de 64 bits. Eles m
 
 `Edge` é grande e contém geometria que deve continuar viva durante a validação. `ends` pode ser simplificado se o modelo de porta for refeito como uma referência compacta, mas as portas deslocadas impedem trocar cada valor por um simples índice sem mudança semântica. `region` não é enviada ao navegador.
 
-`Candidate` é grande por projeto enquanto a busca está ativa: os pesos, portas e regiões são necessários para avaliar e aplicar ações. A lista final usa o tipo menor `CandidateView`. `Dungeon` e `Stage` carregam esses valores por composição; colocar o andar atrás de `Box` reduziria o tamanho do valor pai, mas não a memória total e adicionaria uma alocação.
+`Candidate` é grande por projeto enquanto a busca está ativa: os pesos, portas e regiões são necessários para avaliar e aplicar ações. A lista final usa o tipo menor `CandidateView`. `Floor` e `Stage` carregam esses valores por composição; colocar o andar atrás de `Box` reduziria o tamanho do valor pai, mas não a memória total e adicionaria uma alocação.
 
 `Action`, `Opt`, `SegRef`, `Changes` e `Block` são auxiliares temporários. `Action::Branch` perdeu o campo duplicado; `Block` é um valor `Copy` de quatro inteiros. `Gen` concentra caches e mapas temporários, e a liberação entre fases evita manter esses dados até a serialização.
 

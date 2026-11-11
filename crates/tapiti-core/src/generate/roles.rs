@@ -1,0 +1,63 @@
+//! §7.5.2 Roles: the start, and the stairs at a far leaf.
+
+use super::*;
+
+/// Marks `start_room` as the start, picks the stairs room (a far leaf when there is one) and returns it.
+pub(super) fn assign_start_and_stairs(g: &mut Gen<'_>, start_room: usize) -> usize {
+    let p = g.p;
+    let h0 = room_hops(&g.nodes, &g.edges, g.node_of_room[start_room]);
+    let leaves: Vec<usize> = g
+        .rooms
+        .iter()
+        .filter(|r| r.alive && r.id != start_room && g.degree(r.id) == 1)
+        .map(|r| r.id)
+        .collect();
+    let pool: Vec<usize> = if leaves.is_empty() {
+        g.rooms
+            .iter()
+            .filter(|r| r.alive && r.id != start_room)
+            .map(|r| r.id)
+            .collect()
+    } else {
+        leaves
+    };
+    // A start room no corridor can leave leaves nothing to pick: the stairs stay on it, V5 flags the draw and `stage` redraws.
+    let mut stairs_room = pool.first().copied().unwrap_or(start_room);
+    for &r in &pool {
+        if h0[g.node_of_room[r]] > h0[g.node_of_room[stairs_room]] {
+            stairs_room = r;
+        }
+    }
+    if p.growth.enabled {
+        // The cycles added later shorten walks, so the pick keeps a margin over `minHops` when the tree is deep enough for one.
+        let pick = |g: &Gen<'_>, wanted: f64| -> Vec<usize> {
+            g.rooms
+                .iter()
+                .filter(|r| {
+                    r.alive
+                        && r.id != start_room
+                        && h0[g.node_of_room[r.id]] >= wanted
+                        && g.degree(r.id) <= p.stairs_doors as usize
+                })
+                .map(|r| r.id)
+                .collect()
+        };
+        let mut eligible = pick(g, p.min_hops as f64 + 2.0);
+        if eligible.is_empty() {
+            eligible = pick(g, p.min_hops as f64);
+        }
+        if !eligible.is_empty() {
+            stairs_room = eligible[(g.rng.next() * eligible.len() as f64).floor() as usize];
+        }
+    }
+    if h0[g.node_of_room[stairs_room]] < p.min_hops as f64 {
+        g.log.push(format!(
+            "stairs only {} hops from the start (wanted {})",
+            h0[g.node_of_room[stairs_room]], p.min_hops
+        ));
+    }
+    g.rooms[start_room].role = Role::Start;
+    g.rooms[stairs_room].role = Role::Stairs;
+    g.stairs_room = stairs_room;
+    stairs_room
+}

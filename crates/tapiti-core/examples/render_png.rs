@@ -60,7 +60,7 @@ fn png(path: &str, w: usize, h: usize, rgb: &[u8]) {
     std::fs::write(path, out).unwrap();
 }
 
-fn render(d: &generate::Dungeon, scale: f64) -> (usize, usize, Vec<u8>) {
+fn render(d: &generate::Floor, scale: f64) -> (usize, usize, Vec<u8>) {
     let (w, h) = (
         (d.grid_x.last().unwrap() * scale) as usize + 1,
         (d.grid_y.last().unwrap() * scale) as usize + 1,

@@ -51,13 +51,13 @@ fn complete_stage(c: &mut Criterion) {
 
 fn validation_and_metrics(c: &mut Criterion) {
     let p = params::params_of_level(5);
-    let dungeon = generate::generate(0xC011_EC7, &p);
+    let floor = generate::generate(0x0C01_1EC7, &p);
 
     c.bench_function("validate/level5", |b| {
-        b.iter(|| validate::validate(black_box(&dungeon)))
+        b.iter(|| validate::validate(black_box(&floor)))
     });
     c.bench_function("metrics/level5", |b| {
-        b.iter(|| metrics::metrics_of(black_box(&dungeon)))
+        b.iter(|| metrics::metrics_of(black_box(&floor)))
     });
 }
 

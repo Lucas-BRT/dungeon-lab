@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 use tapiti_core::{
-    generate::{Dungeon, generate},
+    generate::{Floor, generate},
     params::params_of_level,
     stage::stage,
     validate::validate,
@@ -31,9 +31,9 @@ pub const SHAPES_SEED: u32 = 16;
 /// Validator figure: a level 5 first draw that the validator rejects (the stairs end up too close to the entrance).
 pub const REJECTED_SEED: u32 = 17;
 
-fn svg(dungeon: &Dungeon, label: String) -> TrustedHtml {
+fn svg(floor: &Floor, label: String) -> TrustedHtml {
     TrustedHtml(floor_svg(
-        dungeon,
+        floor,
         &Style {
             label: Some(label),
             ..Style::default()
@@ -42,7 +42,7 @@ fn svg(dungeon: &Dungeon, label: String) -> TrustedHtml {
 }
 
 pub fn hero(label: String) -> TrustedHtml {
-    static FLOOR: OnceLock<Dungeon> = OnceLock::new();
+    static FLOOR: OnceLock<Floor> = OnceLock::new();
     svg(
         FLOOR.get_or_init(|| generate(HERO_SEED, &params_of_level(5))),
         label,
@@ -50,7 +50,7 @@ pub fn hero(label: String) -> TrustedHtml {
 }
 
 pub fn shapes(label: String) -> TrustedHtml {
-    static FLOOR: OnceLock<Dungeon> = OnceLock::new();
+    static FLOOR: OnceLock<Floor> = OnceLock::new();
     let floor = FLOOR.get_or_init(|| {
         let mut params = params_of_level(5);
         params.weights.rect = 1.0;
@@ -66,7 +66,7 @@ pub fn shapes(label: String) -> TrustedHtml {
 
 /// The rejected first draw and what the validator said about it.
 pub fn rejected(label: String) -> (TrustedHtml, Vec<String>) {
-    static FLOOR: OnceLock<(Dungeon, Vec<String>)> = OnceLock::new();
+    static FLOOR: OnceLock<(Floor, Vec<String>)> = OnceLock::new();
     let (floor, violations) = FLOOR.get_or_init(|| {
         let floor = generate(REJECTED_SEED, &params_of_level(5));
         let violations = validate(&floor);
@@ -136,7 +136,7 @@ const WINDOW: Duration = Duration::from_secs(10);
 const CACHE_LIMIT: usize = 64;
 
 struct Dug {
-    floors: HashMap<u32, Arc<Dungeon>>,
+    floors: HashMap<u32, Arc<Floor>>,
     window_start: Instant,
     spent: u32,
 }

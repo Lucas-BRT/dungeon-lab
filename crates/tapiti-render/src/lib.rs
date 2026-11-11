@@ -5,7 +5,7 @@
 //! so a page can colour them with its own tokens and reveal the floor outwards from the entrance with a staggered animation.
 
 use std::fmt::Write;
-use tapiti_core::generate::{room_hops, Dungeon, Node, Role};
+use tapiti_core::generate::{room_hops, Floor, Node, Role};
 use tapiti_core::geom::{dir_of, Shape, V};
 
 /// How colours reach the SVG.
@@ -139,7 +139,7 @@ fn theme_css(theme: Theme) -> &'static str {
 }
 
 /// Renders `d` as a standalone `<svg>` element.
-pub fn floor_svg(d: &Dungeon, style: &Style) -> String {
+pub fn floor_svg(d: &Floor, style: &Style) -> String {
     let (x0, x1) = (
         d.grid_x.first().copied().unwrap_or(0.0),
         d.grid_x.last().copied().unwrap_or(1.0),
@@ -171,7 +171,7 @@ pub fn floor_svg(d: &Dungeon, style: &Style) -> String {
         style
             .label
             .clone()
-            .unwrap_or_else(|| format!("Dungeon floor, seed {}", d.seed))
+            .unwrap_or_else(|| format!("Tapiti floor, seed {}", d.seed))
             .replace('&', "&amp;")
             .replace('"', "&quot;")
             .replace('<', "&lt;")

@@ -32,9 +32,9 @@ const SOURCES: &[Source] = &[
     },
     Source {
         slug: "model",
-        en: include_str!("../../../docs/dungeon-model.md"),
-        pt: Some(include_str!("../../../docs/pt-BR/dungeon-model.md")),
-        file: "dungeon-model.md",
+        en: include_str!("../../../docs/model.md"),
+        pt: Some(include_str!("../../../docs/pt-BR/model.md")),
+        file: "model.md",
     },
     Source {
         slug: "parameters",

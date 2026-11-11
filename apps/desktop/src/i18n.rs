@@ -100,6 +100,7 @@ mod tests {
             include_str!("panels.rs"),
             include_str!("params_ui.rs"),
             include_str!("map.rs"),
+            include_str!("pick.rs"),
         ] {
             for marker in ["t!(", "tf!("] {
                 let mut rest = source;

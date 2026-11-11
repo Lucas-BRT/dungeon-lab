@@ -25,16 +25,16 @@ The numbers below come from `std::mem::size_of` on the native 64-bit target. The
 | `Edge` | 176 | Includes two optional ends, polyline and the collision-region vector. |
 | `Candidate` | 168 | Full candidate used by the search, with ports, weights and region. |
 | `CandidateView` | 48 | Reduced version sent to the viewer. |
-| `Dungeon` | 784 | Aggregates the parameters and the floor's vectors. |
+| `Floor` | 784 | Aggregates the parameters and the floor's vectors. |
 | `Metrics` | 208 | Scalar results and the count per class. |
-| `Stage` | 816 | Holds the `Dungeon`, violations and number of attempts. |
+| `Stage` | 816 | Holds the `Floor`, violations and number of attempts. |
 | `Mulberry` / `Const` | 4 / 8 | State of the random number generators. |
 
 ## Optimizations applied
 
 - **One shape per room.** Before, `Room` stored the shape in `shape` and a second copy inside `bb: Bounded`. Now it stores `shape` and `Bounds`; this saves 32 inline bytes per room and avoids duplicating the polygon's vertex vector.
 - **Smaller nodes.** `Node` was 24 bytes because the `[f64; 2]` position of the `Junction` variant was embedded. The position now uses `Box<V>`: each node takes 16 bytes, with one extra allocation per junction. The JSON still presents `p` as a coordinate pair.
-- **Smaller output candidates.** The search uses `Candidate`; the `Dungeon` keeps `CandidateView`, which holds only the IDs and the polyline the page uses. The inline type drops from 168 to 48 bytes per retained candidate, and collision regions and auxiliary ports are no longer kept in the result.
+- **Smaller output candidates.** The search uses `Candidate`; the `Floor` keeps `CandidateView`, which holds only the IDs and the polyline the page uses. The inline type drops from 168 to 48 bytes per retained candidate, and collision regions and auxiliary ports are no longer kept in the result.
 - **No candidate clones between phases.** Live candidates are moved from the cache to the static list. After the tree is built, the search's temporary vectors and the pair cache are freed before the cycles phase.
 - **T option without a duplicate port.** `Action::Branch` stored the port and also that port's index in the room. The action now keeps the index and recovers the value when it needs it.
 - **Contiguous matrix.** The dense matrix used to compute $\lambda_2$ now takes a single `Vec<f64>`, avoiding one allocation and one `Vec` header per row.
@@ -59,7 +59,7 @@ The numbers below come from `std::mem::size_of` on the native 64-bit target. The
 
 `Edge` is large and holds geometry that must stay alive during validation. `ends` can be simplified if the port model is redone as a compact reference, but shifted ports prevent replacing each value with a plain index without a semantic change. `region` is not sent to the browser.
 
-`Candidate` is large by design while the search is active: the weights, ports and regions are needed to evaluate and apply actions. The final list uses the smaller `CandidateView` type. `Dungeon` and `Stage` carry these values by composition; putting the floor behind a `Box` would reduce the parent value's size, but not the total memory, and would add an allocation.
+`Candidate` is large by design while the search is active: the weights, ports and regions are needed to evaluate and apply actions. The final list uses the smaller `CandidateView` type. `Floor` and `Stage` carry these values by composition; putting the floor behind a `Box` would reduce the parent value's size, but not the total memory, and would add an allocation.
 
 `Action`, `Opt`, `SegRef`, `Changes` and `Block` are temporary helpers. `Action::Branch` lost the duplicated field; `Block` is a `Copy` value of four integers. `Gen` concentrates caches and temporary maps, and freeing between phases avoids keeping that data until serialization.
 

@@ -9,6 +9,7 @@ mod i18n;
 mod map;
 mod panels;
 mod params_ui;
+mod pick;
 
 use eframe::egui::{self, Key, Modifiers};
 use params_ui::ParamGroup;
@@ -17,7 +18,7 @@ use std::collections::HashSet;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use tapiti_core::generate::{Dungeon, GenerationEvent, Node, Role};
+use tapiti_core::generate::{Floor, GenerationEvent, Role};
 use tapiti_core::geom::{dist, Shape};
 use tapiti_core::metrics::{metrics_of, Metrics};
 use tapiti_core::par;
@@ -32,7 +33,7 @@ const PREVIEW_AFTER: Duration = Duration::from_millis(120);
 
 #[derive(Clone)]
 pub struct GeneratedMap {
-    pub dungeon: Arc<Dungeon>,
+    pub floor: Arc<Floor>,
     pub metrics: Metrics,
     pub violations: Vec<String>,
     pub draws: u32,
@@ -488,11 +489,11 @@ impl App {
     pub fn map_bounds(&self) -> Option<([f64; 2], [f64; 2])> {
         match (&self.generated, self.show_building) {
             (Some(map), false) => Some((
-                [*map.dungeon.grid_x.first()?, *map.dungeon.grid_y.first()?],
-                [*map.dungeon.grid_x.last()?, *map.dungeon.grid_y.last()?],
+                [*map.floor.grid_x.first()?, *map.floor.grid_y.first()?],
+                [*map.floor.grid_x.last()?, *map.floor.grid_y.last()?],
             )),
             _ => self.building.bounds().or_else(|| {
-                let d = &self.generated.as_ref()?.dungeon;
+                let d = &self.generated.as_ref()?.floor;
                 Some((
                     [*d.grid_x.first()?, *d.grid_y.first()?],
                     [*d.grid_x.last()?, *d.grid_y.last()?],
@@ -807,7 +808,7 @@ fn generate_map(
         .collect::<Vec<_>>()
         .join(" · ");
     Ok(GeneratedMap {
-        dungeon: Arc::new(stage.d),
+        floor: Arc::new(stage.d),
         metrics: measures,
         level,
         seed: chosen_seed,
@@ -1022,141 +1023,6 @@ fn role_label(role: Role) -> &'static str {
         Role::Prize => t!("prize"),
         Role::Empty => t!("empty"),
     }
-}
-
-fn point_in_shape(shape: &Shape, point: [f64; 2]) -> bool {
-    match shape {
-        Shape::Disc { c, r } => dist(*c, point) <= *r,
-        Shape::Poly { pts } => {
-            let mut inside = false;
-            let mut j = pts.len().saturating_sub(1);
-            for i in 0..pts.len() {
-                let [xi, yi] = pts[i];
-                let [xj, yj] = pts[j];
-                let crosses = (yi > point[1]) != (yj > point[1])
-                    && point[0] < (xj - xi) * (point[1] - yi) / (yj - yi) + xi;
-                if crosses {
-                    inside = !inside;
-                }
-                j = i;
-            }
-            inside
-        }
-    }
-}
-
-fn distance_to_segment(point: [f64; 2], a: [f64; 2], b: [f64; 2]) -> f64 {
-    let dx = b[0] - a[0];
-    let dy = b[1] - a[1];
-    let length2 = dx * dx + dy * dy;
-    let t = if length2 == 0.0 {
-        0.0
-    } else {
-        (((point[0] - a[0]) * dx + (point[1] - a[1]) * dy) / length2).clamp(0.0, 1.0)
-    };
-    dist(point, [a[0] + dx * t, a[1] + dy * t])
-}
-
-fn node_label(dungeon: &Dungeon, node: usize) -> String {
-    match dungeon.nodes.get(node) {
-        Some(Node::Junction { .. }) => t!("junction").into(),
-        Some(Node::Room { room }) => tf!("room #{id}", id = dungeon.rooms[*room].id),
-        None => t!("point").into(),
-    }
-}
-
-fn map_object_at(dungeon: &Dungeon, point: [f64; 2], zoom: f64) -> String {
-    for room in dungeon.rooms.iter().rev() {
-        if room.alive && point_in_shape(&room.shape, point) {
-            let kind = if room.leaf {
-                t!("leaf chamber")
-            } else {
-                t!("room")
-            };
-            let items = [
-                (room.keys != 0).then(|| tf!("{n} key(s)", n = room.keys.count_ones())),
-                (room.switches != 0).then(|| tf!("{n} switch(es)", n = room.switches.count_ones())),
-            ]
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
-            return tf!(
-                "{kind} · {role}\nRoom #{id} · {class}\nArea: {area} px²\nDoors used: {used} · possible: {possible}{items}",
-                kind = kind,
-                role = role_label(room.role),
-                id = room.id,
-                class = class_label(room.cls.name()),
-                area = format!("{:.0}", room.area),
-                used = room.used.len(),
-                possible = room.ports.len(),
-                items = if items.is_empty() {
-                    String::new()
-                } else {
-                    format!("\n{}: {}", t!("Items"), items.join(" · "))
-                }
-            );
-        }
-    }
-    for (id, node) in dungeon.nodes.iter().enumerate() {
-        if let Node::Junction { p } = node {
-            if dist(**p, point) <= (8.0 / zoom.max(0.1)).max(6.0) {
-                let degree = dungeon
-                    .edges
-                    .iter()
-                    .filter(|edge| edge.u == id || edge.v == id)
-                    .count();
-                return tf!(
-                    "Corridor junction\n{degree} arms connected\nPosition: {x}, {y} px",
-                    degree = degree,
-                    x = format!("{:.0}", p[0]),
-                    y = format!("{:.0}", p[1])
-                );
-            }
-        }
-    }
-    for edge in &dungeon.edges {
-        if edge.pts.windows(2).any(|segment| {
-            distance_to_segment(point, segment[0], segment[1])
-                <= dungeon.params.width / 2.0 + 5.0 / zoom.max(0.1)
-        }) {
-            let length = edge
-                .pts
-                .windows(2)
-                .map(|segment| dist(segment[0], segment[1]))
-                .sum::<f64>();
-            let gates = [
-                (edge.requires_keys != 0)
-                    .then(|| tf!("key {bits}", bits = format!("{:08b}", edge.requires_keys))),
-                (edge.requires_switches != 0).then(|| {
-                    tf!(
-                        "switch {bits}",
-                        bits = format!("{:08b}", edge.requires_switches)
-                    )
-                }),
-            ]
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
-            return tf!(
-                "Corridor segment #{id}\n{from} – {to}\n{n} segment(s) · {length} px{gates}",
-                id = edge.id,
-                from = node_label(dungeon, edge.u),
-                to = node_label(dungeon, edge.v),
-                n = edge.pts.len().saturating_sub(1),
-                length = format!("{length:.0}"),
-                gates = if gates.is_empty() {
-                    String::new()
-                } else {
-                    format!(
-                        "\n{}: {}",
-                        t!("Locked"),
-                        gates.join(&format!(" {} ", t!("and")))
-                    )
-                }
-            );
-        }
-    }
-    String::new()
 }
 
 fn level_description(level: usize) -> &'static str {

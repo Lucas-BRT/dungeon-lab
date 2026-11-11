@@ -1,4 +1,4 @@
-//! The validator of the dungeon model (§5.2, §9): V1 to V5 checked from the stage alone, without trusting the generator. Returns the
+//! The validator of the Tapiti model (§5.2, §9): V1 to V5 checked from the stage alone, without trusting the generator. Returns the
 //! violations found (an empty list: valid). V6 (rocks and crystals) belongs to the furniture, not drawn here.
 
 use crate::generate::*;
@@ -6,7 +6,7 @@ use crate::geom::*;
 use crate::spatial::SpatialHash;
 use std::collections::{HashMap, HashSet};
 
-pub fn validate(d: &Dungeon) -> Vec<String> {
+pub fn validate(d: &Floor) -> Vec<String> {
     let p = &d.params;
     let mut out: Vec<String> = Vec::new();
     let rooms: Vec<&Room> = d.rooms.iter().filter(|r| r.alive).collect();

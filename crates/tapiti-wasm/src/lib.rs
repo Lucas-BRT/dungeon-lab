@@ -1,4 +1,4 @@
-//! The dungeon model (`docs/dungeon-model.md` of the game's repository) as a Rust crate compiled to WebAssembly: rooms of any shape,
+//! The Tapiti model (`docs/model.md`) as a Rust crate compiled to WebAssembly: rooms of any shape,
 //! continuous doors, octilinear corridors (I, L, Z/U, T, X), leaf chambers, a validator and the graph's measures.
 //!
 //! The browser calls [`stage_json`]: the stage, its violations and its measures come back as one JSON string, so the page only draws.
@@ -10,7 +10,7 @@ use wasm_bindgen::prelude::*;
 
 #[derive(Serialize)]
 struct Answer<'a> {
-    dungeon: &'a generate::Dungeon,
+    floor: &'a generate::Floor,
     violations: &'a [String],
     draws: u32,
     metrics: metrics::Metrics,
@@ -24,7 +24,7 @@ pub fn default_params(level: u32) -> String {
     serde_json::to_string(&params::params_of_level(level as usize)).unwrap()
 }
 
-/// A valid stage for `seed` and the Λ in `params_json`, as JSON: `{ dungeon, violations, draws, metrics, ms }`.
+/// A valid stage for `seed` and the Λ in `params_json`, as JSON: `{ floor, violations, draws, metrics, ms }`.
 #[wasm_bindgen]
 pub fn stage_json(seed: u32, params_json: &str) -> Result<String, JsError> {
     let p: params::Params =
@@ -34,7 +34,7 @@ pub fn stage_json(seed: u32, params_json: &str) -> Result<String, JsError> {
     let ms = clock::now_ms() - t0;
     let m = metrics::metrics_of(&s.d);
     serde_json::to_string(&Answer {
-        dungeon: &s.d,
+        floor: &s.d,
         violations: &s.violations,
         draws: s.draws,
         metrics: m,
@@ -50,7 +50,7 @@ pub fn threads() -> u32 {
 }
 
 /// Times `count` stages of one level from the seeds `from..from + count`, one after another, and returns `{ invalid, ms, threads }`.
-/// The page's worker pool gives each worker a slice of the seeds (see `web/pool.js`); natively the stages of a slice also split over rayon's threads.
+/// The page's worker pool gives each worker a slice of the seeds (see `apps/site/assets/lab/lab.js`); natively the stages of a slice also split over rayon's threads.
 #[wasm_bindgen]
 pub fn bench(level: u32, from: u32, count: u32) -> String {
     let p = params::params_of_level(level as usize);
