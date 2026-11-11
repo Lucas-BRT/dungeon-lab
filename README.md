@@ -46,7 +46,9 @@ cargo run --release                 # optimized desktop build
 scripts/build-wasm.sh && topcoat dev -p tapiti-site     # the website (landing, docs, lab) on http://127.0.0.1:3000/, rebuilt on every change (`cargo install topcoat-cli`)
 docker compose -f compose.local.yml up --build   # the same site as a container on http://localhost:8090/
 node scripts/lab-smoke.mjs                   # smoke test of the lab in headless Firefox (site running)
-node scripts/site-smoke.mjs                  # smoke test of the landing page's 3D walk (site running)
+node scripts/site-smoke.mjs                  # the landing page's 3D walk, the 404, reduced motion (site running; AXE_JS=… adds axe-core)
+node scripts/site-shots.mjs shots            # screenshots of the pages at desktop and phone width
+node scripts/og-card.mjs                     # remakes the social card from the 3D scene
 scripts/build-wasm.sh                          # only the module: cargo build --release --target wasm32-unknown-unknown + wasm-bindgen → apps/site/pkg
 cargo test --release -p tapiti-core   # validity of the 5 levels, determinism, density; add `profile`, `scale`, `bench -- --nocapture` for timings
 cargo test --release -p tapiti-core --no-default-features   # the same, single-threaded

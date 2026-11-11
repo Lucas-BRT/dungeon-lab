@@ -1,9 +1,9 @@
 // Smoke test of the landing page's walk in headless Firefox, over WebDriver BiDi (Node 22+ and `firefox`; start the site first).
 //   node scripts/site-smoke.mjs [base-url]        default: http://127.0.0.1:3000
 // Checks the scene starts and stays inside its budgets, follows the scroll, agrees with the server's minimap, does not shift the layout,
-// can be switched off, steps under reduced motion, and that the docs load neither three.js nor wasm.
+// can be switched off, steps under reduced motion, and that the docs load neither three.js nor wasm. With AXE_JS set, also runs axe-core.
 import { spawn } from 'node:child_process'
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -92,6 +92,18 @@ await open('/docs/model')
 await sleep(1500)
 const heavy = await run("return performance.getEntriesByType('resource').map((r) => r.name).filter((n) => /three-subset|tapiti_bg\\.wasm|scene\\.js/.test(n)).length")
 check('docs load no three.js and no wasm', heavy === 0, heavy)
+
+// Accessibility, when axe-core is at hand: AXE_JS=/path/to/axe.min.js (CI installs it into a temp dir). No serious or critical violation.
+if (process.env.AXE_JS) {
+  const axe = readFileSync(process.env.AXE_JS, 'utf8')
+  for (const path of ['/', '/docs/model', '/search?q=seed', '/leaf', '/lab']) {
+    await open(path)
+    await sleep(path === '/lab' || path === '/' || path === '/leaf' ? 5000 : 1000)
+    const found = await run(`${axe}\n; const r = await axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] }); return JSON.stringify(r.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => v.id + ' x' + v.nodes.length))`)
+    const list = JSON.parse(found ?? '["no result"]')
+    check(`axe: no serious or critical violation on ${path}`, Array.isArray(list) && list.length === 0, found)
+  }
+}
 
 if (errors.length) { failed++; console.log('FAIL console errors:', errors.slice(0, 5)) }
 ws.close()

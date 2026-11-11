@@ -6,7 +6,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
-- Site redesign: a drawing sheet (paper by day, blueprint by night), docs as a calm document with copy buttons and a live table of contents; canonical link and `hreflang` alternates on every page.
+- Site redesign: a torchlit stone floor (dark only: wet-stone base, bone text, one carrot accent; Grenze, Alegreya Sans and JetBrains Mono), docs as a calm document with copy buttons and a live table of contents, and a canonical link on every page.
+- A social card made from the 3D scene, and browser checks in CI (the landing walk, the lab, the 404, axe-core) with screenshots kept as an artifact.
 - The Tapiti website: landing page, documentation (with math as MathML, a generated parameter reference and search), the browser lab, sitemap and robots.txt.
 - `tapiti-render` (SVG floors) and `tapiti-schema` (the parameters of Λ as data).
 - "Dig again" on the landing page: dig the floor of any seed on the server (cached, with a bounded budget).
