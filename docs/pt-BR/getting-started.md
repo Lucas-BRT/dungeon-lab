@@ -23,11 +23,11 @@ O site que você está lendo é um app [Topcoat](https://github.com/tokio-rs/top
 
 ```sh
 cargo install topcoat-cli
-./build.sh                      # o módulo WebAssembly do laboratório
+scripts/build-wasm.sh                      # o módulo WebAssembly do laboratório
 topcoat dev -p tapiti-site      # http://127.0.0.1:3000
 ```
 
-O laboratório (`/lab`) roda o gerador no seu navegador, compilado para WebAssembly.
+O laboratório (`/en/lab`) roda o gerador no seu navegador, compilado para WebAssembly. O formulário vem do mesmo esquema de parâmetros do app desktop. O laboratório é só em inglês.
 
 ## Docker
 

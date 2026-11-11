@@ -37,8 +37,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: workspace
-      - run: cargo fmt --check -p tapiti-site -p tapiti-render -p tapiti-schema
-      - run: cargo clippy -p tapiti-site -p tapiti-render -p tapiti-schema -p tapiti-desktop --no-deps -- -D warnings
+      - run: cargo fmt --check --all
+      - run: cargo clippy -p tapiti-core -p tapiti-site -p tapiti-render -p tapiti-schema -p tapiti-desktop --no-deps -- -D warnings
       - run: cargo test --release -p tapiti-core -p tapiti-render -p tapiti-schema -p tapiti-site -p tapiti-desktop
 
   # Topcoat's own formatter and the translation check (English and Portuguese must stay in step).
@@ -87,8 +87,8 @@ jobs:
           key: wasm-bindgen-cli-0.2.130
       - if: steps.bindgen.outputs.cache-hit != 'true'
         run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
-      - run: ./build.sh
-      - run: node --check web/main.js
+      - run: scripts/build-wasm.sh
+      - run: node --check apps/site/assets/lab/lab.js && node --check apps/site/assets/lab/worker.js
 
   # The image builds (multi-stage, dependencies cached in the GitHub Actions cache). Nothing is pushed.
   docker:

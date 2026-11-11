@@ -1,5 +1,6 @@
 pub mod _page;
 pub mod docs;
+pub mod lab;
 pub mod leaf;
 pub mod search;
 
@@ -147,7 +148,7 @@ async fn header(cx: &Cx) -> Result<impl View> {
                 <a href=(href!(docs::_page::page, path_locale: locale(cx)))>
                     (t!(nav_docs))
                 </a>
-                <a href=(href!(crate::app::lab))>(t!(nav_lab))</a>
+                <a href=(href!(lab::page, path_locale: locale(cx)))>(t!(nav_lab))</a>
                 <a href=(GITHUB)>"GitHub"</a>
                 <span class="lang">
                     for link_locale in t::locales() {
@@ -189,7 +190,7 @@ async fn footer(cx: &Cx) -> Result<impl View> {
                 <a href=(href!(docs::_page::page, path_locale: locale(cx)))>
                     (t!(nav_docs))
                 </a>
-                <a href=(href!(crate::app::lab))>(t!(nav_lab))</a>
+                <a href=(href!(lab::page, path_locale: locale(cx)))>(t!(nav_lab))</a>
             </nav>
             <nav aria-label=(t!(footer_project))>
                 <h2>(t!(footer_project))</h2>

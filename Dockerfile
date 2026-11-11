@@ -40,7 +40,7 @@ COPY --from=planner /app/recipe.json recipe.json
 RUN --mount=type=cache,target=/usr/local/cargo/registry cargo chef cook --release --target wasm32-unknown-unknown --package tapiti-wasm --recipe-path recipe.json
 COPY --from=tool-wasm-bindgen /usr/local/cargo/bin/wasm-bindgen /usr/local/cargo/bin/
 COPY . .
-RUN --mount=type=cache,target=/usr/local/cargo/registry ./build.sh
+RUN --mount=type=cache,target=/usr/local/cargo/registry scripts/build-wasm.sh
 
 # ---- runtime ---------------------------------------------------------------------------------------------
 FROM debian:bookworm-slim AS runtime
@@ -48,13 +48,12 @@ WORKDIR /app
 RUN useradd --system --no-create-home --uid 10001 tapiti
 COPY --from=site-build /app/target/release/tapiti-site ./tapiti-site
 COPY --from=site-build /app/target/release/assets ./assets
-COPY web ./web
-COPY --from=wasm-build /app/web/pkg ./web/pkg
+COPY --from=wasm-build /app/apps/site/pkg ./pkg
 USER tapiti
-# `topcoat::start` reads HOST and PORT; the lab's files are served from TAPITI_LAB_DIR.
+# `topcoat::start` reads HOST and PORT; the lab's WebAssembly module is served from TAPITI_LAB_PKG.
 ENV HOST=0.0.0.0 \
     PORT=8090 \
-    TAPITI_LAB_DIR=/app/web
+    TAPITI_LAB_PKG=/app/pkg
 EXPOSE 8090
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD ["./tapiti-site", "--healthcheck"]

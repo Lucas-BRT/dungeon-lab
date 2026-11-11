@@ -9,7 +9,7 @@ use topcoat::{
     router::{
         HeaderName, HeaderValue, Router, RouterBuilderDirectoryExt, RouterBuilderDiscoverExt,
         content::sitemap::{ChangeFrequency, Sitemap, SitemapUrl},
-        error::{not_found, redirect},
+        error::redirect,
         header::CONTENT_TYPE,
         href, module_router, page, route,
     },
@@ -27,8 +27,8 @@ pub fn router() -> Router {
         .with(BaseUrl::new(site_url()).expect("TAPITI_SITE_URL must be an absolute URL such as https://tapiti.example"))
         .discover()
         .assets(AssetBundle::load().expect("asset bundle missing: run `topcoat dev`, or `topcoat asset bundle --package tapiti-site` after building"))
-        // The browser lab keeps fixed URLs (it loads its own scripts and the WebAssembly module by relative path).
-        .serve_dir("/lab/{*file}", lab_dir())
+        // The lab's WebAssembly module and its glue live at fixed paths: the glue finds its `.wasm` next to itself, so they cannot be hashed assets.
+        .serve_dir("/lab/pkg/{*file}", pkg_dir())
         .layer(RuntimeLayer::new())
         .build()
 }
@@ -38,19 +38,19 @@ pub(crate) fn site_url() -> String {
     std::env::var("TAPITI_SITE_URL").unwrap_or_else(|_| "http://127.0.0.1:3000".into())
 }
 
-/// Where the lab's files live: `TAPITI_LAB_DIR`, else the nearest `web/` above the executable (the repository in development, `/app` in the container).
-fn lab_dir() -> PathBuf {
-    if let Some(dir) = std::env::var_os("TAPITI_LAB_DIR") {
+/// Where the WebAssembly module of the lab is: `TAPITI_LAB_PKG`, else the nearest `apps/site/pkg` above the executable (what `scripts/build-wasm.sh` fills).
+fn pkg_dir() -> PathBuf {
+    if let Some(dir) = std::env::var_os("TAPITI_LAB_PKG") {
         return PathBuf::from(dir);
     }
     std::env::current_exe()
         .ok()
         .and_then(|exe| {
             exe.ancestors()
-                .map(|dir| dir.join("web"))
-                .find(|dir| dir.join("index.html").is_file())
+                .map(|dir| dir.join("apps/site/pkg"))
+                .find(|dir| dir.join("tapiti.js").is_file())
         })
-        .unwrap_or_else(|| PathBuf::from("web"))
+        .unwrap_or_else(|| PathBuf::from("apps/site/pkg"))
 }
 
 /// Sends the visitor from `/` to the language that best fits their browser.
@@ -64,20 +64,13 @@ async fn redirect_to_locale(cx: &Cx) -> Result<impl View> {
     )
 }
 
-/// The lab's page. It is served at `/lab` (the router drops trailing slashes), so a `<base>` makes its relative script paths resolve below `/lab/`.
+/// The lab used to live at `/lab`: send that address to the language that best fits the browser.
 #[route(GET "/lab")]
-async fn lab(cx: &Cx) -> Result<([(HeaderName, HeaderValue); 1], String)> {
-    let page = tokio::fs::read_to_string(lab_dir().join("index.html"))
-        .await
-        .map_err(|_| not_found())?;
-    let page = page.replacen("<head>", "<head>\n    <base href=\"/lab/\">", 1);
-    Ok((
-        [(
-            CONTENT_TYPE,
-            HeaderValue::from_static("text/html; charset=utf-8"),
-        )],
-        page,
-    ))
+async fn lab(cx: &Cx) -> Result<()> {
+    let locale = negotiate(accept_language(cx), t::locales())
+        .cloned()
+        .unwrap_or(locale!("en"));
+    Err(redirect(href!(locale::lab::page, locale::path_locale: locale).resolve(cx)).into())
 }
 
 /// Browsers ask for this path on their own, whatever the page links to.
@@ -111,11 +104,17 @@ async fn robots(cx: &Cx) -> Result<([(HeaderName, HeaderValue); 1], String)> {
 async fn sitemap(cx: &Cx) -> Result<Sitemap> {
     let mut sitemap = Sitemap::new();
     for locale in crate::docs::LOCALES {
-        sitemap = sitemap.url(
-            SitemapUrl::new(format!("/{locale}"))
-                .change_frequency(ChangeFrequency::Monthly)
-                .priority(1.0),
-        );
+        sitemap = sitemap
+            .url(
+                SitemapUrl::new(format!("/{locale}"))
+                    .change_frequency(ChangeFrequency::Monthly)
+                    .priority(1.0),
+            )
+            .url(
+                SitemapUrl::new(format!("/{locale}/lab"))
+                    .change_frequency(ChangeFrequency::Monthly)
+                    .priority(0.8),
+            );
         for page in crate::docs::docs().pages(locale) {
             sitemap = sitemap.url(
                 SitemapUrl::new(format!("/{locale}/docs/{}", page.slug))

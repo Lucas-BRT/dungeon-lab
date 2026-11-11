@@ -10,15 +10,14 @@ Besides the default layout (one room per grid block), the generator can *grow* r
 - **Too many floors are rejected for the stairs being too close to the entrance** (5 to 10% fail after all draws on levels 1 and 5, and floors cost two to four draws instead of one). Growth should favour depth, and the interface should check `depth` against `minHops`.
 - **Topology profiles mostly do not fit it** (`backbone`, `redundantExit` and `longLoop` rarely validate); `hub` works.
 - **Leaf chambers are not generated**, although their parameters stay visible.
-- **It has no automated tests** yet, and the old `frontier-growth` experiment still sits in the generator behind a feature flag.
-- **The browser lab has no controls for it.**
+- **It has no automated tests** yet.
 
 ## Other open items
 
 - **Junction conductance** (`junction`) is a parameter of the reference model that the generator does not use yet.
 - **Delaunay proximity** is in the model but not in the generator (RNG, Gabriel and Near are).
 - **Global scoring of topology profiles**, **mission objectives** and **multi-floor campaigns** are described in the [model](model) as proposals.
-- **The lab as the desktop app.** The browser lab is the original page. Compiling the desktop interface (egui) to WebAssembly would unify them, and is postponed.
+- **The lab as the desktop app.** The browser lab is a Topcoat page with its own canvas, written in English only. Compiling the desktop interface (egui) to WebAssembly would unify them, and is postponed.
 - **Publishing the crates** on crates.io and tagged releases with desktop binaries.
 
 ## Done

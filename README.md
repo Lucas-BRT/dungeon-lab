@@ -1,6 +1,6 @@
 # Tapiti
 
-Tapiti digs dungeon floors from a seed, in Rust and WebAssembly: rooms of many shapes (rect, disc, octagon, L, truncated star), continuous doors,
+Tapiti digs floors from a seed, in Rust and WebAssembly: rooms of many shapes (rect, disc, octagon, L, truncated star), continuous doors,
 octilinear corridors (I, L, Z/U, T, X), leaf chambers, a validator (V1 to V5) and the graph's measures (β, δ, bridges, Menger routes, λ₂), with a
 desktop app and a page to generate any level and edit every parameter of Λ.
 
@@ -47,7 +47,7 @@ cargo test --release -p tapiti-core --no-default-features scale -- --nocapture
 ### What did not pay (measured)
 
 * **SIMD.** `+simd128` made no difference (6.47 vs 6.47 ms; the binary does not even change size): after step 1 the geometry kernel is 1% of the
-  time, so there is nothing for 2-lane `f64` vectors to speed up. `./build.sh simd` and `node bench.mjs` keep the comparison.
+  time, so there is nothing for 2-lane `f64` vectors to speed up. `scripts/build-wasm.sh simd` and `node scripts/bench-wasm.mjs` keep the comparison.
 * **WebAssembly threads** (rayon over Web Workers sharing one memory, `wasm-bindgen-rayon`). It built and ran in the browser, and was about
   16× *slower* than one thread (106 ms vs 6.5 ms per stage, level 5): the generator allocates many small `Vec`s, and the allocator's global lock
   serializes the threads. It also needs a cross-origin isolated page. Removed.
@@ -55,29 +55,29 @@ cargo test --release -p tapiti-core --no-default-features scale -- --nocapture
   floors and batches, which is why `par.rs` keeps a size threshold on each split.
 
 So the parallelism is: rayon natively (`parallel` feature, on by default; also used by the tests), and in the browser a **pool of Web Workers,
-each with its own single-threaded instance** (`web/pool.js`): no shared memory, no special headers, each worker with its own allocator.
+each with its own single-threaded instance** (`apps/site/assets/lab/lab.js`): no shared memory, no special headers, each worker with its own allocator.
 
 ## Run
 
 ```bash
 cargo run                           # opens the native desktop app (egui) (workspace default; fast dev build)
 cargo run --release                 # optimized desktop build
-./build.sh && topcoat dev -p tapiti-site     # the website (landing, docs, lab) on http://127.0.0.1:3000/, rebuilt on every change (`cargo install topcoat-cli`)
+scripts/build-wasm.sh && topcoat dev -p tapiti-site     # the website (landing, docs, lab) on http://127.0.0.1:3000/, rebuilt on every change (`cargo install topcoat-cli`)
 docker compose -f compose.local.yml up --build   # the same site as a container on http://localhost:8090/
-./build.sh                          # only the module: cargo build --release --target wasm32-unknown-unknown + wasm-bindgen → web/pkg
+scripts/build-wasm.sh                          # only the module: cargo build --release --target wasm32-unknown-unknown + wasm-bindgen → apps/site/pkg
 cargo test --release -p tapiti-core   # validity of the 5 levels, determinism, density; add `profile`, `scale`, `bench -- --nocapture` for timings
 cargo test --release -p tapiti-core --no-default-features   # the same, single-threaded
 cargo bench --release -p tapiti-core --bench generator  # Criterion benchmarks
 cargo run --release -p tapiti-core --example dump  # a hash per stage, to compare two builds
-./build.sh simd && node bench.mjs 5 100      # SIMD vs not, in Node
+scripts/build-wasm.sh simd && node scripts/bench-wasm.mjs 5 100      # SIMD vs not, in Node
 ```
 
 The code is split into workspace packages so frontend changes do not require rebuilding the generator, WASM bindings, web server, and desktop app together.
-Cargo keeps one shared `target/` cache: `cargo run` builds only the default desktop app and its core dependency; `./build.sh` builds the WASM package and core; the site is compiled only when selected. The desktop (egui/eframe, glow renderer) enables only the Wayland and X11 backends. For everyday UI work, use the incremental development profile with plain `cargo run`; release builds retain optimization and thin LTO for performance measurements.
+Cargo keeps one shared `target/` cache: `cargo run` builds only the default desktop app and its core dependency; `scripts/build-wasm.sh` builds the WASM package and core; the site is compiled only when selected. The desktop (egui/eframe, glow renderer) enables only the Wayland and X11 backends. For everyday UI work, use the incremental development profile with plain `cargo run`; release builds retain optimization and thin LTO for performance measurements.
 
 The root virtual workspace sets only `apps/desktop` as its default member, so plain `cargo run` still opens the desktop app. To build a package directly, use `cargo build -p tapiti-core`, `cargo build -p tapiti-wasm --target wasm32-unknown-unknown`, or `cargo build -p tapiti-site`. Cargo compiles the selected package and its dependency graph, rather than every workspace member. Development builds omit debug symbols and optimize only the generator core; release builds use thin LTO and multiple codegen units to shorten link times while retaining native optimization.
 
-The website is a [Topcoat](https://github.com/tokio-rs/topcoat) app (`apps/site`): server-rendered pages in English and Portuguese (`/en`, `/pt-BR`), with the browser lab at `/lab` (the WebAssembly module and `web/`, served from fixed URLs). `HOST` and `PORT` set the address; `compose.yml` is the Dokploy deployment.
+The website is a [Topcoat](https://github.com/tokio-rs/topcoat) app (`apps/site`): server-rendered pages in English and Portuguese (`/en`, `/pt-BR`), with the browser lab at `/en/lab` (a Topcoat page; its script, `apps/site/assets/lab/`, drives the WebAssembly module served from `/lab/pkg/`). `HOST` and `PORT` set the address; `compose.yml` is the Dokploy deployment.
 
 Needs the `wasm32-unknown-unknown` target and the `wasm-bindgen` CLI at the version in `crates/tapiti-wasm/Cargo.toml` (`=0.2.130`).
 
@@ -113,7 +113,6 @@ The desktop's single-map latency and progressive-rendering design is documented 
 | `docs/`, `docs/pt-BR/` | the documentation (Markdown, math as `$…$`), rendered by the site and readable on GitHub |
 | `crates/tapiti-wasm/` | the WASM API: `default_params(level)`, `stage_json(seed, params)`, `bench(level, from, count)`, `threads()` |
 | `crates/tapiti-core/tests/`, `benches/`, `examples/` | model tests, Criterion benchmarks, profiling and deterministic dumps |
-| `web/` | the page (`index.html`, `main.js`), the worker pool (`pool.js`, `worker.js`), no bundler |
 
 Floats: only `+ − × ÷`, `sqrt` and the libm inside the module, so every browser rounds the same.
 

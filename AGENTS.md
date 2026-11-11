@@ -1,10 +1,10 @@
 # Agent instructions
 
-Tapiti is a Rust workspace: the generator (`crates/tapiti-core`), its WebAssembly bindings (`crates/tapiti-wasm`), a native egui app (`apps/desktop`), SVG rendering of floors (`crates/tapiti-render`) and the public website (`apps/site`, a Topcoat app: landing page, docs, and the browser lab at `/lab`, which is still the plain `web/` page).
+Tapiti is a Rust workspace: the generator (`crates/tapiti-core`), its WebAssembly bindings (`crates/tapiti-wasm`), a native egui app (`apps/desktop`), SVG rendering of floors (`crates/tapiti-render`) and the public website (`apps/site`, a Topcoat app: landing page, docs, and the browser lab at `/{locale}/lab`: a Topcoat page whose form comes from `tapiti-schema`, with `apps/site/assets/lab/` driving the WebAssembly module).
 
 ## Rules
 
-- **English first, Portuguese supported.** Everything the project ships (UI, docs, comments, commit messages, issue text) is written in English. Portuguese (pt-BR) is a
+- **English first, Portuguese supported.** Everything the project ships (UI, docs, comments, commit messages, issue text) is written in English. The browser lab (`apps/site/src/app/locale/lab.rs`) is English only, on purpose. Portuguese (pt-BR) is a
   translation, never the source. Desktop: `t!("English text")` / `tf!(...)` in `apps/desktop/src/i18n.rs`, with the pt table in `i18n/pt.rs`; a unit test fails when a key has no
   entry. Site: Fluent `.ftl` files (`en` default, `pt-BR`), checked by `topcoat l10n check`.
 - Unsafe code is not allowed in new crates (`unsafe_code = "forbid"`).
@@ -18,7 +18,7 @@ Tapiti is a Rust workspace: the generator (`crates/tapiti-core`), its WebAssembl
 - `docs/*.md` (English) and `docs/pt-BR/*.md` are the single source: GitHub shows them and `apps/site` renders them (included at compile time, see `apps/site/src/docs.rs`). A page missing from `docs/pt-BR/` falls back to English with a notice.
 - Write math as `$…$` and `$$…$$` (own lines, blank line around), never `\(…\)`. Do not put a `|` inside a formula in a table cell. The site turns formulas into MathML on the server; its tests fail when a formula does not parse, a link or anchor is broken, or a heading id repeats.
 - Link other pages by slug (`[model](model)`, `[x](model#section)`), and the repository by relative path (`../crates/...`): the site rewrites both.
-- The parameter reference is generated from `crates/tapiti-schema`; add a parameter there (English and Portuguese text) and the desktop app and the docs follow. `web/main.js` still carries its own copy: the lab is frozen.
+- The parameter reference is generated from `crates/tapiti-schema`; add a parameter there (English and Portuguese text) and the desktop app and the docs follow. The lab form is generated from it too.
 
 ## Website (`apps/site`, Topcoat)
 

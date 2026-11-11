@@ -3654,6 +3654,7 @@ version = "0.1.0"
 dependencies = [
  "pulldown-cmark",
  "pulldown-latex",
+ "serde_json",
  "tapiti-core",
  "tapiti-render",
  "tapiti-schema",
