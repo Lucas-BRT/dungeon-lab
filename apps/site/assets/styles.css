@@ -33,19 +33,7 @@
     --light-fill: #1c2a44;
     --light-below: #5a7bb0;
 
-    /* Names the lab and the landing still use until they are rewritten. */
-    --bg: var(--abyss);
-    --surface: var(--stone-800);
-    --text: var(--bone);
-    --muted: var(--ash);
-    --line: var(--stone-600);
-    --rule: var(--stone-500);
-    --grid: rgb(236 227 208 / .07);
-    --accent: var(--carrot);
-    --accent-ink: var(--soil);
-    --sel: #5a3a1f;
-    --map-gate: var(--gate);
-    --map-ink: var(--bone);
+    --sel: #5a3a1f; /* text selection */
 
     --font-display: "Grenze", Georgia, "Times New Roman", serif;
     --font-body: "Alegreya Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;

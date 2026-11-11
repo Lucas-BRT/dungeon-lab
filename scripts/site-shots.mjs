@@ -9,7 +9,8 @@ import { join } from 'node:path'
 const [out, base = 'http://127.0.0.1:3000', ...rest] = process.argv.slice(2)
 if (!out) { console.error('usage: node scripts/site-shots.mjs <out-dir> [base-url] [path ...]'); process.exit(2) }
 const paths = rest.length ? rest : ['/', '/docs/model', '/search?q=seed', '/leaf', '/lab']
-const widths = [[1440, 900], [390, 844]]
+// WIDTHS=1440x900,1100x800 picks other viewports.
+const widths = (process.env.WIDTHS ?? '1440x900,390x844').split(',').map((w) => w.split('x').map(Number))
 mkdirSync(out, { recursive: true })
 
 const port = 9334

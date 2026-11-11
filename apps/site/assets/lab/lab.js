@@ -16,6 +16,14 @@ const setPath = (object, path, value) => {
   keys.reduce((target, key) => target[key], object)[last] = value
 }
 const css = (name) => getComputedStyle(root).getPropertyValue(name).trim()
+const remember = (key, value) => {
+  try {
+    if (value === undefined) return localStorage.getItem(key)
+    localStorage.setItem(key, value)
+  } catch {
+    return null
+  }
+}
 const popcount = (bits) => bits.toString(2).replaceAll('0', '').length
 
 await init()
@@ -323,21 +331,23 @@ const draw = () => {
   const px = 1 / k
   const d = current.floor
   const P = d.params
-  const ink = css('--map-ink')
-  const accent = css('--accent')
+  const ink = css('--bone')
+  const accent = css('--carrot')
   const corridor = css('--map-corridor')
-  const gate = css('--map-gate')
-  const surface = css('--surface')
+  const gate = css('--gate')
+  const surface = css('--stone-800')
   const colorOf = (cls) => css(`--map-${cls}`) || '#59677a'
   const roleColor = (role) => css(`--role-${role}`)
 
   if (overlays.cells) {
-    ctx.strokeStyle = css('--grid')
+    ctx.strokeStyle = css('--stone-600')
+    ctx.globalAlpha = 0.5
     ctx.lineWidth = px
     const gridX = d.gridX?.length === P.cols + 1 ? d.gridX : Array.from({ length: P.cols + 1 }, (_, i) => i * P.cellW)
     const gridY = d.gridY?.length === P.rows + 1 ? d.gridY : Array.from({ length: P.rows + 1 }, (_, i) => i * P.cellH)
     for (const x of gridX) strokePolyline([[x, gridY[0]], [x, gridY.at(-1)]])
     for (const y of gridY) strokePolyline([[gridX[0], y], [gridX.at(-1), y]])
+    ctx.globalAlpha = 1
   }
   if (overlays.pairs) {
     ctx.strokeStyle = accent
@@ -445,8 +455,8 @@ const draw = () => {
     ctx.font = `${12 * px}px ${css('--font-body') || 'system-ui, sans-serif'}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
-    const text = css('--text')
-    const halo = css('--bg')
+    const text = css('--bone')
+    const halo = css('--abyss')
     for (const room of d.rooms) {
       if (!room.alive) continue
       const inventory = [room.keys ? `K${popcount(room.keys)}` : '', room.switches ? `S${popcount(room.switches)}` : ''].filter(Boolean).join(' ')
@@ -668,6 +678,7 @@ const regenerate = () => {
     hideHelp()
     draw()
     renderResults()
+    if (view3d.active) mount3d()
   } catch (error) {
     current = null
     results.replaceChildren(el('div', { class: 'validity-card invalid' }, el('div', {}, el('strong', {}, tr('lab_gen_failed')), el('p', {}, String(error)))))
@@ -740,15 +751,94 @@ canvas.addEventListener('pointerleave', (event) => { if (!drag && event.pointerT
 canvas.addEventListener('dblclick', resetView)
 
 new ResizeObserver(draw).observe(viewSection)
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw)
 window.addEventListener('keydown', (event) => {
   if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement || event.target?.isContentEditable) return
+  // The 3D view uses the arrow keys itself, to move.
+  if (event.target === canvas3d) return
   if (event.altKey || event.ctrlKey || event.metaKey) return
   if (event.key >= '1' && event.key <= '5') setLevel(Number(event.key))
   else if (event.key === 'r' || event.key === 'R') newSeed()
   else if (event.key === 'ArrowLeft') seedStep(-1)
   else if (event.key === 'ArrowRight') seedStep(1)
 })
+
+/* ---------------- The reading drawer and the tabs ---------------- */
+
+const readingToggle = $('reading-toggle')
+const results3 = $('results')
+const setReading = (open, { focus = true } = {}) => {
+  root.dataset.reading = open ? 'open' : ''
+  readingToggle.setAttribute('aria-expanded', String(open))
+  remember('tapiti.lab.reading', open ? '1' : '0')
+  if (!focus) return
+  if (open) { results3.tabIndex = -1; results3.focus() } else readingToggle.focus()
+}
+readingToggle.addEventListener('click', () => setReading(root.dataset.reading !== 'open'))
+root.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && root.dataset.reading === 'open') setReading(false)
+})
+if (remember('tapiti.lab.reading') === '1') setReading(true, { focus: false })
+
+const tabs = [...root.querySelectorAll('.lab-tabs [role=tab]')]
+const selectTab = (tab, { focus = false } = {}) => {
+  root.dataset.tab = tab.dataset.tab
+  for (const other of tabs) { other.setAttribute('aria-selected', String(other === tab)); other.tabIndex = other === tab ? 0 : -1 }
+  if (focus) tab.focus()
+}
+tabs.forEach((tab, i) => {
+  tab.addEventListener('click', () => selectTab(tab))
+  tab.addEventListener('keydown', (event) => {
+    const next = { ArrowRight: 1, ArrowLeft: -1 }[event.key]
+    if (next) { event.preventDefault(); selectTab(tabs[(i + next + tabs.length) % tabs.length], { focus: true }) }
+  })
+})
+selectTab(tabs[0])
+
+/* ---------------- Plan and 3D ---------------- */
+
+const canvas3d = $('floor-3d')
+const viewSwitch = root.querySelector('.view-switch')
+const instructions = $('map-instructions')
+const view3d = { active: false, modules: null, handle: null }
+const hasWebGL2 = () => { try { return !!document.createElement('canvas').getContext('webgl2') } catch { return false } }
+if (hasWebGL2()) viewSwitch.hidden = false
+
+const setView = (to3d) => {
+  view3d.active = to3d
+  canvas.hidden = to3d
+  canvas3d.hidden = !to3d
+  hideMapTooltip()
+  for (const id of ['zoom-out', 'zoom-in', 'zoom-fit']) $(id).hidden = to3d
+  zoomLabel.hidden = to3d
+  $('view-plan').setAttribute('aria-pressed', String(!to3d))
+  $('view-3d').setAttribute('aria-pressed', String(to3d))
+  canvas3d.setAttribute('aria-describedby', 'map-instructions')
+  instructions.textContent = tr(to3d ? 'lab_3d_instructions' : 'lab_map_instructions')
+}
+let mounting = 0
+async function mount3d() {
+  if (!current) return
+  const ticket = ++mounting
+  try {
+    view3d.modules ??= await Promise.all([import(root.dataset.three), import(root.dataset.build), import(root.dataset.scene)])
+    if (ticket !== mounting || !view3d.active) return
+    const [THREE, build, scene] = view3d.modules
+    view3d.handle?.dispose({ keepContext: true })
+    view3d.handle = scene.mount({ THREE, canvas: canvas3d, floor: current.floor, scene: build.build(current.floor), mode: 'orbit' })
+  } catch (error) {
+    console.warn('lab: the 3D view did not start', error)
+    leave3d()
+  }
+}
+function leave3d() {
+  mounting++
+  view3d.handle?.dispose()
+  view3d.handle = null
+  setView(false)
+  draw()
+}
+$('view-3d').addEventListener('click', () => { if (view3d.active) return; setView(true); mount3d() })
+$('view-plan').addEventListener('click', () => { if (view3d.active) leave3d() })
 
 syncForm()
 updateLevelButtons()

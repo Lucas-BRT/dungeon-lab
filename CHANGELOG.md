@@ -14,6 +14,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Changed
 
+- The lab follows the site's stone and carrot look: a segmented level control, the reading of the floor in a drawer below 1280 px and as a tab below 1000 px (the map first), and an optional Plan / 3D switch that turns the generated floor in three dimensions, rebuilt on every regenerate.
 - The landing page is seven rooms along one real floor (level 5, seed 279), with a depth gauge and a minimap that link between the rooms. A three.js scene behind the page walks a torchlit camera along the floor as you scroll (the floor is built in the browser by the same WebAssembly module as the lab); without WebGL2 or scripts, or with `TAPITI_SCENE=off`, the floor stays as a dimmed map. "Dig again" is gone from the landing page: digging any seed lives in the lab.
 - The browser lab is a Topcoat page (`/lab`) whose form is built from `tapiti-schema`; the generator still runs in the browser with WebAssembly.
 - `Dungeon` is now `Floor`; `generate.rs` is split into one file per phase. The generator output is unchanged.

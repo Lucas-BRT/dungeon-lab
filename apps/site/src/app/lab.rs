@@ -38,6 +38,7 @@ fn dictionary() -> String {
         }};
     }
     let map = dict! {
+        lab_map_instructions, lab_3d_instructions,
         lab_level_1, lab_level_2, lab_level_3, lab_level_4, lab_level_5,
         lab_seed_error, lab_copied, lab_no_clipboard,
         lab_changed_none, lab_changed_some(n),
@@ -197,10 +198,36 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
             id="lab"
             class="lab"
             lang="en"
+            data-tab="controls"
             data-i18n=(dictionary())
             data-worker=(asset!("assets/lab/worker.js"))
+            data-three=(asset!("assets/vendor/three-subset.min.js"))
+            data-build=(asset!("assets/walk/build.js"))
+            data-scene=(asset!("assets/walk/scene.js"))
         >
             <noscript><p class="lab-noscript">(e!(lab_needs_js))</p></noscript>
+            <div class="lab-tabs" role="tablist" aria-label=(e!(lab_tabs_aria))>
+                <button
+                    type="button"
+                    role="tab"
+                    id="tab-controls"
+                    aria-selected="true"
+                    aria-controls="controls"
+                    data-tab="controls"
+                >
+                    (e!(lab_tab_controls))
+                </button>
+                <button
+                    type="button"
+                    role="tab"
+                    id="tab-reading"
+                    aria-selected="false"
+                    aria-controls="results"
+                    data-tab="reading"
+                >
+                    (e!(lab_tab_reading))
+                </button>
+            </div>
             <section id="controls" class="lab-panel" aria-label=(e!(lab_controls_aria))>
                 <p class="eyebrow">(e!(lab_eyebrow))</p>
                 <h1>"Tapiti"</h1>
@@ -347,12 +374,42 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
                     aria-label=(e!(lab_map_label))
                     aria-describedby="map-instructions"
                 ></canvas>
+                <canvas
+                    id="floor-3d"
+                    tabindex="0"
+                    role="img"
+                    aria-label=(e!(lab_3d_label))
+                    hidden=(true)
+                ></canvas>
                 <div class="map-tooltip" id="map-tooltip" role="tooltip" hidden=(true)></div>
                 <div
                     class="map-toolbar"
                     role="toolbar"
                     aria-label=(e!(lab_toolbar_aria))
                 >
+                    <div
+                        class="view-switch"
+                        role="group"
+                        aria-label=(e!(lab_view_aria))
+                        hidden=(true)
+                    >
+                        <button
+                            type="button"
+                            class="map-tool-button"
+                            id="view-plan"
+                            aria-pressed="true"
+                        >
+                            (e!(lab_view_plan))
+                        </button>
+                        <button
+                            type="button"
+                            class="map-tool-button"
+                            id="view-3d"
+                            aria-pressed="false"
+                        >
+                            (e!(lab_view_3d))
+                        </button>
+                    </div>
                     <button
                         type="button"
                         class="map-tool-button"
@@ -380,6 +437,15 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
                         id="zoom-fit"
                     >
                         (e!(lab_fit))
+                    </button>
+                    <button
+                        type="button"
+                        class="map-tool-button reading-toggle"
+                        id="reading-toggle"
+                        aria-expanded="false"
+                        aria-controls="results"
+                    >
+                        (e!(lab_reading))
                     </button>
                 </div>
                 <p class="map-instructions" id="map-instructions">

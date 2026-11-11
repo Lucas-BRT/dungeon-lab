@@ -149,6 +149,7 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
   scene.background = abyss
   scene.fog = new THREE.FogExp2(abyss, 0.0016)
   const camera = new THREE.PerspectiveCamera(50, 1, 10, 4000)
+  let controls = null
 
   /* Walls */
   const wallGeometry = new THREE.BufferGeometry()
@@ -186,6 +187,7 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
   const stairs = built.stairs
   const landingMode = mode === 'landing'
   const leafMode = mode === 'leaf'
+  const orbitMode = mode === 'orbit'
   const side = Math.min(stairs.radius * 1.1, 110)
   const stepMaterial = new THREE.MeshLambertMaterial({ color: '#5a5f6a' })
   const steps = []
@@ -283,6 +285,32 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
   const here = [0, 0, 0]
   const ahead = [0, 0, 0]
   const pose = { px: 0, py: 0, pz: 0, lx: 0, ly: 0, lz: 0, bird: 1 }
+  if (orbitMode) {
+    // The lab's 3D view: turn the whole floor with the pointer or the arrow keys (when the view has the focus).
+    const span = Math.max(bx1 - bx0, by1 - by0)
+    controls = new THREE.OrbitControls(camera, canvas)
+    controls.enableDamping = true
+    controls.dampingFactor = 0.1
+    controls.maxPolarAngle = Math.PI * 0.49
+    controls.minDistance = 120
+    controls.maxDistance = 2800
+    controls.target.set(centre[0], 0, centre[1])
+    camera.position.set(centre[0], span * 0.95, centre[1] + span * 0.62)
+    controls.listenToKeyEvents(canvas)
+    controls.update()
+  }
+  const poseOrbit = () => {
+    pose.px = camera.position.x
+    pose.py = camera.position.y
+    pose.pz = camera.position.z
+    pose.lx = controls.target.x
+    pose.ly = controls.target.y
+    pose.lz = controls.target.z
+    pose.bird = 0
+    here[0] = pose.lx
+    here[2] = pose.lz
+    return pose
+  }
   const poseLeaf = (t) => {
     const a = leafAngle(t)
     pose.px = leafCenter[0] + Math.sin(a) * 175
@@ -421,14 +449,16 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
     const t = (now - started) / 1000
     const ignition = stepped ? 1 : null
     // Lights: the pool goes to the torches nearest to where the camera looks.
-    const p = leafMode ? poseLeaf(t) : poseAt(state.u, state.dive)
-    camera.position.set(p.px, p.py, p.pz)
-    camera.lookAt(p.lx, p.ly, p.lz)
-    camera.fov = innerWidth < innerHeight * 0.8 ? lerp(50, 60, p.bird) : 50
-    camera.updateProjectionMatrix()
-    scene.fog.density = leafMode ? 0.0035 : lerp(0.0016, 0.0004, p.bird)
-    hemisphere.intensity = leafMode ? 0.8 : lerp(1.1, 2.8, p.bird)
-    hemisphere.color.lerpColors(fill, dayFill, p.bird)
+    const p = orbitMode ? poseOrbit() : leafMode ? poseLeaf(t) : poseAt(state.u, state.dive)
+    if (!orbitMode) {
+      camera.position.set(p.px, p.py, p.pz)
+      camera.lookAt(p.lx, p.ly, p.lz)
+      camera.fov = innerWidth < innerHeight * 0.8 ? lerp(50, 60, p.bird) : 50
+      camera.updateProjectionMatrix()
+    }
+    scene.fog.density = leafMode ? 0.0035 : orbitMode ? 0.0005 : lerp(0.0016, 0.0004, p.bird)
+    hemisphere.intensity = leafMode ? 0.8 : orbitMode ? 3.4 : lerp(1.1, 2.8, p.bird)
+    hemisphere.color.lerpColors(fill, dayFill, orbitMode ? 1 : p.bird)
     for (let i = 0; i < count; i++) scratch[i] = (spots[i][0] - p.lx) ** 2 + (spots[i][2] - p.lz) ** 2
     for (let i = 0; i < count; i++) ordered[i] = i
     ordered.sort((a, b) => scratch[a] - scratch[b])
@@ -450,7 +480,7 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
       slot.light.intensity = 18000 * (0.86 + 0.14 * n) * lit[torch]
     }
     carried.position.set(p.px + (p.lx - p.px) * 0.15, Math.max(p.py - 40, -40), p.pz + (p.lz - p.pz) * 0.15)
-    carried.intensity = (leafMode ? 9000 : 24000) * smooth(0, 0.45, t) * (1 - p.bird * 0.7)
+    carried.intensity = (leafMode ? 9000 : orbitMode ? 14000 : 24000) * smooth(0, 0.45, t) * (1 - p.bird * 0.7)
     below.intensity = landingMode ? 30000 * smooth(0.6, 1, state.u) * (1 - state.dive * 0.4) : 0
     renderer.render(scene, camera)
     if (first) {
@@ -516,12 +546,26 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
     // Resting: the flames still flicker, at 15 fps, for a few seconds, then the loop sleeps until the next scroll.
     if (now - lastScroll < 6000) timer = setTimeout(() => { frameId = requestAnimationFrame(step) }, 66)
   }
+  let lastTouch = 0
+  const stepOrbit = (now) => {
+    frameId = 0
+    timer = 0
+    if (stopped || document.hidden) return
+    controls.update()
+    adapt(now)
+    render(now)
+    // While the pointer or damping moves the camera, every frame; at rest, the flames at 15 fps.
+    if (now - lastTouch < 900) frameId = requestAnimationFrame(stepOrbit)
+    else timer = setTimeout(() => { frameId = requestAnimationFrame(stepOrbit) }, stepped ? 400 : 66)
+  }
+  const loop = orbitMode ? stepOrbit : step
   const wake = () => {
     if (stopped || frameId || timer) return
-    frameId = requestAnimationFrame(step)
+    frameId = requestAnimationFrame(loop)
   }
+  if (orbitMode) controls.addEventListener('change', () => { lastTouch = performance.now(); wake() })
   const onScroll = () => { lastScroll = performance.now(); wake() }
-  addEventListener('scroll', onScroll, { passive: true })
+  if (landingMode) addEventListener('scroll', onScroll, { passive: true })
   addEventListener('resize', onResize)
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { prev = performance.now(); wake() } })
   canvas.addEventListener('webglcontextlost', (event) => {
@@ -550,13 +594,18 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
     get stepped() { return stepped },
     pause: () => setStepped(true),
     resume: () => setStepped(reduced()),
-    dispose() {
+    /** `keepContext` keeps the WebGL context, for a rebuild on the same canvas (the lab does that on every regenerate). */
+    dispose({ keepContext = false } = {}) {
       stopped = true
+      clearTimeout(timer)
+      cancelAnimationFrame(frameId)
       removeEventListener('scroll', onScroll)
       removeEventListener('resize', onResize)
+      controls?.dispose()
       for (const o of [wallGeometry, plane, texture, wallMaterial, floorMaterial, stepMaterial]) o.dispose()
       renderer.dispose()
-      renderer.forceContextLoss()
+      if (!keepContext) renderer.forceContextLoss()
+      window.__walk = null
     },
   }
 }
