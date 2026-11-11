@@ -4,8 +4,6 @@
 //! `parallel` feature enabled. Generation runs on a background OS thread so the
 //! window remains responsive while Rayon handles the generator's parallel phases.
 
-#[macro_use]
-mod i18n;
 mod map;
 mod panels;
 mod params_ui;
@@ -176,7 +174,7 @@ impl App {
             launched_at: Instant::now(),
             show_building: false,
             apply_at: None,
-            status: t!("Preparing the generator…").into(),
+            status: "Preparing the generator…".into(),
             performance_status: None,
             generated: None,
             building: BuildingMap::default(),
@@ -205,7 +203,7 @@ impl App {
         self.launched_at = Instant::now();
         self.show_building = false;
         self.building = BuildingMap::default();
-        self.status = t!("Generating the map…").into();
+        self.status = "Generating the map…".into();
         let (work_id, level, seed, params) =
             (self.work_id, self.level, self.seed, self.params.clone());
         let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
@@ -238,7 +236,7 @@ impl App {
         }
         self.busy = true;
         self.work_id = self.work_id.wrapping_add(1);
-        self.performance_status = Some(t!("Measuring on the native Rust engine…").into());
+        self.performance_status = Some("Measuring on the native Rust engine…".into());
         let (work_id, level) = (self.work_id, self.level);
         let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
         std::thread::spawn(move || {
@@ -260,16 +258,16 @@ impl App {
                     self.building = BuildingMap::default();
                     match result {
                         Ok(map) => {
-                            self.status = tf!(
-                                "Floor generated in {ms} ms · {draws} attempt(s) · {threads} threads available.",
-                                ms = format!("{:.1}", map.elapsed_ms),
+                            self.status = format!(
+                                "Floor generated in {ms:.1} ms · {draws} attempt(s) · {threads} threads available.",
+                                ms = map.elapsed_ms,
                                 draws = map.draws,
                                 threads = par::threads()
                             );
                             self.generated = Some(map);
                         }
                         Err(error) => {
-                            self.status = tf!("Generation failed: {error}", error = error)
+                            self.status = format!("Generation failed: {error}", error = error)
                         }
                     }
                     if self.queued {
@@ -279,7 +277,7 @@ impl App {
                 Event::Benchmark(text) => {
                     self.busy = false;
                     self.performance_status = Some(text);
-                    self.status = tf!(
+                    self.status = format!(
                         "Native engine · {threads} threads in the Rayon pool",
                         threads = par::threads()
                     );
@@ -325,7 +323,7 @@ impl App {
             }
         }
         let b = &self.building;
-        self.status = tf!(
+        self.status = format!(
             "Attempt {draw} · seed {seed} · {rooms} rooms · {links} connections",
             draw = b.draw,
             seed = b.seed,
@@ -373,11 +371,6 @@ impl App {
         self.request_generate();
     }
 
-    pub fn set_language(&mut self, lang: i18n::Lang) {
-        i18n::set(lang);
-        self.status = t!("Language changed.").into();
-    }
-
     pub fn set_seed(&mut self, seed: u32) {
         self.seed = seed;
         self.seed_draft = seed.to_string();
@@ -397,7 +390,7 @@ impl App {
             Ok(seed) => self.set_seed(seed),
             Err(_) => {
                 self.seed_draft = self.seed.to_string();
-                self.status = t!("The seed must be an integer between 0 and 4,294,967,295.").into();
+                self.status = "The seed must be an integer between 0 and 4,294,967,295.".into();
             }
         }
     }
@@ -405,7 +398,7 @@ impl App {
     /// Takes the JSON editor's text as the new Λ, if it is valid.
     fn commit_json(&mut self) -> bool {
         let parsed = serde_json::from_str::<Params>(&self.json_text)
-            .map_err(|error| tf!("Invalid Λ; check the JSON: {error}", error = error))
+            .map_err(|error| format!("Invalid Λ; check the JSON: {error}", error = error))
             .and_then(|params| validate_params(&params).map(|()| params));
         match parsed {
             Ok(params) => {
@@ -430,7 +423,7 @@ impl App {
                 self.params = params;
                 self.params_edited();
             }
-            Err(error) => self.status = tf!("Invalid parameter: {error}", error = error),
+            Err(error) => self.status = format!("Invalid parameter: {error}", error = error),
         }
     }
 
@@ -444,11 +437,11 @@ impl App {
                 set_path(&mut value, &field.path, default);
             }
         }
-        let title = group.title.get(i18n::is_pt()).to_string();
+        let title = group.title.as_str().to_string();
         if let Ok(params) = serde_json::from_value(value) {
             self.params = params;
             self.params_edited();
-            self.status = tf!("{title} parameters restored.", title = title);
+            self.status = format!("{title} parameters restored.", title = title);
         }
     }
 
@@ -462,16 +455,16 @@ impl App {
                 p.weights.l = 1.0;
                 p.weights.star = 1.0;
                 p.m = 8;
-                t!("varied shapes and diagonal directions")
+                "varied shapes and diagonal directions"
             }
             Experiment::Cycles => {
                 p.delta = 0.8;
-                t!("high cycle density")
+                "high cycle density"
             }
             Experiment::Junctions => {
                 p.p_t = p.p_t.max(0.25);
                 p.p_x = p.p_x.max(0.15);
-                t!("T and X junctions favored")
+                "T and X junctions favored"
             }
             Experiment::CircularRooms => {
                 p.weights.rect = 0.0;
@@ -479,11 +472,11 @@ impl App {
                 p.weights.oct = 0.0;
                 p.weights.l = 0.0;
                 p.weights.star = 0.0;
-                t!("preference for circular rooms")
+                "preference for circular rooms"
             }
         };
         self.params_edited();
-        self.status = tf!("Experiment applied: {note}.", note = note);
+        self.status = format!("Experiment applied: {note}.", note = note);
     }
 
     pub fn map_bounds(&self) -> Option<([f64; 2], [f64; 2])> {
@@ -551,7 +544,7 @@ impl App {
     pub fn generate_now(&mut self) {
         self.apply_at = None;
         if self.json_dirty && !self.commit_json() {
-            self.status = t!("The parameter JSON has errors; fix it to generate.").into();
+            self.status = "The parameter JSON has errors; fix it to generate.".into();
             return;
         }
         if self.json_dirty {
@@ -625,14 +618,14 @@ fn main() -> eframe::Result {
 pub fn translate_violation(message: &str) -> String {
     if let Some((code, detail)) = message.split_once(' ') {
         let meaning = match code {
-            "V1" => t!("room reach"),
-            "V2" => t!("distance and collisions"),
-            "V3" => t!("doors"),
-            "V4" => t!("corridor geometry"),
-            "V5" => t!("entrance and stairs"),
-            "T1" | "T2" | "T3" | "T4" | "T5" => t!("topology requirement"),
-            "P1" | "P2" | "P3" => t!("progression"),
-            _ => t!("model rule"),
+            "V1" => "room reach",
+            "V2" => "distance and collisions",
+            "V3" => "doors",
+            "V4" => "corridor geometry",
+            "V5" => "entrance and stairs",
+            "T1" | "T2" | "T3" | "T4" | "T5" => "topology requirement",
+            "P1" | "P2" | "P3" => "progression",
+            _ => "model rule",
         };
         format!("{meaning}: {detail}")
     } else {
@@ -642,24 +635,24 @@ pub fn translate_violation(message: &str) -> String {
 
 fn translate_log(message: &str) -> String {
     if let Some(value) = message.strip_prefix("tree stuck: near ") {
-        return tf!(
+        return format!(
             "The search widened the connection radius to {value}.",
             value = value
         );
     }
     if let Some(value) = message.strip_prefix("layout jitter limited to ") {
-        return tf!("Grid irregularity was limited to {value}.", value = value);
+        return format!("Grid irregularity was limited to {value}.", value = value);
     }
     message.to_string()
 }
 
 fn class_label(class: &str) -> &str {
     match class {
-        "rect" => t!("Rectangular"),
-        "disc" => t!("Circular"),
-        "oct" => t!("Octagonal"),
-        "L" => t!("L shape"),
-        "star" => t!("Truncated stars"),
+        "rect" => "Rectangular",
+        "disc" => "Circular",
+        "oct" => "Octagonal",
+        "L" => "L shape",
+        "star" => "Truncated stars",
         _ => class,
     }
 }
@@ -696,7 +689,7 @@ fn set_path(value: &mut Value, path: &str, next: Value) {
 }
 
 fn format_number(value: f64, decimals: usize) -> String {
-    i18n::decimal(format!("{value:.decimals$}"))
+    format!("{value:.decimals$}")
 }
 
 fn view_box(min: [f64; 2], max: [f64; 2], zoom: f64, pan: [f64; 2]) -> (f64, f64, f64, f64) {
@@ -725,9 +718,9 @@ fn run_benchmark(level: usize, kind: BenchmarkKind) -> String {
                 invalid += usize::from(!stage::stage(seed, &params, 8).violations.is_empty());
             }
             let elapsed = started.elapsed().as_secs_f64() * 1000.0;
-            tf!(
-                "Average: {ms} ms per map · {invalid} invalid of 40 · {threads} threads available.",
-                ms = format!("{:.2}", elapsed / 40.0),
+            format!(
+                "Average: {ms:.2} ms per map · {invalid} invalid of 40 · {threads} threads available.",
+                ms = elapsed / 40.0,
                 invalid = invalid,
                 threads = par::threads()
             )
@@ -747,11 +740,11 @@ fn run_benchmark(level: usize, kind: BenchmarkKind) -> String {
             .into_iter()
             .sum::<usize>();
             let parallel_ms = parallel_started.elapsed().as_secs_f64() * 1000.0;
-            tf!(
-                "800 maps: 1 thread {one} ms · {threads} threads {many} ms · invalid: {a}/{b}.",
-                one = format!("{one_ms:.0}"),
+            format!(
+                "800 maps: 1 thread {one:.0} ms · {threads} threads {many:.0} ms · invalid: {a}/{b}.",
+                one = one_ms,
                 threads = par::threads(),
-                many = format!("{parallel_ms:.0}"),
+                many = parallel_ms,
                 a = one_invalid,
                 b = parallel_invalid
             )
@@ -763,26 +756,26 @@ fn run_benchmark(level: usize, kind: BenchmarkKind) -> String {
 pub fn summary(map: &GeneratedMap) -> String {
     let m = &map.metrics;
     let validity = if map.violations.is_empty() {
-        t!("valid")
+        "valid"
     } else {
-        t!("with violations")
+        "with violations"
     };
     let warnings = if map.violations.is_empty() {
         String::new()
     } else {
-        format!("\n{}: {}", t!("Warnings"), map.violations.join("; "))
+        format!("\nWarnings: {}", map.violations.join("; "))
     };
-    tf!(
-        "Level {level} · seed {seed} · {validity} · one floor generated in {ms} ms · {draws} attempt(s)\n{rooms} rooms · {edges} corridors · β={beta} · δ={delta} · {routes} routes to the exit\n{phases}{warnings}",
+    format!(
+        "Level {level} · seed {seed} · {validity} · one floor generated in {ms:.1} ms · {draws} attempt(s)\n{rooms} rooms · {edges} corridors · β={beta} · δ={delta:.2} · {routes} routes to the exit\n{phases}{warnings}",
         level = map.level,
         seed = map.seed,
         validity = validity,
-        ms = format!("{:.1}", map.elapsed_ms),
+        ms = map.elapsed_ms,
         draws = map.draws,
         rooms = m.rooms,
         edges = m.edges,
         beta = m.beta,
-        delta = format!("{:.2}", m.delta),
+        delta = m.delta,
         routes = m.routes_to_stairs,
         phases = map.phases,
         warnings = warnings
@@ -824,7 +817,7 @@ fn validate_params(p: &Params) -> Result<(), String> {
         if value.is_finite() && (min..=max).contains(&value) {
             Ok(())
         } else {
-            Err(tf!(
+            Err(format!(
                 "{name} must be between {min} and {max}.",
                 name = name,
                 min = min,
@@ -837,7 +830,7 @@ fn validate_params(p: &Params) -> Result<(), String> {
         if (min..=max).contains(&value) {
             Ok(())
         } else {
-            Err(tf!(
+            Err(format!(
                 "{name} must be between {min} and {max}.",
                 name = name,
                 min = min,
@@ -850,7 +843,7 @@ fn validate_params(p: &Params) -> Result<(), String> {
         if value <= max {
             Ok(())
         } else {
-            Err(tf!(
+            Err(format!(
                 "{name} must be between 0 and {max}.",
                 name = name,
                 max = max
@@ -883,13 +876,13 @@ fn validate_params(p: &Params) -> Result<(), String> {
     float("near", p.near, 0.1, 10000.0)?;
     float("delta", p.delta, 0.0, 1.0)?;
     if !matches!(p.m, 4 | 8) {
-        return Err(t!("m must be 4 or 8.").into());
+        return Err("m must be 4 or 8.".into());
     }
     if !matches!(p.disc_ports, 4 | 8 | 16) {
-        return Err(t!("discPorts must be 4, 8 or 16.").into());
+        return Err("discPorts must be 4, 8 or 16.".into());
     }
     if !matches!(p.max_bends, 0 | 1 | 2 | 4 | 5 | 6) {
-        return Err(t!("maxBends must be 0, 1, 2, 4, 5 or 6.").into());
+        return Err("maxBends must be 0, 1, 2, 4, 5 or 6.".into());
     }
     int("growth.rooms", p.growth.rooms, 0, 2000)?;
     int("growth.branch", p.growth.branch, 1, 16)?;
@@ -944,7 +937,7 @@ fn validate_params(p: &Params) -> Result<(), String> {
         ("star", p.max_of.star),
     ] {
         if value.fract() != 0.0 {
-            return Err(tf!("maxOf.{class} must be an integer.", class = class));
+            return Err(format!("maxOf.{class} must be an integer.", class = class));
         }
     }
     by_class(
@@ -1011,26 +1004,26 @@ fn point_along(points: &[[f64; 2]], fraction: f64) -> [f64; 2] {
 
 fn role_label(role: Role) -> &'static str {
     match role {
-        Role::Start => t!("entrance"),
-        Role::Stairs => t!("stairs"),
-        Role::Ambush => t!("ambush"),
-        Role::Boss => t!("boss"),
-        Role::Rest => t!("rest"),
-        Role::Key => t!("key"),
-        Role::Switch => t!("switch"),
-        Role::Plain => t!("plain"),
-        Role::Trap => t!("trap"),
-        Role::Prize => t!("prize"),
-        Role::Empty => t!("empty"),
+        Role::Start => "entrance",
+        Role::Stairs => "stairs",
+        Role::Ambush => "ambush",
+        Role::Boss => "boss",
+        Role::Rest => "rest",
+        Role::Key => "key",
+        Role::Switch => "switch",
+        Role::Plain => "plain",
+        Role::Trap => "trap",
+        Role::Prize => "prize",
+        Role::Empty => "empty",
     }
 }
 
 fn level_description(level: usize) -> &'static str {
     match level {
-        1 => t!("Introduction: rectangular rooms and few extra connections."),
-        2 => t!("Adds L-shaped rooms and the first junctions."),
-        3 => t!("Enlarges the map and unlocks diagonals and circular rooms."),
-        4 => t!("Combines more shapes, junctions and stairs doors."),
-        _ => t!("Richest setup: more rooms, shapes and connection alternatives."),
+        1 => "Introduction: rectangular rooms and few extra connections.",
+        2 => "Adds L-shaped rooms and the first junctions.",
+        3 => "Enlarges the map and unlocks diagonals and circular rooms.",
+        4 => "Combines more shapes, junctions and stairs doors.",
+        _ => "Richest setup: more rooms, shapes and connection alternatives.",
     }
 }

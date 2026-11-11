@@ -69,9 +69,6 @@ presets, Λ parameters with per-field reset and a filter, guided experiments, JS
 pan/zoom/hover inspection, validation, and metrics. Edits regenerate the map after a short pause. Each interactive request generates one floor;
 a slow generation shows rooms and corridor connections as the generator creates them. A separate benchmark compares single-thread and
 multi-thread throughput over many independent maps. Shortcuts: Alt+1–5 level, Alt+R random seed, Alt+left/right seed.
-The UI is in English by default; the language selector in the bottom bar switches to Portuguese. Texts use `t!("English text")` / `tf!("… {name}", name = x)`
-(`apps/desktop/src/i18n.rs`), and a language is one table of `(english, translation)` pairs, e.g. `i18n/pt.rs`; a unit test fails when a text has no
-entry, an entry is unused, or the placeholders differ. The choice is not persisted between runs.
 Building needs the usual eframe system libraries on Linux (xkbcommon, Wayland and/or X11, OpenGL).
 
 The desktop's single-map latency and progressive-rendering design is documented in [docs/desktop-generation-rendering.md](docs/desktop-generation-rendering.md).
@@ -91,7 +88,7 @@ The desktop's single-map latency and progressive-rendering design is documented 
 | `apps/desktop/` | native desktop application (egui); selected by bare `cargo run` |
 | `apps/site/` | the website: landing page, docs and the lab (Topcoat; `topcoat dev -p tapiti-site`) |
 | `crates/tapiti-render/` | SVG rendering of floors for the site, docs and social images |
-| `crates/tapiti-schema/` | the parameters of Λ as data (groups, ranges, help in English and Portuguese), shared by the desktop app and the docs |
+| `crates/tapiti-schema/` | the parameters of Λ as data (groups, ranges, help), shared by the desktop app and the docs |
 | `docs/` | the documentation (Markdown, math as `$…$`), rendered by the site and readable on GitHub |
 | `crates/tapiti-wasm/` | the WASM API: `default_params(level)`, `stage_json(seed, params)`, `bench(level, from, count)`, `threads()` |
 | `crates/tapiti-core/tests/`, `benches/`, `examples/` | model tests, Criterion benchmarks, profiling and deterministic dumps |

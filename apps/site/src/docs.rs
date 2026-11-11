@@ -415,23 +415,23 @@ fn parameters_page() -> Page {
         text: title.clone(),
     }];
     for group in tapiti_schema::groups() {
-        let group_title = group.title.get(false).to_string();
+        let group_title = group.title.as_str().to_string();
         let id = slugify(&group.id);
         let _ = write!(
             html,
             "<h2 id=\"{id}\">{}<a class=\"anchor\" href=\"#{id}\" aria-hidden=\"true\" tabindex=\"-1\">#</a></h2>",
             escape(&group_title)
         );
-        let _ = write!(html, "<p>{}</p>", escape(group.intro.get(false)));
+        let _ = write!(html, "<p>{}</p>", escape(group.intro.as_str()));
         group_table(&mut html, &group);
-        let mut body = group.intro.get(false).to_string();
+        let mut body = group.intro.as_str().to_string();
         for field in &group.fields {
             let _ = write!(
                 body,
                 " {} {} {}",
                 field.path,
-                field.label.get(false),
-                field.help.get(false)
+                field.label.as_str(),
+                field.help.as_str()
             );
         }
         toc.push(TocEntry {
@@ -479,7 +479,7 @@ fn group_table(html: &mut String, group: &ParamGroup) {
             FieldKind::Boolean => "on / off".into(),
             FieldKind::Choice(options) => options
                 .iter()
-                .map(|(_, name)| name.get(false))
+                .map(|(_, name)| name.as_str())
                 .collect::<Vec<_>>()
                 .join(", "),
         };
@@ -487,9 +487,9 @@ fn group_table(html: &mut String, group: &ParamGroup) {
             html,
             "<tr><td><code>{}</code></td><td>{}</td><td>{}</td><td>{}</td></tr>",
             escape(&field.path),
-            escape(field.label.get(false)),
+            escape(field.label.as_str()),
             escape(&values),
-            escape(field.help.get(false))
+            escape(field.help.as_str())
         );
     }
     let _ = write!(html, "</tbody></table></div>");

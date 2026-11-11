@@ -1,4 +1,3 @@
-use crate::i18n;
 use crate::json_value_text;
 use eframe::egui::{self, DragValue, RichText, Ui};
 use serde_json::{json, Value};
@@ -13,13 +12,13 @@ pub fn field_row(
     default: Option<&Value>,
 ) -> Option<Value> {
     let differs = default.is_some_and(|d| d != current);
-    let label = RichText::new(field.label.get(i18n::is_pt()));
+    let label = RichText::new(field.label.as_str());
     let label = if differs {
         label.color(ui.visuals().selection.bg_fill).strong()
     } else {
         label
     };
-    ui.label(label).on_hover_text(field.help.get(i18n::is_pt()));
+    ui.label(label).on_hover_text(field.help.as_str());
     let mut next = None;
     match &field.kind {
         FieldKind::Number { min, max, integer } => {
@@ -38,11 +37,7 @@ pub fn field_row(
             } else {
                 drag.max_decimals(3)
             };
-            if ui
-                .add(drag)
-                .on_hover_text(field.help.get(i18n::is_pt()))
-                .changed()
-            {
+            if ui.add(drag).on_hover_text(field.help.as_str()).changed() {
                 next = Some(if *integer {
                     json!(v.round() as i64)
                 } else {
@@ -54,7 +49,7 @@ pub fn field_row(
             let mut b = current.as_bool().unwrap_or(false);
             if ui
                 .checkbox(&mut b, "")
-                .on_hover_text(field.help.get(i18n::is_pt()))
+                .on_hover_text(field.help.as_str())
                 .changed()
             {
                 next = Some(json!(b));
@@ -65,14 +60,12 @@ pub fn field_row(
             let shown = options
                 .iter()
                 .find(|(v, _)| *v == text)
-                .map_or(text.as_str(), |(_, n)| n.get(i18n::is_pt()));
+                .map_or(text.as_str(), |(_, n)| n.as_str());
             egui::ComboBox::from_id_salt(&field.path)
                 .selected_text(shown)
                 .show_ui(ui, |ui| {
                     for (value, name) in options {
-                        if ui
-                            .selectable_label(*value == text, name.get(i18n::is_pt()))
-                            .clicked()
+                        if ui.selectable_label(*value == text, name.as_str()).clicked()
                             && *value != text
                         {
                             next = Some(
@@ -89,8 +82,8 @@ pub fn field_row(
     }
     if differs {
         if ui
-            .small_button(t!("default"))
-            .on_hover_text(t!("Reset to the level default"))
+            .small_button("default")
+            .on_hover_text("Reset to the level default")
             .clicked()
         {
             next = default.cloned();

@@ -45,7 +45,7 @@ pub fn top_bar(app: &mut App, ui: &mut Ui) {
         ui.horizontal(|ui| {
             ui.heading("Tapiti");
             ui.separator();
-            ui.label(t!("Level"));
+            ui.label("Level");
             for level in 1..=5 {
                 let hint = format!("{}\nAlt+{level}", level_description(level));
                 if ui
@@ -57,10 +57,10 @@ pub fn top_bar(app: &mut App, ui: &mut Ui) {
                 }
             }
             ui.separator();
-            ui.label(t!("Seed"));
+            ui.label("Seed");
             if ui
                 .button("<")
-                .on_hover_text(t!("Previous seed (Alt+Left)"))
+                .on_hover_text("Previous seed (Alt+Left)")
                 .clicked()
             {
                 app.set_seed(app.seed.saturating_sub(1));
@@ -75,22 +75,22 @@ pub fn top_bar(app: &mut App, ui: &mut Ui) {
             }
             if ui
                 .button(">")
-                .on_hover_text(t!("Next seed (Alt+Right)"))
+                .on_hover_text("Next seed (Alt+Right)")
                 .clicked()
             {
                 app.set_seed(app.seed.saturating_add(1));
             }
             if ui
-                .button(t!("Random"))
-                .on_hover_text(t!("New random seed (Alt+R)"))
+                .button("Random")
+                .on_hover_text("New random seed (Alt+R)")
                 .clicked()
             {
                 app.random_seed();
             }
             ui.separator();
             if ui
-                .add(primary(ui, t!("Generate")))
-                .on_hover_text(t!("Generate again with the current Λ"))
+                .add(primary(ui, "Generate"))
+                .on_hover_text("Generate again with the current Λ")
                 .clicked()
             {
                 app.generate_now();
@@ -110,7 +110,7 @@ pub fn bottom_bar(app: &mut App, ui: &mut Ui) {
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 ui.label(muted(
                     ui,
-                    tf!(
+                    format!(
                         "Rust engine · Rayon · {threads} threads",
                         threads = par::threads()
                     ),
@@ -118,27 +118,15 @@ pub fn bottom_bar(app: &mut App, ui: &mut Ui) {
                 ui.separator();
                 let mut theme = ui.options(|o| o.theme_preference);
                 for (value, name) in [
-                    (egui::ThemePreference::Dark, t!("Dark")),
-                    (egui::ThemePreference::Light, t!("Light")),
-                    (egui::ThemePreference::System, t!("Auto")),
+                    (egui::ThemePreference::Dark, "Dark"),
+                    (egui::ThemePreference::Light, "Light"),
+                    (egui::ThemePreference::System, "Auto"),
                 ] {
                     if ui.selectable_label(theme == value, name).clicked() {
                         theme = value;
                     }
                 }
                 ui.ctx().set_theme(theme);
-                ui.separator();
-                let mut lang = crate::i18n::get();
-                egui::ComboBox::from_id_salt("lang")
-                    .selected_text(lang.name())
-                    .show_ui(ui, |ui| {
-                        for option in crate::i18n::Lang::ALL {
-                            ui.selectable_value(&mut lang, option, option.name());
-                        }
-                    });
-                if lang != crate::i18n::get() {
-                    app.set_language(lang);
-                }
             });
         });
     });
@@ -152,14 +140,14 @@ pub fn side_panel(app: &mut App, ui: &mut Ui) {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
                 let params = if app.changed.is_empty() {
-                    t!("Parameters").to_string()
+                    "Parameters".to_string()
                 } else {
-                    tf!("Parameters ({n})", n = app.changed.len())
+                    format!("Parameters ({n})", n = app.changed.len())
                 };
                 for (tab, name) in [
-                    (Tab::Floor, t!("Floor").to_string()),
+                    (Tab::Floor, "Floor".to_string()),
                     (Tab::Parameters, params),
-                    (Tab::Analysis, t!("Analysis").into()),
+                    (Tab::Analysis, "Analysis".into()),
                 ] {
                     if ui.selectable_label(app.tab == tab, name).clicked() {
                         app.tab = tab;
@@ -183,14 +171,14 @@ fn verdict(ui: &mut Ui, map: &GeneratedMap) {
     let pal = Palette::new(ui.visuals().dark_mode);
     if map.violations.is_empty() {
         ui.label(
-            RichText::new(t!("Valid map"))
+            RichText::new("Valid map")
                 .strong()
                 .size(16.0)
                 .color(pal.success),
         );
     } else {
         ui.label(
-            RichText::new(tf!("! {n} problem(s)", n = map.violations.len()))
+            RichText::new(format!("! {n} problem(s)", n = map.violations.len()))
                 .strong()
                 .size(16.0)
                 .color(pal.danger),
@@ -199,16 +187,16 @@ fn verdict(ui: &mut Ui, map: &GeneratedMap) {
 }
 
 fn floor_tab(app: &mut App, ui: &mut Ui) {
-    card(ui, t!("Reading"), |ui| match &app.generated {
+    card(ui, "Reading", |ui| match &app.generated {
         None => {
             ui.horizontal(|ui| {
                 if app.busy {
                     ui.spinner();
                 }
                 ui.label(if app.busy {
-                    t!("Building the floor…")
+                    "Building the floor…"
                 } else {
-                    t!("No floor generated.")
+                    "No floor generated."
                 });
             });
         }
@@ -220,19 +208,19 @@ fn floor_tab(app: &mut App, ui: &mut Ui) {
                 .spacing([16.0, 4.0])
                 .show(ui, |ui| {
                     for (label, value) in [
-                        (t!("Rooms"), m.rooms.to_string()),
-                        (t!("Corridors"), m.edges.to_string()),
+                        ("Rooms", m.rooms.to_string()),
+                        ("Corridors", m.edges.to_string()),
                         (
-                            t!("Cycles β"),
-                            tf!(
+                            "Cycles β",
+                            format!(
                                 "{beta} (target {target})",
                                 beta = m.beta,
                                 target = m.beta_target
                             ),
                         ),
-                        (t!("Routes to the stairs"), m.routes_to_stairs.to_string()),
-                        (t!("Attempts"), map.draws.to_string()),
-                        (t!("Generation"), format!("{:.1} ms", map.elapsed_ms)),
+                        ("Routes to the stairs", m.routes_to_stairs.to_string()),
+                        ("Attempts", map.draws.to_string()),
+                        ("Generation", format!("{:.1} ms", map.elapsed_ms)),
                     ] {
                         ui.label(muted(ui, label));
                         ui.label(value);
@@ -245,7 +233,7 @@ fn floor_tab(app: &mut App, ui: &mut Ui) {
             if map.violations.len() > 6 {
                 ui.label(muted(
                     ui,
-                    tf!(
+                    format!(
                         "… and {n} more. See the Analysis tab.",
                         n = map.violations.len() - 6
                     ),
@@ -254,13 +242,11 @@ fn floor_tab(app: &mut App, ui: &mut Ui) {
         }
     });
 
-    card(ui, t!("Layout"), |ui| {
+    card(ui, "Layout", |ui| {
         let mut enabled = app.params.growth.enabled;
         if ui
-            .checkbox(&mut enabled, t!("Growth (prototype)"))
-            .on_hover_text(t!(
-                "Rooms grow one from another, instead of one per grid block."
-            ))
+            .checkbox(&mut enabled, "Growth (prototype)")
+            .on_hover_text("Rooms grow one from another, instead of one per grid block.")
             .changed()
         {
             app.change_param("growth.enabled", json!(enabled));
@@ -297,17 +283,17 @@ fn floor_tab(app: &mut App, ui: &mut Ui) {
                 app.change_param(&path, value);
             }
         } else {
-            ui.label(muted(ui, t!("One room per grid block.")));
+            ui.label(muted(ui, "One room per grid block."));
         }
         ui.label(muted(ui, level_description(app.level)));
     });
 
-    card(ui, t!("Shortcuts"), |ui| {
+    card(ui, "Shortcuts", |ui| {
         for line in [
-            t!("Alt+1–5 switches the level · Alt+R random seed"),
-            t!("Alt+Left / Right: previous / next seed"),
-            t!("Drag moves the map · wheel zooms at the cursor"),
-            t!("Double-click fits the map to the window"),
+            "Alt+1–5 switches the level · Alt+R random seed",
+            "Alt+Left / Right: previous / next seed",
+            "Drag moves the map · wheel zooms at the cursor",
+            "Double-click fits the map to the window",
         ] {
             ui.label(muted(ui, line));
         }
@@ -317,17 +303,20 @@ fn floor_tab(app: &mut App, ui: &mut Ui) {
 // ---- Parâmetros ----------------------------------------------------------------------------------
 
 fn parameters_tab(app: &mut App, ui: &mut Ui) {
-    ui.label(muted(ui, t!("Every change regenerates the map after a short pause. Hover a name to see what it does.")));
+    ui.label(muted(
+        ui,
+        "Every change regenerates the map after a short pause. Hover a name to see what it does.",
+    ));
     ui.add_space(4.0);
     ui.horizontal(|ui| {
         ui.add(
             TextEdit::singleline(&mut app.filter)
-                .hint_text(t!("Filter parameters…"))
+                .hint_text("Filter parameters…")
                 .desired_width(ui.available_width() - 34.0),
         );
         if ui
             .add_enabled(!app.filter.is_empty(), Button::new("×"))
-            .on_hover_text(t!("Clear filter"))
+            .on_hover_text("Clear filter")
             .clicked()
         {
             app.filter.clear();
@@ -335,17 +324,17 @@ fn parameters_tab(app: &mut App, ui: &mut Ui) {
     });
     ui.horizontal_wrapped(|ui| {
         if ui
-            .button(t!("Copy JSON"))
-            .on_hover_text(t!("Level, seed and the full Λ"))
+            .button("Copy JSON")
+            .on_hover_text("Level, seed and the full Λ")
             .clicked()
         {
             let export = json!({ "level": app.level, "seed": app.seed, "params": app.params });
             ui.ctx()
                 .copy_text(serde_json::to_string_pretty(&export).unwrap_or_default());
-            app.status = t!("Parameters copied as JSON.").into();
+            app.status = "Parameters copied as JSON.".into();
         }
         if ui
-            .add_enabled(!app.changed.is_empty(), Button::new(t!("Reset level")))
+            .add_enabled(!app.changed.is_empty(), Button::new("Reset level"))
             .clicked()
         {
             app.set_level(app.level);
@@ -353,21 +342,21 @@ fn parameters_tab(app: &mut App, ui: &mut Ui) {
         ui.label(muted(
             ui,
             if app.changed.is_empty() {
-                t!("level default").to_string()
+                "level default".to_string()
             } else {
-                tf!("{n} changed", n = app.changed.len())
+                format!("{n} changed", n = app.changed.len())
             },
         ));
     });
 
     ui.add_space(4.0);
-    ui.label(RichText::new(t!("Guided experiments")).strong());
+    ui.label(RichText::new("Guided experiments").strong());
     ui.horizontal_wrapped(|ui| {
         for (preset, name) in [
-            (Experiment::Shapes, t!("Shapes and diagonals")),
-            (Experiment::Cycles, t!("More routes")),
-            (Experiment::Junctions, t!("T/X junctions")),
-            (Experiment::CircularRooms, t!("Circular rooms")),
+            (Experiment::Shapes, "Shapes and diagonals"),
+            (Experiment::Cycles, "More routes"),
+            (Experiment::Junctions, "T/X junctions"),
+            (Experiment::CircularRooms, "Circular rooms"),
         ] {
             if ui.button(name).clicked() {
                 app.set_preset(preset);
@@ -388,10 +377,7 @@ fn parameters_tab(app: &mut App, ui: &mut Ui) {
             .iter()
             .filter(|f| {
                 needle.is_empty()
-                    || f.label
-                        .get(crate::i18n::is_pt())
-                        .to_lowercase()
-                        .contains(&needle)
+                    || f.label.as_str().to_lowercase().contains(&needle)
                     || f.path.to_lowercase().contains(&needle)
             })
             .collect();
@@ -405,13 +391,13 @@ fn parameters_tab(app: &mut App, ui: &mut Ui) {
             .filter(|f| app.changed.contains(&f.path))
             .count();
         let title = if changed > 0 {
-            tf!(
+            format!(
                 "{title} · {n} changed",
-                title = group.title.get(crate::i18n::is_pt()),
+                title = group.title.as_str(),
                 n = changed
             )
         } else {
-            group.title.get(crate::i18n::is_pt()).to_string()
+            group.title.as_str().to_string()
         };
         let header = egui::CollapsingHeader::new(RichText::new(title).strong())
             .id_salt(&group.id)
@@ -422,7 +408,7 @@ fn parameters_tab(app: &mut App, ui: &mut Ui) {
             header.open(Some(true))
         };
         header.show(ui, |ui| {
-            ui.label(muted(ui, group.intro.get(crate::i18n::is_pt())));
+            ui.label(muted(ui, group.intro.as_str()));
             Grid::new(&group.id)
                 .num_columns(3)
                 .spacing([10.0, 6.0])
@@ -438,14 +424,14 @@ fn parameters_tab(app: &mut App, ui: &mut Ui) {
                         }
                     }
                 });
-            if changed > 0 && ui.small_button(t!("Reset this group")).clicked() {
+            if changed > 0 && ui.small_button("Reset this group").clicked() {
                 reset = Some(group.id.clone());
             }
         });
     }
     app.groups = groups;
     if shown == 0 {
-        ui.label(muted(ui, t!("No parameter matches the filter.")));
+        ui.label(muted(ui, "No parameter matches the filter."));
     }
     if let Some(id) = reset {
         app.reset_group(&id);
@@ -459,24 +445,24 @@ fn parameters_tab(app: &mut App, ui: &mut Ui) {
                 app.params = params;
                 app.params_edited();
             }
-            Err(error) => app.status = tf!("Invalid parameter: {error}", error = error),
+            Err(error) => app.status = format!("Invalid parameter: {error}", error = error),
         }
     }
 
     ui.add_space(8.0);
     ui.label(muted(
         ui,
-        tf!(
+        format!(
             "Junction conductance: {value} (informational; does not change the generation yet).",
             value = app
                 .params
                 .junction
                 .map(|v| format_number(v, 2))
-                .unwrap_or_else(|| t!("∞, arms joined").into())
+                .unwrap_or_else(|| "∞, arms joined".into())
         ),
     ));
     ui.add_space(4.0);
-    egui::CollapsingHeader::new(RichText::new(t!("Advanced JSON editor")).strong())
+    egui::CollapsingHeader::new(RichText::new("Advanced JSON editor").strong())
         .id_salt("json")
         .show(ui, |ui| {
             let editor = ui.add(
@@ -494,7 +480,7 @@ fn parameters_tab(app: &mut App, ui: &mut Ui) {
                     ui.colored_label(Palette::new(ui.visuals().dark_mode).danger, error);
                 }
                 (None, true) => {
-                    ui.label(muted(ui, t!("Validating before regenerating…")));
+                    ui.label(muted(ui, "Validating before regenerating…"));
                 }
                 _ => {}
             }
@@ -504,20 +490,20 @@ fn parameters_tab(app: &mut App, ui: &mut Ui) {
 // ---- Analysis -------------------------------------------------------------------------------------
 
 fn analysis_tab(app: &mut App, ui: &mut Ui) {
-    card(ui, t!("Performance"), |ui| {
+    card(ui, "Performance", |ui| {
         ui.label(muted(
             ui,
-            t!("Benchmarks use the selected level's default profile."),
+            "Benchmarks use the selected level's default profile.",
         ));
         ui.horizontal_wrapped(|ui| {
             if ui
-                .add_enabled(!app.busy, Button::new(t!("Measure 40 maps")))
+                .add_enabled(!app.busy, Button::new("Measure 40 maps"))
                 .clicked()
             {
                 app.start_benchmark(BenchmarkKind::Forty);
             }
             if ui
-                .add_enabled(!app.busy, Button::new(t!("Compare batch of 800")))
+                .add_enabled(!app.busy, Button::new("Compare batch of 800"))
                 .clicked()
             {
                 app.start_benchmark(BenchmarkKind::Batch);
@@ -529,13 +515,13 @@ fn analysis_tab(app: &mut App, ui: &mut Ui) {
     });
 
     let Some(map) = &app.generated else {
-        ui.label(muted(ui, t!("Metrics and validation appear here.")));
+        ui.label(muted(ui, "Metrics and validation appear here."));
         return;
     };
-    card(ui, t!("Floor reading"), |ui| {
+    card(ui, "Floor reading", |ui| {
         ui.label(muted(
             ui,
-            tf!(
+            format!(
                 "Level {level} · seed {seed}",
                 level = app.level,
                 seed = app.seed
@@ -545,7 +531,7 @@ fn analysis_tab(app: &mut App, ui: &mut Ui) {
         if !map.violations.is_empty() {
             ui.label(muted(
                 ui,
-                tf!(
+                format!(
                     "After {n} attempt(s), the map still does not meet every rule.",
                     n = map.draws
                 ),
@@ -556,10 +542,10 @@ fn analysis_tab(app: &mut App, ui: &mut Ui) {
         }
         ui.label(muted(
             ui,
-            tf!(
-                "{draws} attempt(s) · generation {ms} ms",
+            format!(
+                "{draws} attempt(s) · generation {ms:.1} ms",
                 draws = map.draws,
-                ms = format!("{:.1}", map.elapsed_ms)
+                ms = map.elapsed_ms
             ),
         ));
         ui.label(muted(ui, summary(map)));
@@ -580,13 +566,13 @@ fn analysis_tab(app: &mut App, ui: &mut Ui) {
                 });
         });
     }
-    card(ui, t!("Shapes on the map"), |ui| {
+    card(ui, "Shapes on the map", |ui| {
         for (class, count) in &map.metrics.by_class {
             ui.label(format!("{}: {count}", class_label(class)));
         }
     });
     if !map.floor.log.is_empty() {
-        card(ui, t!("What the generator did"), |ui| {
+        card(ui, "What the generator did", |ui| {
             for line in &map.floor.log {
                 ui.label(muted(ui, translate_log(line)));
             }
@@ -601,124 +587,124 @@ fn metric_sections(map: &GeneratedMap) -> Vec<(&'static str, Vec<Row>)> {
     let opt = |v: Option<f64>| v.map(|v| format!("{v:.0}")).unwrap_or_else(|| "—".into());
     vec![
         (
-            t!("Map size"),
+            "Map size",
             vec![
                 (
-                    t!("Main rooms"),
+                    "Main rooms",
                     m.rooms.to_string(),
-                    t!("Active rooms, not counting leaf chambers."),
+                    "Active rooms, not counting leaf chambers.",
                 ),
                 (
-                    t!("Leaf chambers"),
+                    "Leaf chambers",
                     m.leaf_chambers.to_string(),
-                    t!("Extra rooms linked by a single corridor."),
+                    "Extra rooms linked by a single corridor.",
                 ),
                 (
-                    t!("T/X junctions"),
+                    "T/X junctions",
                     m.junctions.to_string(),
-                    t!("Points where three or four arms meet."),
+                    "Points where three or four arms meet.",
                 ),
                 (
-                    t!("Corridor segments"),
+                    "Corridor segments",
                     m.edges.to_string(),
-                    t!("Graph edges; each junction arm counts as a segment."),
+                    "Graph edges; each junction arm counts as a segment.",
                 ),
             ],
         ),
         (
-            t!("Cycles and density"),
+            "Cycles and density",
             vec![
                 (
-                    t!("Current cycles β"),
+                    "Current cycles β",
                     m.beta.to_string(),
-                    t!("Number of independent cycles; a tree has zero."),
+                    "Number of independent cycles; a tree has zero.",
                 ),
                 (
-                    t!("Cycle target"),
+                    "Cycle target",
                     m.beta_target.to_string(),
-                    t!("Target computed from the density and the generator's reference."),
+                    "Target computed from the density and the generator's reference.",
                 ),
                 (
-                    t!("Reference βmax"),
+                    "Reference βmax",
                     m.beta_max.to_string(),
-                    t!("Greedy estimate of the cycles that fit, including junctions."),
+                    "Greedy estimate of the cycles that fit, including junctions.",
                 ),
                 (
-                    t!("Density δ"),
+                    "Density δ",
                     format!("{:.2}", m.delta),
-                    t!("Ratio between current cycles and the βmax reference."),
+                    "Ratio between current cycles and the βmax reference.",
                 ),
             ],
         ),
         (
-            t!("Paths and connectivity"),
+            "Paths and connectivity",
             vec![
                 (
-                    t!("Doors used per room"),
+                    "Doors used per room",
                     format!("{:.2}", m.mean_degree),
-                    t!("Average number of corridors linked to each room."),
+                    "Average number of corridors linked to each room.",
                 ),
                 (
-                    t!("Single-door rooms"),
+                    "Single-door rooms",
                     m.leaves.to_string(),
-                    t!("Rooms with only one connection; includes dead ends, entrance and stairs."),
+                    "Rooms with only one connection; includes dead ends, entrance and stairs.",
                 ),
                 (
-                    t!("Bridges"),
+                    "Bridges",
                     format!("{} · {:.0}%", m.bridges, m.bridge_share * 100.0),
-                    t!("Segments whose removal would disconnect part of the map."),
+                    "Segments whose removal would disconnect part of the map.",
                 ),
                 (
-                    t!("Articulation rooms"),
+                    "Articulation rooms",
                     m.articulations.to_string(),
-                    t!("Rooms whose removal would split the graph."),
+                    "Rooms whose removal would split the graph.",
                 ),
                 (
-                    t!("Steps to the stairs"),
+                    "Steps to the stairs",
                     opt(m.hops_to_stairs),
-                    t!("Number of rooms on the shortest path from the entrance to the stairs."),
+                    "Number of rooms on the shortest path from the entrance to the stairs.",
                 ),
                 (
-                    t!("Diameter"),
+                    "Diameter",
                     format!("{:.0}", m.diameter),
-                    t!("Largest minimum distance between two rooms, in steps."),
+                    "Largest minimum distance between two rooms, in steps.",
                 ),
                 (
-                    t!("Independent routes to the stairs"),
+                    "Independent routes to the stairs",
                     m.routes_to_stairs.to_string(),
-                    t!("Paths between the entrance and the stairs that share no corridors."),
+                    "Paths between the entrance and the stairs that share no corridors.",
                 ),
                 (
-                    t!("Shortest cycle"),
+                    "Shortest cycle",
                     m.cycle_girth
                         .map(|v| v.to_string())
                         .unwrap_or_else(|| "—".into()),
-                    t!("Number of segments in the map's shortest cycle."),
+                    "Number of segments in the map's shortest cycle.",
                 ),
                 (
-                    t!("Side branches"),
+                    "Side branches",
                     m.side_branches.to_string(),
-                    t!("Optional components attached to the main path by a single passage."),
+                    "Optional components attached to the main path by a single passage.",
                 ),
                 (
-                    t!("Branch depth"),
+                    "Branch depth",
                     m.deepest_branch.to_string(),
-                    t!("Largest number of rooms in a side branch."),
+                    "Largest number of rooms in a side branch.",
                 ),
                 (
-                    t!("Highest degree"),
+                    "Highest degree",
                     m.max_node_degree.to_string(),
-                    t!("Largest number of arms joined at one point."),
+                    "Largest number of arms joined at one point.",
                 ),
                 (
-                    t!("Geometric path"),
+                    "Geometric path",
                     format!("{:.0} px", m.geometric_path_to_stairs),
-                    t!("Physical length of the shortest path to the stairs."),
+                    "Physical length of the shortest path to the stairs.",
                 ),
                 (
-                    t!("Connectivity λ₂"),
+                    "Connectivity λ₂",
                     format!("{:.3}", m.lambda2),
-                    t!("Larger values tend to indicate less dependence on bottlenecks."),
+                    "Larger values tend to indicate less dependence on bottlenecks.",
                 ),
             ],
         ),
@@ -749,7 +735,7 @@ pub fn central(app: &mut App, ui: &mut Ui) {
                 painter.text(
                     rect.center(),
                     egui::Align2::CENTER_CENTER,
-                    t!("Generating the first floor…"),
+                    "Generating the first floor…",
                     egui::FontId::proportional(16.0),
                     pal.ink,
                 );
@@ -807,7 +793,7 @@ pub fn central(app: &mut App, ui: &mut Ui) {
                 painter.text(
                     rect.right_top() + Vec2::new(-14.0, 16.0),
                     egui::Align2::RIGHT_CENTER,
-                    t!("Generating…"),
+                    "Generating…",
                     egui::FontId::proportional(13.0),
                     pal.ink.gamma_multiply(0.7),
                 );
@@ -841,47 +827,35 @@ fn zoom_at(app: &mut App, xf: &Xf, anchor: egui::Pos2, factor: f64) {
 
 fn toolbar(app: &mut App, ui: &mut Ui) {
     ui.horizontal_wrapped(|ui| {
-        if ui.button("−").on_hover_text(t!("Zoom out")).clicked() {
+        if ui.button("−").on_hover_text("Zoom out").clicked() {
             app.zoom = (app.zoom * 0.8).max(0.3);
         }
         ui.label(format!("{}%", (app.zoom * 100.0).round() as u32));
-        if ui.button("+").on_hover_text(t!("Zoom in")).clicked() {
+        if ui.button("+").on_hover_text("Zoom in").clicked() {
             app.zoom = (app.zoom * 1.25).min(20.0);
         }
         if ui
-            .button(t!("Fit"))
-            .on_hover_text(t!("Double-click on the map"))
+            .button("Fit")
+            .on_hover_text("Double-click on the map")
             .clicked()
         {
             app.zoom = 1.0;
             app.pan = [0.0, 0.0];
         }
         ui.separator();
-        ui.label(muted(ui, t!("Layers")));
+        ui.label(muted(ui, "Layers"));
         let o = &mut app.overlays;
         for (flag, name, hint) in [
-            (&mut o.cells, t!("Grid"), t!("Grid blocks of the floor")),
+            (&mut o.cells, "Grid", "Grid blocks of the floor"),
             (
                 &mut o.labels,
-                t!("Labels"),
-                t!("Number, shape and role of each room"),
+                "Labels",
+                "Number, shape and role of each room",
             ),
-            (
-                &mut o.ports,
-                t!("Doors"),
-                t!("Every possible door position"),
-            ),
-            (
-                &mut o.pairs,
-                t!("Pairs"),
-                t!("Candidate room pairs for connection"),
-            ),
-            (
-                &mut o.candidates,
-                t!("Routes"),
-                t!("Candidate corridor routes"),
-            ),
-            (&mut o.legend, t!("Legend"), t!("Shape and role colors")),
+            (&mut o.ports, "Doors", "Every possible door position"),
+            (&mut o.pairs, "Pairs", "Candidate room pairs for connection"),
+            (&mut o.candidates, "Routes", "Candidate corridor routes"),
+            (&mut o.legend, "Legend", "Shape and role colors"),
         ] {
             if ui
                 .selectable_label(*flag, name)

@@ -15,7 +15,7 @@ See [Getting started](docs/getting-started.md) to run the desktop app and the we
 ## Rules of the project
 
 - **Determinism is a feature.** A seed and the parameters must draw the same floor on every platform. Changes to `tapiti-core` must keep the hashes of `cargo run --release -p tapiti-core --example dump` unchanged, unless the change is meant to alter the output; say so in the pull request.
-- **English first, Portuguese supported.** Everything is written in English (UI, docs, comments, commits); Portuguese (pt-BR) is a translation. Desktop strings use `t!("English text")` with the table in `apps/desktop/src/i18n/pt.rs`; website strings live in `apps/site/src/l10n/*.ftl`; parameter texts live in `crates/tapiti-schema`. Tests and `topcoat l10n check` fail when a translation is missing.
+- **English only.** Everything is written in English (UI, docs, comments, commits). Website strings live in `apps/site/src/l10n/en.ftl` and `topcoat l10n check -p tapiti-site` fails on unused or missing ones; parameter texts live in `crates/tapiti-schema`.
 - **Docs are the single source.** `docs/` is shown on GitHub and rendered by the website. Math is written as `$…$` and `$$…$$`; links between pages use the slug (`[model](model)`). The site's tests catch broken formulas, links and anchors.
 - **No unsafe code** in the crates of this repository (`unsafe_code = "forbid"`).
 - **The website** is a [Topcoat](https://github.com/tokio-rs/topcoat) app. Read its `llms.txt` before changing it, run `topcoat fmt` after `cargo fmt`, and keep the Topcoat version pinned.

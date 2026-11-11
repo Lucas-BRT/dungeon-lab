@@ -521,7 +521,7 @@ pub fn legend(painter: &Painter, rect: Rect, pal: &Palette, text_color: Color32)
     painter.text(
         Pos2::new(panel.left() + 30.0, y),
         Align2::LEFT_CENTER,
-        t!("gate (key/switch)"),
+        "gate (key/switch)",
         font.clone(),
         text_color,
     );
@@ -530,7 +530,7 @@ pub fn legend(painter: &Painter, rect: Rect, pal: &Palette, text_color: Color32)
     painter.text(
         Pos2::new(panel.left() + 30.0, y),
         Align2::LEFT_CENTER,
-        t!("junction · outline = role"),
+        "junction · outline = role",
         font,
         text_color,
     );

@@ -39,41 +39,38 @@ fn distance_to_segment(point: [f64; 2], a: [f64; 2], b: [f64; 2]) -> f64 {
 
 pub(crate) fn node_label(floor: &Floor, node: usize) -> String {
     match floor.nodes.get(node) {
-        Some(Node::Junction { .. }) => t!("junction").into(),
-        Some(Node::Room { room }) => tf!("room #{id}", id = floor.rooms[*room].id),
-        None => t!("point").into(),
+        Some(Node::Junction { .. }) => "junction".into(),
+        Some(Node::Room { room }) => format!("room #{id}", id = floor.rooms[*room].id),
+        None => "point".into(),
     }
 }
 
 pub(crate) fn map_object_at(floor: &Floor, point: [f64; 2], zoom: f64) -> String {
     for room in floor.rooms.iter().rev() {
         if room.alive && point_in_shape(&room.shape, point) {
-            let kind = if room.leaf {
-                t!("leaf chamber")
-            } else {
-                t!("room")
-            };
+            let kind = if room.leaf { "leaf chamber" } else { "room" };
             let items = [
-                (room.keys != 0).then(|| tf!("{n} key(s)", n = room.keys.count_ones())),
-                (room.switches != 0).then(|| tf!("{n} switch(es)", n = room.switches.count_ones())),
+                (room.keys != 0).then(|| format!("{n} key(s)", n = room.keys.count_ones())),
+                (room.switches != 0)
+                    .then(|| format!("{n} switch(es)", n = room.switches.count_ones())),
             ]
             .into_iter()
             .flatten()
             .collect::<Vec<_>>();
-            return tf!(
-                "{kind} · {role}\nRoom #{id} · {class}\nArea: {area} px²\nDoors used: {used} · possible: {possible}{items}",
+            let items = if items.is_empty() {
+                String::new()
+            } else {
+                format!("\nItems: {}", items.join(" · "))
+            };
+            return format!(
+                "{kind} · {role}\nRoom #{id} · {class}\nArea: {area:.0} px²\nDoors used: {used} · possible: {possible}{items}",
                 kind = kind,
                 role = role_label(room.role),
                 id = room.id,
                 class = class_label(room.cls.name()),
-                area = format!("{:.0}", room.area),
+                area = room.area,
                 used = room.used.len(),
                 possible = room.ports.len(),
-                items = if items.is_empty() {
-                    String::new()
-                } else {
-                    format!("\n{}: {}", t!("Items"), items.join(" · "))
-                }
             );
         }
     }
@@ -85,11 +82,11 @@ pub(crate) fn map_object_at(floor: &Floor, point: [f64; 2], zoom: f64) -> String
                     .iter()
                     .filter(|edge| edge.u == id || edge.v == id)
                     .count();
-                return tf!(
-                    "Corridor junction\n{degree} arms connected\nPosition: {x}, {y} px",
+                return format!(
+                    "Corridor junction\n{degree} arms connected\nPosition: {x:.0}, {y:.0} px",
                     degree = degree,
-                    x = format!("{:.0}", p[0]),
-                    y = format!("{:.0}", p[1])
+                    x = p[0],
+                    y = p[1]
                 );
             }
         }
@@ -105,33 +102,24 @@ pub(crate) fn map_object_at(floor: &Floor, point: [f64; 2], zoom: f64) -> String
                 .map(|segment| dist(segment[0], segment[1]))
                 .sum::<f64>();
             let gates = [
-                (edge.requires_keys != 0)
-                    .then(|| tf!("key {bits}", bits = format!("{:08b}", edge.requires_keys))),
-                (edge.requires_switches != 0).then(|| {
-                    tf!(
-                        "switch {bits}",
-                        bits = format!("{:08b}", edge.requires_switches)
-                    )
-                }),
+                (edge.requires_keys != 0).then(|| format!("key {:08b}", edge.requires_keys)),
+                (edge.requires_switches != 0)
+                    .then(|| format!("switch {:08b}", edge.requires_switches)),
             ]
             .into_iter()
             .flatten()
             .collect::<Vec<_>>();
-            return tf!(
-                "Corridor segment #{id}\n{from} – {to}\n{n} segment(s) · {length} px{gates}",
+            return format!(
+                "Corridor segment #{id}\n{from} – {to}\n{n} segment(s) · {length:.0} px{gates}",
                 id = edge.id,
                 from = node_label(floor, edge.u),
                 to = node_label(floor, edge.v),
                 n = edge.pts.len().saturating_sub(1),
-                length = format!("{length:.0}"),
+                length = length,
                 gates = if gates.is_empty() {
                     String::new()
                 } else {
-                    format!(
-                        "\n{}: {}",
-                        t!("Locked"),
-                        gates.join(&format!(" {} ", t!("and")))
-                    )
+                    format!("\nLocked: {}", gates.join(" and "))
                 }
             );
         }

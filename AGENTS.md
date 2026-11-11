@@ -4,9 +4,7 @@ Tapiti is a Rust workspace: the generator (`crates/tapiti-core`), its WebAssembl
 
 ## Rules
 
-- **English first, Portuguese supported.** Everything the project ships (UI, docs, comments, commit messages, issue text) is written in English. The browser lab (`apps/site/src/app/locale/lab.rs`) is English only, on purpose. Portuguese (pt-BR) is a
-  translation, never the source. Desktop: `t!("English text")` / `tf!(...)` in `apps/desktop/src/i18n.rs`, with the pt table in `i18n/pt.rs`; a unit test fails when a key has no
-  entry. Site: Fluent `.ftl` files (`en` default, `pt-BR`), checked by `topcoat l10n check`.
+- **English only.** Everything the project ships (UI, docs, comments, commit messages, issue text) is written in English: the website, the lab, the desktop app and the docs. The site has no `/{locale}` prefix; its Fluent `en.ftl` files are checked by `topcoat l10n check -p tapiti-site` (unused or missing messages). `/en/*` and `/pt-BR/*` redirect permanently to the flat URLs.
 - Unsafe code is not allowed in new crates (`unsafe_code = "forbid"`).
 - Determinism is a feature: a seed and a Λ must draw the same stage on every platform. Changes to `tapiti-core` must keep
   `cargo run --release -p tapiti-core --example dump` hashes unchanged, unless the change is meant to alter the output (say so in the commit).
@@ -15,10 +13,10 @@ Tapiti is a Rust workspace: the generator (`crates/tapiti-core`), its WebAssembl
 
 ## Documentation
 
-- `docs/*.md` (English) and `docs/pt-BR/*.md` are the single source: GitHub shows them and `apps/site` renders them (included at compile time, see `apps/site/src/docs.rs`). A page missing from `docs/pt-BR/` falls back to English with a notice.
+- `docs/*.md` is the single source: GitHub shows it and `apps/site` renders it (included at compile time, see `apps/site/src/docs.rs`).
 - Write math as `$…$` and `$$…$$` (own lines, blank line around), never `\(…\)`. Do not put a `|` inside a formula in a table cell. The site turns formulas into MathML on the server; its tests fail when a formula does not parse, a link or anchor is broken, or a heading id repeats.
 - Link other pages by slug (`[model](model)`, `[x](model#section)`), and the repository by relative path (`../crates/...`): the site rewrites both.
-- The parameter reference is generated from `crates/tapiti-schema`; add a parameter there (English and Portuguese text) and the desktop app and the docs follow. The lab form is generated from it too.
+- The parameter reference is generated from `crates/tapiti-schema`; add a parameter there (its label and help text) and the desktop app and the docs follow. The lab form is generated from it too.
 
 ## Website (`apps/site`, Topcoat)
 

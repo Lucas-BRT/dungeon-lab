@@ -1,44 +1,16 @@
-//! The shape of the parameter vector Λ as data: groups, fields, ranges and help, in English and Portuguese.
+//! The shape of the parameter vector Λ as data: groups, fields, ranges and help.
 //! Pure data (no UI), shared by the desktop app and the website's parameter reference, so a label is written once.
 
-use std::collections::HashMap;
-use std::sync::OnceLock;
+/// A text of the schema: always English.
+pub type Text = String;
 
-mod pt;
-
-/// One text in both supported languages.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Text {
-    pub en: String,
-    pub pt: String,
+/// `a` + separator + `b`.
+fn join(a: &str, separator: &str, b: &str) -> Text {
+    format!("{a}{separator}{b}")
 }
 
-impl Text {
-    pub fn get(&self, portuguese: bool) -> &str {
-        if portuguese {
-            &self.pt
-        } else {
-            &self.en
-        }
-    }
-
-    /// `a` + separator + `b`, in each language.
-    pub fn join(a: &Text, separator: &str, b: &Text) -> Text {
-        Text {
-            en: format!("{}{separator}{}", a.en, b.en),
-            pt: format!("{}{separator}{}", a.pt, b.pt),
-        }
-    }
-}
-
-/// English text with its Portuguese translation (the English text itself when the table has none: numbers and names such as RNG).
 fn tx(en: &str) -> Text {
-    static TABLE: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
-    let table = TABLE.get_or_init(|| pt::PT.iter().copied().collect());
-    Text {
-        en: en.to_string(),
-        pt: table.get(en).copied().unwrap_or(en).to_string(),
-    }
+    en.to_string()
 }
 
 #[derive(Clone, Debug)]
@@ -119,7 +91,7 @@ fn class_fields(prefix: &str, title: Text, range: (f64, f64), integer: bool) -> 
     .map(|(class, label)| {
         number(
             &format!("{prefix}.{class}"),
-            Text::join(&title, " · ", &label),
+            join(&title, " · ", &label),
             range.0,
             range.1,
             integer,
@@ -202,7 +174,7 @@ pub fn groups() -> Vec<ParamGroup> {
         for (b, b_label) in classes.iter().skip(i) {
             mix.push(number(
                 &format!("mix.{a}-{b}"),
-                Text::join(a_label, " × ", b_label),
+                join(a_label, " × ", b_label),
                 0.0,
                 1.0,
                 false,
@@ -376,7 +348,7 @@ pub fn groups() -> Vec<ParamGroup> {
     ]
 }
 
-fn help(path: &str, label: &Text) -> Text {
+fn help(path: &str, label: &str) -> Text {
     match path {
         "cols" => tx("Number of columns. More columns increase the potential width of the floor."),
         "rows" => tx("Number of rows. More rows increase the potential height of the floor."),
@@ -438,10 +410,7 @@ fn help(path: &str, label: &Text) -> Text {
         _ if path.starts_with("leafClasses.") => tx("Relative weight for choosing this shape for leaf chambers."),
         _ if path.starts_with("mix.") => tx("Compatibility between two shapes: zero forbids the link; one keeps the normal chance."),
         _ if path.starts_with("leafRoles.") => tx("Relative weight for the leaf chamber to get this role."),
-        _ => Text {
-            en: format!("{}. Adjust this value and watch how it changes the floor layout.", label.en),
-            pt: format!("{}. Ajuste este valor e observe como ele altera a configuração do andar.", label.pt),
-        },
+        _ => format!("{label}. Adjust this value and watch how it changes the floor layout."),
     }
 }
 
@@ -462,11 +431,7 @@ mod tests {
     }
 
     #[test]
-    fn every_text_has_both_languages() {
-        let numbers_and_names: HashSet<&str> = [
-            "0", "1", "2", "4", "5", "6", "8", "16", "RNG", "Gabriel", "Hub", "circular",
-        ]
-        .into();
+    fn every_text_is_filled_and_groups_are_unique() {
         let mut seen = HashSet::new();
         for group in groups() {
             assert!(
@@ -483,20 +448,7 @@ mod tests {
                 }
             }
             for text in texts {
-                assert!(
-                    !text.en.is_empty() && !text.pt.is_empty(),
-                    "empty text in {}",
-                    group.id
-                );
-                assert!(
-                    text.en != text.pt
-                        || text
-                            .en
-                            .split(|c| c == '×' || c == '·')
-                            .all(|part| numbers_and_names.contains(part.trim())),
-                    "no Portuguese for: {}",
-                    text.en
-                );
+                assert!(!text.is_empty(), "empty text in {}", group.id);
             }
         }
     }

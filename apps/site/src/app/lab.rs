@@ -119,7 +119,7 @@ fn field_help(field: &ParamField) -> String {
         FieldKind::Choice(options) => {
             let list = options
                 .iter()
-                .map(|(_, name)| name.get(false))
+                .map(|(_, name)| name.as_str())
                 .collect::<Vec<_>>()
                 .join(", ");
             e!(lab_field_options, list: list).into_owned()
@@ -133,7 +133,7 @@ fn field_help(field: &ParamField) -> String {
             }
         }
     };
-    format!("{} {allowed}", field.help.get(false))
+    format!("{} {allowed}", field.help.as_str())
 }
 
 #[page(
@@ -429,10 +429,10 @@ async fn param_group(cx: &Cx, group: &ParamGroup) -> Result<impl View> {
             open=(group.open_by_default)
         >
             <summary>
-                <span>(group.title.get(false))</span>
+                <span>(group.title.as_str())</span>
                 <span class="group-count">(group.fields.len().to_string())</span>
             </summary>
-            <p class="group-intro">(group.intro.get(false))</p>
+            <p class="group-intro">(group.intro.as_str())</p>
             <button type="button" class="text-button group-reset">
                 (e!(lab_group_reset))
             </button>
@@ -451,7 +451,7 @@ async fn param_field(cx: &Cx, field: &ParamField) -> Result<impl View> {
     Ok(view! {
         <div class="field">
             <div class="field-title">
-                <label for=(id.as_str())>(field.label.get(false))</label>
+                <label for=(id.as_str())>(field.label.as_str())</label>
                 help_button(text: &help)
             </div>
             match &field.kind {
@@ -470,7 +470,7 @@ async fn param_field(cx: &Cx, field: &ParamField) -> Result<impl View> {
                         data-kind="choice"
                     >
                         for (value, name) in options {
-                            <option value=(value.as_str())>(name.get(false))</option>
+                            <option value=(value.as_str())>(name.as_str())</option>
                         }
                     </select>
                 }

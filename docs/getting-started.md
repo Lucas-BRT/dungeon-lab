@@ -13,7 +13,7 @@ cd tapiti
 cargo run --release
 ```
 
-Pick a level (1 to 5), change the seed, and edit any parameter: the floor is dug again a moment after each change. The side panel has three tabs: the floor reading and layout, every parameter of Λ, and the analysis. The language (English or Portuguese) and the theme are in the bottom bar.
+Pick a level (1 to 5), change the seed, and edit any parameter: the floor is dug again a moment after each change. The side panel has three tabs: the floor reading and layout, every parameter of Λ, and the analysis. The theme is in the bottom bar.
 
 Shortcuts: <kbd>Alt</kbd>+<kbd>1</kbd> to <kbd>5</kbd> switch the level, <kbd>Alt</kbd>+<kbd>R</kbd> draws a random seed, <kbd>Alt</kbd>+<kbd>←</kbd> and <kbd>→</kbd> step the seed. Drag the map to pan, scroll to zoom, double-click to fit.
 
