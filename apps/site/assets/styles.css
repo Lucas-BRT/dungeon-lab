@@ -83,7 +83,7 @@
   p, li { text-wrap: pretty; }
   code, kbd, pre { font-family: var(--font-mono); }
   code { font-size: .88em; }
-  main { flex: 1; }
+  main { position: relative; flex: 1; }
   .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 }
 
@@ -98,13 +98,24 @@
   .site-nav a { text-decoration: none; color: var(--ash); transition: color .15s; }
   .site-nav a:hover, .site-nav a[aria-current] { color: var(--bone); }
 
-  .site-footer { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 32px; padding: 40px var(--edge) 36px; background: var(--abyss); border-top: 1px solid var(--stone-600); color: var(--ash); font-size: .95rem; }
+  .site-footer { position: relative; z-index: 2; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 32px; padding: 40px var(--edge) 36px; background: var(--abyss); border-top: 1px solid var(--stone-600); color: var(--ash); font-size: .95rem; }
   .site-footer p { margin: 10px 0 0; max-width: 24rem; }
   .site-footer nav { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
   .site-footer h2 { margin: 0 0 4px; color: var(--bone); font: 600 1rem/1.2 var(--font-body); letter-spacing: 0; }
   .site-footer a { text-decoration: none; }
   .site-footer a:hover { color: var(--bone); text-decoration: underline; }
   .site-footer .brand { color: var(--bone); }
+}
+
+@layer layout {
+  @media (max-width: 640px) {
+    .site-header { flex-wrap: wrap; gap: 10px 16px; position: static; }
+    .site-nav { width: 100%; margin-left: 0; flex-wrap: wrap; gap: 6px 18px; }
+  }
+  @media (max-width: 860px) {
+    .site-footer { grid-template-columns: 1fr 1fr; }
+    .footer-about { grid-column: 1 / -1; }
+  }
 }
 
 @layer components {
@@ -132,84 +143,6 @@
 }
 
 @layer pages {
-/* Hero: the claim, the way in, and a floor drawn on a drafting grid. */
-.hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); align-items: center; gap: clamp(28px, 5vw, 72px); padding: clamp(40px, 9vh, 96px) var(--edge) clamp(48px, 9vh, 96px); }
-.hero-copy { max-width: 38rem; }
-.hero h1 { margin: 0 0 22px; font: 700 clamp(3rem, 7vw, 6rem)/1 var(--font-display); letter-spacing: -.02em; text-wrap: balance; }
-.hero p { margin: 0 0 32px; max-width: 32rem; font-size: 1.15rem; color: var(--muted); text-wrap: pretty; }
-.hero-floor { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "seed dig" "svg svg"; align-items: center; margin: 0; min-width: 0; border: 1px solid var(--stone-600); border-radius: var(--radius-md); overflow: hidden; background: var(--plate); }
-.hero-floor-svg { grid-area: svg; padding: 14px; background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 24px 24px; border-top: 1px solid var(--rule); }
-.hero-floor svg { display: block; width: 100%; height: auto; }
-.seed-label { grid-area: seed; margin: 0; padding: 10px 14px; color: var(--muted); font: .85rem var(--font-mono); font-variant-numeric: tabular-nums; }
-.hero-floor figcaption { grid-area: dig; padding: 6px 8px; }
-.dig-again { padding: 6px 14px; font: 600 .9rem var(--font-body); color: var(--text); background: transparent; border: 1px solid var(--rule); border-radius: var(--radius-sm); cursor: pointer; transition: background-color .15s, color .15s; }
-.dig-again:hover { background: var(--text); color: var(--bg); }
-.dig-again:active { transform: translateY(1px); }
-
-
-
-/* The one authored motion: the floor is dug outwards from the entrance, each shape after the ones nearer to it. */
-@media (prefers-reduced-motion: no-preference) {
-  .hero-floor .room, .hero-floor .junction, .hero-floor .door { animation: dig .55s var(--ease-out) both; animation-delay: calc(var(--d, 0) * 110ms); }
-  .hero-floor .room { transform-box: fill-box; transform-origin: center; }
-  .hero-floor .corridor { animation: fade .5s ease-out both; animation-delay: calc(var(--d, 0) * 110ms - 60ms); }
-  @keyframes dig { from { opacity: 0; transform: scale(.92); } }
-  @keyframes fade { from { opacity: 0; } }
-}
-
-/* Sections: one measure, hairline rules between them, no boxes. */
-main h2 { margin: 0 0 16px; font: 600 clamp(1.8rem, 3.4vw, 2.8rem)/1.1 var(--font-display); letter-spacing: -.015em; text-wrap: balance; }
-main h3 { margin: 0 0 6px; font: 600 1.15rem/1.25 var(--font-display); letter-spacing: -.005em; }
-.register, .feature, .descent, .run, .final-cta { border-top: 1px solid var(--rule); }
-.register, .descent, .run { padding-inline: var(--edge); }
-
-/* Register: measured facts as a plain table, not as hero numbers. */
-.register { margin: 0; padding-block: 28px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 32px; }
-.register > div { display: grid; gap: 2px; align-content: start; }
-.register dt { color: var(--muted); font-size: .95rem; order: 2; text-wrap: pretty; }
-.register dd { margin: 0; font: 600 1.35rem/1.2 var(--font-display); font-variant-numeric: tabular-nums; order: 1; }
-
-/* Feature rows: text on one side, a real floor on a drafting grid on the other. */
-.feature { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); align-items: center; gap: clamp(24px, 6vw, 88px); padding: clamp(48px, 8vh, 96px) var(--edge); }
-.feature.reverse { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); }
-.feature.reverse .feature-copy { order: 2; }
-.feature-copy p { margin: 0 0 20px; color: var(--muted); max-width: 34rem; text-wrap: pretty; }
-.feature-figure { margin: 0; padding: clamp(10px, 2vw, 18px); border: 1px solid var(--stone-600); border-radius: var(--radius-md); background-color: var(--plate); background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 24px 24px; }
-.feature-figure svg { display: block; width: 100%; height: auto; }
-.shape-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 0; padding: 0; list-style: none; font-size: .92rem; color: var(--muted); }
-.shape-legend li { display: inline-flex; align-items: center; gap: 8px; }
-.swatch { width: 12px; height: 12px; border-radius: 2px; }
-.swatch.c-rect, .token .c-rect { fill: var(--map-rect); background: var(--map-rect); }
-.swatch.c-disc, .token .c-disc { fill: var(--map-disc); background: var(--map-disc); }
-.swatch.c-oct, .token .c-oct { fill: var(--map-oct); background: var(--map-oct); }
-.swatch.c-L, .token .c-L { fill: var(--map-L); background: var(--map-L); }
-.swatch.c-star, .token .c-star { fill: var(--map-star); background: var(--map-star); }
-.token .c-rect, .token .c-disc, .token .c-oct, .token .c-L, .token .c-star { background: none; }
-.verdict { display: grid; gap: 8px; padding: 14px 16px; border: 1px solid var(--danger); border-radius: var(--radius-md); }
-.verdict-caption { margin: 0 !important; font-size: .9rem; }
-.verdict code { color: var(--text); overflow-wrap: anywhere; }
-
-/* The procedure: four steps typeset as a table of rows, in the order they happen. */
-.descent { padding-block: clamp(48px, 8vh, 96px); }
-.descent > h2 { margin-bottom: clamp(20px, 4vh, 36px); }
-.descent ol { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
-.chamber { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 24px; align-items: start; padding: 22px 0; border-bottom: 1px solid var(--line); }
-.chamber > div { display: grid; grid-template-columns: minmax(0, 14rem) minmax(0, 1fr); gap: 6px 32px; padding-top: 8px; }
-.chamber h3 { margin: 0; }
-.chamber p { margin: 0; color: var(--muted); max-width: 44rem; text-wrap: pretty; }
-.token { width: 44px; height: 44px; }
-
-/* Ways in: a definition list on hairlines. */
-.run { padding-block: clamp(40px, 7vh, 80px); }
-.run-panel { margin: 24px 0 0; border-top: 1px solid var(--line); }
-.run-panel > div { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: 16px; align-items: baseline; padding: 16px 0; border-bottom: 1px solid var(--line); }
-.run-panel dt { color: var(--muted); font-size: .95rem; }
-.run-panel dd { margin: 0; overflow-wrap: anywhere; }
-.run-panel a { color: var(--accent); }
-
-.final-cta { padding: clamp(64px, 11vh, 120px) var(--gutter); text-align: center; }
-.final-cta .cta-row { justify-content: center; margin-top: 28px; }
-
 /* The leaf chamber */
 .chamber-page { max-width: 34rem; margin: 0 auto; padding: clamp(64px, 14vh, 160px) var(--gutter); background: radial-gradient(28rem 20rem at 20% 8rem, rgb(255 138 61 / .1), transparent); }
 .chamber-page svg { display: block; width: 14rem; margin-bottom: 28px; }

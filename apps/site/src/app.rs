@@ -4,6 +4,7 @@ pub mod lab;
 pub mod leaf;
 mod legacy;
 pub mod search;
+mod walk;
 
 use std::path::PathBuf;
 use topcoat::{
@@ -22,7 +23,6 @@ use topcoat::{
         response::Response,
         route,
     },
-    runtime::RuntimeLayer,
     view::{View, component, view},
 };
 
@@ -38,7 +38,6 @@ pub fn router() -> Router {
         .assets(AssetBundle::load().expect("asset bundle missing: run `topcoat dev`, or `topcoat asset bundle --package tapiti-site` after building"))
         // The lab's WebAssembly module and its glue live at fixed paths: the glue finds its `.wasm` next to itself, so they cannot be hashed assets.
         .serve_dir("/lab/pkg/{*file}", pkg_dir())
-        .layer(RuntimeLayer::new())
         .build()
 }
 
@@ -223,7 +222,6 @@ async fn layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
                     href=(asset!("assets/brand/apple-touch-icon.png"))
                 >
                 <link rel="stylesheet" href=(asset!("assets/styles.css"))>
-                topcoat::runtime::script()
                 <script src=(asset!("assets/site.js")) defer="defer"></script>
                 topcoat::dev::script()
             </head>

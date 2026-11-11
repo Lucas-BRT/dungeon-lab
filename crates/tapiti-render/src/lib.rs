@@ -138,6 +138,22 @@ fn theme_css(theme: Theme) -> &'static str {
     }
 }
 
+/// The `viewBox` of the SVG of `d`, as `[x, y, width, height]` in world units (the floor plus the margin). Pages that draw over the SVG
+/// (a minimap, a position marker) use it to turn world coordinates into percentages.
+pub fn view_box(d: &Floor, style: &Style) -> [f64; 4] {
+    let (x0, x1) = (
+        d.grid_x.first().copied().unwrap_or(0.0),
+        d.grid_x.last().copied().unwrap_or(1.0),
+    );
+    let (y0, y1) = (
+        d.grid_y.first().copied().unwrap_or(0.0),
+        d.grid_y.last().copied().unwrap_or(1.0),
+    );
+    let (w, h) = ((x1 - x0).max(1.0), (y1 - y0).max(1.0));
+    let m = w.max(h) * style.margin;
+    [x0 - m, y0 - m, w + 2.0 * m, h + 2.0 * m]
+}
+
 /// Renders `d` as a standalone `<svg>` element.
 pub fn floor_svg(d: &Floor, style: &Style) -> String {
     let (x0, x1) = (
@@ -149,7 +165,6 @@ pub fn floor_svg(d: &Floor, style: &Style) -> String {
         d.grid_y.last().copied().unwrap_or(1.0),
     );
     let (w, h) = ((x1 - x0).max(1.0), (y1 - y0).max(1.0));
-    let m = w.max(h) * style.margin;
     let hops = room_hops(&d.nodes, &d.edges, d.rooms[d.start].id);
     let hop_of_node = |node: usize| -> usize {
         let v = hops.get(node).copied().unwrap_or(0.0);
@@ -164,10 +179,10 @@ pub fn floor_svg(d: &Floor, style: &Style) -> String {
     let _ = write!(
         out,
         r#"<svg xmlns="http://www.w3.org/2000/svg" class="tapiti-floor" viewBox="{} {} {} {}" role="img" aria-label="{}">"#,
-        n(x0 - m),
-        n(y0 - m),
-        n(w + 2.0 * m),
-        n(h + 2.0 * m),
+        n(view_box(d, style)[0]),
+        n(view_box(d, style)[1]),
+        n(view_box(d, style)[2]),
+        n(view_box(d, style)[3]),
         style
             .label
             .clone()
@@ -287,6 +302,17 @@ mod tests {
 
     fn svg(seed: u32, level: usize, style: &Style) -> String {
         floor_svg(&generate(seed, &params_of_level(level)), style)
+    }
+
+    #[test]
+    fn the_view_box_is_the_one_the_svg_declares() {
+        let d = generate(5, &params_of_level(3));
+        let [x, y, w, h] = view_box(&d, &Style::default());
+        let svg = floor_svg(&d, &Style::default());
+        assert!(
+            svg.contains(&format!("viewBox=\"{} {} {} {}\"", n(x), n(y), n(w), n(h))),
+            "{svg:.200}"
+        );
     }
 
     #[test]

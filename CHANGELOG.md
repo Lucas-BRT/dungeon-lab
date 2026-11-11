@@ -14,6 +14,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Changed
 
+- The landing page is seven rooms along one real floor (level 5, seed 279), with a depth gauge and a minimap that link between the rooms; the floor is the dimmed backdrop. "Dig again" is gone from the landing page: digging any seed lives in the lab.
 - The browser lab is a Topcoat page (`/lab`) whose form is built from `tapiti-schema`; the generator still runs in the browser with WebAssembly.
 - `Dungeon` is now `Floor`; `generate.rs` is split into one file per phase. The generator output is unchanged.
 - Accessibility pass on the website: axe-core reports no violations in light and dark, and no page scrolls sideways at 360 px.

@@ -1,0 +1,77 @@
+/* The landing page: seven rooms on one floor. The floor is the backdrop; each room is a plaque on a scrim. A gauge and a minimap
+   (links, so they work without scripts) move you between rooms. */
+@layer pages {
+  .walk-backdrop { position: fixed; inset: 0; z-index: 0; display: grid; place-items: center; pointer-events: none; background: radial-gradient(60vw 50vh at 72% 38%, rgb(255 138 61 / .1), transparent 70%), var(--abyss); }
+  .walk-backdrop svg { width: 100%; height: 100%; opacity: .32; }
+  .walk-backdrop::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 70% 45%, transparent 25%, var(--abyss) 85%); }
+  .rooms { position: relative; z-index: 1; }
+
+  .room { display: flex; align-items: center; min-height: 100svh; padding: 88px var(--edge) 56px; scroll-margin-top: 0; }
+  .plaque { width: min(100%, 34rem); padding: 28px 30px; background: rgb(11 14 18 / .86); border: 1px solid var(--stone-600); border-radius: var(--radius-md); box-shadow: inset 0 1px 0 rgb(255 236 210 / .06), 0 12px 32px rgb(0 0 0 / .45); }
+  .room:is([data-station="1"], [data-station="2"], [data-station="3"], [data-station="5"]) .plaque { width: min(100%, 44rem); }
+  .plaque > :first-child { margin-top: 0; }
+  .plaque > :last-child { margin-bottom: 0; }
+  .plaque h1 { margin: 0 0 20px; font-size: clamp(3rem, 7vw, 6rem); line-height: 1; font-weight: 700; letter-spacing: -.02em; }
+  .plaque h2 { margin: 0 0 16px; font-size: clamp(1.8rem, 3.4vw, 2.8rem); line-height: 1.1; }
+  .plaque h3 { margin: 0 0 6px; font-size: 1.2rem; line-height: 1.25; }
+  .plaque p { margin: 0 0 20px; color: var(--ash); }
+  .plaque .lede { font-size: 1.2rem; color: var(--bone); }
+  .plaque .caption { margin: 24px 0 0; font: .85rem var(--font-mono); color: var(--ash); font-variant-numeric: tabular-nums; }
+  .plaque a:not(.button) { color: var(--carrot); }
+
+  .plate { margin: 20px 0 0; padding: 12px; background: var(--plate); border: 1px solid var(--stone-600); border-radius: var(--radius-md); }
+  .plate svg { display: block; width: 100%; height: auto; }
+  .shape-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 0; padding: 0; list-style: none; font-size: .98rem; color: var(--ash); }
+  .shape-legend li { display: inline-flex; align-items: center; gap: 8px; }
+  .swatch { width: 12px; height: 12px; border-radius: 2px; }
+  .swatch.c-rect, .token .c-rect { fill: var(--map-rect); background: var(--map-rect); }
+  .swatch.c-disc, .token .c-disc { fill: var(--map-disc); background: var(--map-disc); }
+  .swatch.c-oct, .token .c-oct { fill: var(--map-oct); background: var(--map-oct); }
+  .swatch.c-L, .token .c-L { fill: var(--map-L); background: var(--map-L); }
+  .swatch.c-star, .token .c-star { fill: var(--map-star); background: var(--map-star); }
+  .token .c-rect, .token .c-disc, .token .c-oct, .token .c-L, .token .c-star { background: none; }
+  .verdict { display: grid; gap: 8px; margin: 0 0 4px; padding: 14px 16px; border: 1px solid var(--danger); border-radius: var(--radius-sm); }
+  .plaque .verdict-caption { margin: 0; font-size: .95rem; }
+  .verdict code { color: var(--bone); overflow-wrap: anywhere; }
+
+  .steps { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--stone-600); }
+  .step { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 20px; align-items: start; padding: 18px 0; border-bottom: 1px solid var(--stone-600); }
+  .step > div { padding-top: 6px; }
+  .step p { margin: 0; }
+  .token { width: 44px; height: 44px; }
+
+  .register { display: grid; gap: 22px; margin: 0; }
+  .register > div { display: grid; gap: 2px; }
+  .register dd { margin: 0; order: 1; font: 700 2rem/1.1 var(--font-display); font-variant-numeric: tabular-nums; color: var(--bone); }
+  .register dt { order: 2; color: var(--ash); }
+
+  .run-panel { margin: 0; border-top: 1px solid var(--stone-600); }
+  .run-panel > div { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: 16px; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--stone-600); }
+  .run-panel dt { color: var(--ash); font-size: .98rem; }
+  .run-panel dd { margin: 0; overflow-wrap: anywhere; }
+
+  /* Depth gauge: one tick per room, at the right edge. */
+  .depth { position: fixed; right: 14px; top: 50%; z-index: 10; transform: translateY(-50%); }
+  .depth ol { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .depth a { position: relative; display: block; width: 20px; height: 14px; text-decoration: none; }
+  .depth a::before { content: ""; position: absolute; right: 0; top: 6px; width: 14px; height: 2px; background: var(--stone-500); transition: width .15s, background-color .15s; }
+  .depth a:hover::before, .depth a:focus-visible::before, .depth a[aria-current]::before { width: 20px; background: var(--carrot); }
+  .depth-label { position: absolute; right: 28px; top: 50%; padding: 2px 8px; transform: translateY(-50%); white-space: nowrap; font-size: .85rem; color: var(--bone); background: var(--stone-900); border: 1px solid var(--stone-600); border-radius: var(--radius-sm); opacity: 0; pointer-events: none; transition: opacity .15s; }
+  .depth a:hover .depth-label, .depth a:focus-visible .depth-label { opacity: 1; }
+
+  /* Minimap: the floor on a plate, with a link over each room where the page stops. */
+  .minimap { position: fixed; right: 56px; bottom: 20px; z-index: 10; display: none; width: 240px; line-height: 0; background: var(--plate); border-radius: var(--radius-md); outline: 1px solid var(--stone-600); box-shadow: 0 12px 32px rgb(0 0 0 / .45); }
+  .minimap-floor { padding: 6px; }
+  .minimap-floor svg { display: block; width: 100%; height: auto; }
+  .stop { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border: 2px solid var(--bone); border-radius: 50%; background: rgb(11 14 18 / .6); transition: background-color .15s, border-color .15s; }
+  .stop:hover, .stop:focus-visible, .stop[aria-current] { border-color: var(--carrot); background: var(--carrot); box-shadow: 0 0 8px 2px rgb(240 138 60 / .55); }
+  body:has(#entrance:target) .stop[href="#entrance"], body:has(#shapes:target) .stop[href="#shapes"], body:has(#gate:target) .stop[href="#gate"], body:has(#dig:target) .stop[href="#dig"], body:has(#numbers:target) .stop[href="#numbers"], body:has(#run:target) .stop[href="#run"], body:has(#stairs:target) .stop[href="#stairs"] { border-color: var(--carrot); background: var(--carrot); }
+  @media (min-width: 1024px) { .minimap { display: block; } }
+
+  @media (max-width: 720px) {
+    .room { padding: 72px 34px 40px var(--gutter); align-items: flex-start; }
+    .plaque { padding: 20px 18px; }
+    .depth { right: 6px; }
+    .run-panel > div { grid-template-columns: 1fr; gap: 4px; }
+  }
+}

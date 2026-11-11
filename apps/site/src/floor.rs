@@ -1,15 +1,14 @@
 //! Floors drawn by the generator itself and inlined in pages as SVG.
 
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex, OnceLock};
-use std::time::{Duration, Instant};
+use std::sync::OnceLock;
+use std::time::Instant;
 use tapiti_core::{
-    generate::{Floor, generate},
+    generate::{Floor, Node, generate},
     params::params_of_level,
     stage::stage,
     validate::validate,
 };
-use tapiti_render::{Style, floor_svg};
+use tapiti_render::{Style, floor_svg, view_box};
 use topcoat::{
     context::Cx,
     view::{NodeViewParts, PartsWriter},
@@ -24,8 +23,12 @@ impl NodeViewParts for TrustedHtml {
     }
 }
 
-/// Landing page floor: level 5, picked for its mix of shapes, junctions and dead ends.
-pub const HERO_SEED: u32 = 26;
+/// The floor the landing page walks along: level 5, first draw valid, a main path of ten rooms through all five shapes, one
+/// junction and a leaf chamber. The scene of phase 5 builds the same floor in the browser from the same seed.
+pub const WALK_SEED: u32 = 279;
+pub const WALK_LEVEL: usize = 5;
+/// Sections of the landing page, one room each.
+pub const STATIONS: usize = 7;
 /// Shapes figure: level 5 with every shape weighted equally, so all five appear.
 pub const SHAPES_SEED: u32 = 16;
 /// Validator figure: a level 5 first draw that the validator rejects (the stairs end up too close to the entrance).
@@ -41,12 +44,55 @@ fn svg(floor: &Floor, label: String) -> TrustedHtml {
     ))
 }
 
-pub fn hero(label: String) -> TrustedHtml {
+/// The floor of the walk (a validated stage, as the browser's wasm module returns it for the same seed).
+pub fn walk() -> &'static Floor {
     static FLOOR: OnceLock<Floor> = OnceLock::new();
-    svg(
-        FLOOR.get_or_init(|| generate(HERO_SEED, &params_of_level(5))),
-        label,
-    )
+    FLOOR.get_or_init(|| stage(WALK_SEED, &params_of_level(WALK_LEVEL), 8).d)
+}
+
+pub fn walk_svg(label: String) -> TrustedHtml {
+    svg(walk(), label)
+}
+
+/// A room of the walk where the page stops, with where it sits on the SVG (world units and percentages of the view box).
+#[derive(Clone, Copy, Debug)]
+pub struct Station {
+    pub room: usize,
+    pub x: f64,
+    pub y: f64,
+    pub left_pct: f64,
+    pub top_pct: f64,
+}
+
+/// The rooms along the main path, from the entrance to the stairs.
+pub fn path_rooms(floor: &Floor) -> Vec<usize> {
+    floor
+        .main_path
+        .iter()
+        .filter_map(|&node| match floor.nodes.get(node) {
+            Some(Node::Room { room }) => Some(*room),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Seven rooms spread over the main path: room `round(i * (K - 1) / 6)` of its `K` rooms.
+pub fn stations() -> [Station; STATIONS] {
+    let floor = walk();
+    let path = path_rooms(floor);
+    let [vx, vy, vw, vh] = view_box(floor, &Style::default());
+    let last = (path.len() - 1) as f64;
+    std::array::from_fn(|i| {
+        let room = path[(i as f64 * last / (STATIONS - 1) as f64).round() as usize];
+        let [x, y] = floor.rooms[room].center;
+        Station {
+            room,
+            x,
+            y,
+            left_pct: (x - vx) / vw * 100.0,
+            top_pct: (y - vy) / vh * 100.0,
+        }
+    })
 }
 
 pub fn shapes(label: String) -> TrustedHtml {
@@ -126,79 +172,30 @@ mod tests {
             assert!(svg.contains(class), "{class}");
         }
     }
-}
-
-/// Floors that visitors ask for by seed ("dig again"). Generating one takes about 15 ms, so the site keeps the latest ones and spends at
-/// most `BUDGET` new floors per `WINDOW` across all visitors (behind a proxy every visitor shares one address anyway); over budget, the
-/// landing page floor is shown instead of working for free.
-const BUDGET: u32 = 40;
-const WINDOW: Duration = Duration::from_secs(10);
-const CACHE_LIMIT: usize = 64;
-
-struct Dug {
-    floors: HashMap<u32, Arc<Floor>>,
-    window_start: Instant,
-    spent: u32,
-}
-
-fn dug() -> &'static Mutex<Dug> {
-    static DUG: OnceLock<Mutex<Dug>> = OnceLock::new();
-    DUG.get_or_init(|| {
-        Mutex::new(Dug {
-            floors: HashMap::new(),
-            window_start: Instant::now(),
-            spent: 0,
-        })
-    })
-}
-
-/// The level 5 floor of `seed`, or the landing page's floor when the budget is spent.
-pub fn dig(seed: u32, label: String) -> (u32, TrustedHtml) {
-    let floor = {
-        let mut state = dug()
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if let Some(floor) = state.floors.get(&seed) {
-            Some((seed, floor.clone()))
-        } else {
-            if state.window_start.elapsed() >= WINDOW {
-                state.window_start = Instant::now();
-                state.spent = 0;
-            }
-            if state.spent >= BUDGET {
-                None
-            } else {
-                state.spent += 1;
-                // Generated outside the lock below would be nicer, but the budget keeps this short and bounded.
-                let floor = Arc::new(stage(seed, &params_of_level(5), 8).d);
-                if state.floors.len() >= CACHE_LIMIT {
-                    state.floors.clear();
-                }
-                state.floors.insert(seed, floor.clone());
-                Some((seed, floor))
-            }
-        }
-    };
-    match floor {
-        Some((seed, floor)) => (seed, svg(&floor, label)),
-        None => (HERO_SEED, hero(label)),
-    }
-}
-
-#[cfg(test)]
-mod dig_tests {
-    use super::*;
 
     #[test]
-    fn digging_is_deterministic_cached_and_bounded() {
-        let (seed, first) = dig(4242, String::new());
-        let (_, second) = dig(4242, String::new());
-        assert_eq!(seed, 4242);
-        assert_eq!(first.0, second.0);
-        // Far more new seeds than the budget allows: the surplus gets the landing page floor, not a new one.
-        let fallbacks = (10_000..10_000 + 3 * BUDGET)
-            .filter(|s| dig(*s, String::new()).0 == HERO_SEED)
-            .count();
-        assert!(fallbacks >= 2 * BUDGET as usize - 5, "{fallbacks}");
+    fn the_walk_floor_has_seven_stations() {
+        let floor = walk();
+        assert!(validate(floor).is_empty(), "{:?}", validate(floor));
+        let path = path_rooms(floor);
+        assert!(path.len() >= STATIONS, "{}", path.len());
+        let stations = stations();
+        assert_eq!(stations[0].room, path[0]);
+        assert_eq!(stations[STATIONS - 1].room, *path.last().unwrap());
+        assert!(stations.windows(2).all(|pair| pair[0].room != pair[1].room));
+        // Entrance first, stairs last, and every shape on the way.
+        let shapes: std::collections::HashSet<&str> = stations
+            .iter()
+            .map(|s| floor.rooms[s.room].cls.name())
+            .collect();
+        assert_eq!(shapes.len(), 5, "{shapes:?}");
+    }
+
+    #[test]
+    fn stations_are_inside_the_viewbox() {
+        for station in stations() {
+            assert!((0.0..=100.0).contains(&station.left_pct), "{station:?}");
+            assert!((0.0..=100.0).contains(&station.top_pct), "{station:?}");
+        }
     }
 }
