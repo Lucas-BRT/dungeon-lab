@@ -87,8 +87,13 @@ jobs:
           key: wasm-bindgen-cli-0.2.130
       - if: steps.bindgen.outputs.cache-hit != 'true'
         run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - run: scripts/build-wasm.sh
       - run: node --check apps/site/assets/lab/lab.js && node --check apps/site/assets/lab/worker.js
+      - run: node --check apps/site/assets/walk/build.js && node --check scripts/vendor-three.mjs
+      - run: node scripts/walk-check.mjs
 
   # The image builds (multi-stage, dependencies cached in the GitHub Actions cache). Nothing is pushed.
   docker:
