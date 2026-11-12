@@ -440,8 +440,12 @@ impl<'a> Gen<'a> {
                                     let o = &self.rooms[ri];
                                     o.alive
                                         && own.is_none_or(|q| q.room != ri)
-                                        && region_shape_dist(region, &o.shape, o.bounds)
-                                            < pr.clear - 1e-6
+                                        && region_shape_within(
+                                            region,
+                                            &o.shape,
+                                            o.bounds,
+                                            pr.clear - 1e-6,
+                                        )
                                 })
                         };
                         if too_close(&first_region, e.ends[0]) || too_close(&tail_region, e.ends[1])
