@@ -179,3 +179,15 @@ fn the_entrance_and_the_exit_can_be_left_out() {
         }
     }
 }
+
+/// Seed 31770 with the redundant-exit profile on the grid leaves the exit on the entrance (no corridor leaves it); counting the routes
+/// between a room and itself used to loop forever, in the cycles phase, the validator and the metrics.
+#[test]
+fn an_exit_on_the_entrance_does_not_hang_the_route_count() {
+    use tapiti_core::params::TopologyProfile;
+    let mut p = rich_of_size(Size::Medium);
+    p.topology.profile = TopologyProfile::RedundantExit;
+    let d = generate(31770, &p);
+    let _ = validate(&d);
+    let _ = metrics_of(&d);
+}

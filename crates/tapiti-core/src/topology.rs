@@ -123,6 +123,11 @@ pub fn edge_connectivity_frontiers(
     source: usize,
     sink: usize,
 ) -> (usize, Vec<bool>, Vec<bool>) {
+    // The same node twice (an entrance with no corridor to leave by, so the exit stayed on it) has no routes to count; the flow
+    // below would never end.
+    if source == sink {
+        return (0, vec![false; node_count], vec![false; node_count]);
+    }
     let mut graph = vec![Vec::<Arc>::new(); node_count];
     for edge in edges {
         // An undirected unit edge is represented by one unit-capacity arc in
@@ -295,5 +300,5 @@ pub fn cycle_girth(node_count: usize, edges: &[Edge]) -> Option<usize> {
             }
         }
     }
-    (best != usize::MAX).then_some(best + 1)
+    (best != usize::MAX).then(|| best + 1)
 }

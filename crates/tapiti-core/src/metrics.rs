@@ -117,7 +117,11 @@ pub fn metrics_of(d: &Floor) -> Metrics {
     }
     // The entrance when there is one; otherwise any live room, only to root the walks below.
     let start_node = room_node[d.origin()];
-    let exit_node = d.entrance.zip(d.exit).map(|(_, exit)| room_node[exit]);
+    let exit_node = d
+        .entrance
+        .zip(d.exit)
+        .filter(|(entrance, exit)| entrance != exit)
+        .map(|(_, exit)| room_node[exit]);
     let (side_branches, deepest_branch) =
         crate::topology::side_branch_stats(&d.nodes, &d.edges, &d.main_path);
     let geometric_path_to_exit = exit_node.map(|exit_node| {
