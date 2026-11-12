@@ -179,13 +179,52 @@ pub(super) fn generate_inner(
     if p.pacing.enabled {
         assign_pacing(&mut g, &main_path, p.ambush.max(0) as usize);
     }
+    // The spots for leaf chambers: the grid's dropped cells; a grown layout drops none, so they are the boxes of one cell
+    // beyond a free door of a room (two reaches each), inside the world and clear of every room (`add_leaf_chambers`
+    // still refuses what overlaps a room or a corridor). At most 160 of them, spread over the list.
+    let spot_boxes: Vec<Bx> = if p.layout == Layout::Growth {
+        let (cw, ch) = (p.cell_w.max(1.0), p.cell_h.max(1.0));
+        let (bw, bh) = (cw - 2.0 * p.gap, ch - 2.0 * p.gap);
+        let mut all: Vec<Bx> = Vec::new();
+        for room in g.rooms.iter().filter(|r| r.alive && !r.leaf) {
+            for port in room.ports.iter().filter(|q| g.port_free(q)) {
+                let u = dir_of(port.k);
+                for extra in [0.0, 0.5 * cw] {
+                    let half = (bw * u[0].abs() + bh * u[1].abs()) / 2.0;
+                    let reach = p.min_len + extra + half;
+                    let (cx, cy) = (port.p[0] + u[0] * reach, port.p[1] + u[1] * reach);
+                    let b = Bx {
+                        x0: cx - bw / 2.0,
+                        y0: cy - bh / 2.0,
+                        x1: cx + bw / 2.0,
+                        y1: cy + bh / 2.0,
+                    };
+                    if b.x0 < world.x0 || b.y0 < world.y0 || b.x1 > world.x1 || b.y1 > world.y1 {
+                        continue;
+                    }
+                    let clear = room_index
+                        .query_bounds([b.x0, b.y0], [b.x1, b.y1], 2.0 * p.gap)
+                        .into_iter()
+                        .all(|o| {
+                            let rb = g.rooms[o].bounds;
+                            box_gap_raw(rb.lo, rb.hi, [b.x0, b.y0], [b.x1, b.y1]) >= 2.0 * p.gap
+                        });
+                    if clear {
+                        all.push(b);
+                    }
+                }
+            }
+        }
+        let stride = all.len().div_ceil(160).max(1);
+        all.into_iter().step_by(stride).collect()
+    } else {
+        dropped.iter().map(|i| box_of(&blocks[*i])).collect()
+    };
     add_leaf_chambers(
         &mut g,
-        &blocks,
-        &dropped,
+        &spot_boxes,
         &main_path,
         &main_path_rooms,
-        &box_of,
         &mut room_index,
         &mut progress,
     );

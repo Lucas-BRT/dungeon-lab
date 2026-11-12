@@ -2,15 +2,14 @@
 
 use super::*;
 
-/// Fills the dropped grid cells with leaf chambers, then adds the side branches the topology profile asks for.
+/// Fills the spots (boxes of free space: the dropped grid cells, or the room beyond a free door of a grown layout) with leaf chambers,
+/// then adds the side branches the topology profile asks for.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn add_leaf_chambers(
     g: &mut Gen<'_>,
-    blocks: &[Block],
-    dropped: &[usize],
+    spot_boxes: &[Bx],
     main_path: &[usize],
     main_path_rooms: &[usize],
-    box_of: &dyn Fn(&Block) -> Bx,
     room_index: &mut SpatialHash,
     progress: &mut Option<&mut dyn FnMut(GenerationEvent)>,
 ) {
@@ -21,7 +20,7 @@ pub(super) fn add_leaf_chambers(
         .iter()
         .map(|c| p.leaf_classes.get(*c).max(0.0))
         .collect();
-    let mut spots = dropped.to_vec();
+    let mut spots: Vec<usize> = (0..spot_boxes.len()).collect();
     for i in (1..spots.len()).rev() {
         let j = (g.rng.next() * (i + 1) as f64).floor() as usize;
         spots.swap(i, j);
@@ -46,7 +45,7 @@ pub(super) fn add_leaf_chambers(
         if made_leaves >= p.leaves.max(0) as usize && profile_satisfied {
             break;
         }
-        let bx = box_of(&blocks[bi]);
+        let bx = spot_boxes[bi];
         let mut c = CLASSES[g.pick_class(&leaf_weights)];
         let mut shape = fit(c, bx, &mut g.rng, p, 1);
         if shape.is_none() {
