@@ -52,7 +52,8 @@ pub(super) fn build_rooms(
     }
     let caps: Vec<usize> = CLASSES
         .iter()
-        .map(|c| p.max_of.get(*c).max(0.0) as usize)
+        // A quota is never more than the rooms of the floor, so a quota of "as many as fit" follows the grid.
+        .map(|c| (p.max_of.get(*c).max(0.0) as usize).min(live.len()))
         .collect();
     let mut counts = [0usize; 5];
     for &ci in cls.values() {
@@ -80,10 +81,10 @@ pub(super) fn build_rooms(
                 })
                 .collect();
             if ws.iter().sum::<f64>() <= 0.0 {
-                // If the caps are feasible but every remaining class has zero
-                // sampling weight for this block, preserve the hard cap anyway.
+                // The block is too small for every class with room left (a star), so keep the cap anyway,
+                // but only in classes the weights allow: a weight of 0 means never, however many rooms there are.
                 for oi in 0..ws.len() {
-                    if oi != ci && counts[oi] < caps[oi] {
+                    if oi != ci && counts[oi] < caps[oi] && p.weights.get(CLASSES[oi]) > 0.0 {
                         ws[oi] = 1.0;
                     }
                 }

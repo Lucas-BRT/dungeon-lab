@@ -98,3 +98,31 @@ fn an_isolated_start_room_is_redrawn_not_a_panic() {
     assert!(s.violations.is_empty(), "{:?}", s.violations);
     assert!(s.draws > 1);
 }
+
+/// A class of weight 0 never appears, even when the caps are too tight for the floor (30x30 rooms against caps of 99 per class).
+#[test]
+fn zero_weight_classes_never_appear_when_caps_are_exceeded() {
+    use tapiti_core::params::{ByClass, ShapeClass};
+    let mut p = params_of_level(1);
+    p.cols = 30;
+    p.rows = 30;
+    p.max_of = ByClass {
+        rect: 99.0,
+        disc: 99.0,
+        oct: 99.0,
+        l: 99.0,
+        star: 99.0,
+    };
+    let f = generate(146343314, &p);
+    assert!(f.rooms.iter().all(|r| r.cls == ShapeClass::Rect));
+}
+
+/// With the default quotas a big grid is not capped: level 1 stays all rectangles on 30x30 with no cap warning.
+#[test]
+fn default_quotas_do_not_bind_on_a_big_grid() {
+    let mut p = params_of_level(1);
+    p.cols = 30;
+    p.rows = 30;
+    let f = generate(146343314, &p);
+    assert!(!f.log.iter().any(|m| m.contains("caps cannot fit")));
+}

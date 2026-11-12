@@ -276,7 +276,7 @@ fn base() -> Params {
         layout_jitter: 0.0,
         rotate_rooms: false,
         weights: ByClass::new(1.0, 0.0, 0.0, 0.0, 0.0),
-        max_of: ByClass::new(99.0, 99.0, 99.0, 99.0, 99.0),
+        max_of: ByClass::new(10000.0, 10000.0, 10000.0, 10000.0, 10000.0),
         star_cells: 2,
         homophily: 0.0,
         m: 4,
