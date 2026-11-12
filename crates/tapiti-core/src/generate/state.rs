@@ -727,13 +727,12 @@ impl<'a> Gen<'a> {
             .saturating_mul(segment_count)
             .saturating_mul(8);
         let new_branches = if estimated_work >= 4096 {
-            pflat_min(&self.rooms, 64, |r| {
-                self.branches_of(r, &axes, Some(&changed_edges))
-            })
+            // `axes` holds only the segments of `changes.edges`, so no edge filter is needed.
+            pflat_min(&self.rooms, 64, |r| self.branches_of(r, &axes, None))
         } else {
             self.rooms
                 .iter()
-                .flat_map(|r| self.branches_of(r, &axes, Some(&changed_edges)))
+                .flat_map(|r| self.branches_of(r, &axes, None))
                 .collect()
         };
         for opts in new_branches {
