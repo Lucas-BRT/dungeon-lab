@@ -36,6 +36,9 @@ pub(super) fn add_cycles(
             break;
         }
         let mut opts = g.options();
+        if let (Layout::Growth, Some((start, exit))) = (p.layout, anchors) {
+            keep_exit_far(g, &mut opts, start, exit);
+        }
         if need_routes || need_loop {
             opts.retain(|opt| {
                 let Action::Add(ci) = opt.act else {
@@ -104,4 +107,39 @@ pub(super) fn add_cycles(
             }
         }
     }
+}
+
+/// Drops the actions that would bring the exit closer to the entrance than `exitMinHops` (growth only: a grown tree is shallow, so
+/// the cycles shorten it more easily). An action that does not shorten the walk is kept.
+fn keep_exit_far(g: &Gen<'_>, opts: &mut Vec<Opt>, start: usize, exit: usize) {
+    let (s, t) = (g.node_of_room[start], g.node_of_room[exit]);
+    let ds = room_hops(&g.nodes, &g.edges, s);
+    let dt = room_hops(&g.nodes, &g.edges, t);
+    let floor = (g.p.exit_min_hops as f64).min(ds[t]);
+    let arrive = |n: usize| f64::from(g.room_of_node(n).is_some());
+    // The shortest walk entrance to exit that goes from node `r` to node `x` over a new link, in room hops.
+    let via = |r: usize, x: usize, extra: f64| (ds[r] + extra + dt[x]).min(dt[r] + extra + ds[x]);
+    opts.retain(|o| {
+        let shortest = match o.act {
+            Action::Add(ci) => {
+                let c = &g.statics[ci];
+                via(g.node_of_room[c.a], g.node_of_room[c.b], 1.0)
+            }
+            Action::Branch { room, edge, .. } => {
+                let r = g.node_of_room[room];
+                let e = &g.edges[edge];
+                via(r, e.u, arrive(e.u)).min(via(r, e.v, arrive(e.v)))
+            }
+            Action::Cross { cand, edge, .. } => {
+                let c = &g.statics[cand];
+                let (a, b) = (g.node_of_room[c.a], g.node_of_room[c.b]);
+                let e = &g.edges[edge];
+                [a, b]
+                    .into_iter()
+                    .flat_map(|r| [via(r, e.u, arrive(e.u)), via(r, e.v, arrive(e.v))])
+                    .fold(via(a, b, 1.0), f64::min)
+            }
+        };
+        shortest >= floor
+    });
 }
