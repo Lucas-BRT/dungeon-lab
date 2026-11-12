@@ -2,11 +2,15 @@
 //! The exact distance predicates remain at each call site.
 
 use crate::geom::{Bounded, V};
-use std::collections::HashMap;
 
 pub(crate) struct SpatialHash {
     cell: f64,
-    buckets: HashMap<(i64, i64), Vec<usize>>,
+    /// Dense grid of buckets over the cells ever filled: cell (x, y) is `buckets[(y - y0) * nx + (x - x0)]`.
+    buckets: Vec<Vec<usize>>,
+    x0: i64,
+    y0: i64,
+    nx: i64,
+    ny: i64,
     wide: Vec<usize>,
     all: Vec<usize>,
 }
@@ -19,7 +23,11 @@ impl SpatialHash {
             } else {
                 256.0
             },
-            buckets: HashMap::new(),
+            buckets: Vec::new(),
+            x0: 0,
+            y0: 0,
+            nx: 0,
+            ny: 0,
             wide: Vec::new(),
             all: Vec::new(),
         }
@@ -60,11 +68,48 @@ impl SpatialHash {
             return;
         }
         let (x0, x1, y0, y1) = range;
-        for x in x0..=x1 {
-            for y in y0..=y1 {
-                self.buckets.entry((x, y)).or_default().push(id);
+        if !self.grow(x0, x1, y0, y1) {
+            self.wide.push(id);
+            return;
+        }
+        for y in y0..=y1 {
+            let row = ((y - self.y0) * self.nx - self.x0) as isize;
+            for x in x0..=x1 {
+                self.buckets[(row + x as isize) as usize].push(id);
             }
         }
+    }
+
+    /// Makes the dense grid cover the cells x0..=x1, y0..=y1; false when that would take too many cells (the item goes in `wide`).
+    fn grow(&mut self, x0: i64, x1: i64, y0: i64, y1: i64) -> bool {
+        let empty = self.buckets.is_empty();
+        let (nx0, ny0) = if empty {
+            (x0, y0)
+        } else {
+            (self.x0.min(x0), self.y0.min(y0))
+        };
+        let (nx1, ny1) = if empty {
+            (x1, y1)
+        } else {
+            (
+                (self.x0 + self.nx - 1).max(x1),
+                (self.y0 + self.ny - 1).max(y1),
+            )
+        };
+        let (nnx, nny) = (nx1 - nx0 + 1, ny1 - ny0 + 1);
+        if nnx.saturating_mul(nny) > 1 << 20 {
+            return false;
+        }
+        if empty || nx0 != self.x0 || ny0 != self.y0 || nnx != self.nx || nny != self.ny {
+            let mut fresh = vec![Vec::new(); (nnx * nny) as usize];
+            for (i, b) in std::mem::take(&mut self.buckets).into_iter().enumerate() {
+                let (x, y) = (self.x0 + i as i64 % self.nx, self.y0 + i as i64 / self.nx);
+                fresh[((y - ny0) * nnx + (x - nx0)) as usize] = b;
+            }
+            self.buckets = fresh;
+            (self.x0, self.y0, self.nx, self.ny) = (nx0, ny0, nnx, nny);
+        }
+        true
     }
 
     pub(crate) fn insert_bound(&mut self, id: usize, bound: &Bounded) {
@@ -111,12 +156,16 @@ impl SpatialHash {
             return false;
         }
         out.extend_from_slice(&self.wide);
+        if self.buckets.is_empty() {
+            return true;
+        }
         let (x0, x1, y0, y1) = range;
-        for x in x0..=x1 {
-            for y in y0..=y1 {
-                if let Some(ids) = self.buckets.get(&(x, y)) {
-                    out.extend_from_slice(ids);
-                }
+        let (x0, x1) = (x0.max(self.x0), x1.min(self.x0 + self.nx - 1));
+        let (y0, y1) = (y0.max(self.y0), y1.min(self.y0 + self.ny - 1));
+        for y in y0..=y1 {
+            let row = (y - self.y0) * self.nx - self.x0;
+            for x in x0..=x1 {
+                out.extend_from_slice(&self.buckets[(row + x) as usize]);
             }
         }
         true
