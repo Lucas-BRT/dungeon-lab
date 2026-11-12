@@ -13,6 +13,7 @@ pub(crate) struct SpatialHash {
     ny: i64,
     wide: Vec<usize>,
     all: Vec<usize>,
+    max_id: usize,
 }
 
 impl SpatialHash {
@@ -30,6 +31,7 @@ impl SpatialHash {
             ny: 0,
             wide: Vec::new(),
             all: Vec::new(),
+            max_id: 0,
         }
     }
 
@@ -59,6 +61,7 @@ impl SpatialHash {
 
     pub(crate) fn insert(&mut self, id: usize, lo: V, hi: V) {
         self.all.push(id);
+        self.max_id = self.max_id.max(id);
         let Some(range) = self.range(lo, hi, 0.0) else {
             self.wide.push(id);
             return;
@@ -131,8 +134,28 @@ impl SpatialHash {
         if !self.push_query(lo, hi, margin, &mut out) {
             return self.all_sorted();
         }
-        out.sort_unstable();
-        out.dedup();
+        self.sorted_unique(out)
+    }
+
+    /// Sorts and deduplicates the ids; with small ids a bitset on the stack does it in one pass, without a comparison sort.
+    fn sorted_unique(&self, mut out: Vec<usize>) -> Vec<usize> {
+        if self.max_id >= 1024 {
+            out.sort_unstable();
+            out.dedup();
+            return out;
+        }
+        let mut bits = [0u64; 16];
+        for &id in &out {
+            bits[id >> 6] |= 1 << (id & 63);
+        }
+        out.clear();
+        for (w, &word) in bits[..=self.max_id >> 6].iter().enumerate() {
+            let mut word = word;
+            while word != 0 {
+                out.push(w * 64 + word.trailing_zeros() as usize);
+                word &= word - 1;
+            }
+        }
         out
     }
 
@@ -143,9 +166,7 @@ impl SpatialHash {
                 return self.all_sorted();
             }
         }
-        out.sort_unstable();
-        out.dedup();
-        out
+        self.sorted_unique(out)
     }
 
     fn push_query(&self, lo: V, hi: V, margin: f64, out: &mut Vec<usize>) -> bool {
