@@ -2,9 +2,9 @@
 
 Tapiti is young. This page says plainly what is unfinished, so you know what to rely on.
 
-## Growth layout (prototype)
+## Growth layout
 
-Besides the default layout (one room per grid block), the generator can *grow* rooms one from another, off a parent's door, in free space. It gives an organic, non-lattice floor, but it is still marked as a prototype: on large grids it stops short of the room count you ask for, leaf chambers fit only in part, the topology profiles that need side branches or independent routes (backbone, redundant exit) often fail with it, and a large floor takes much longer to dig than the grid layout. It has few automated tests.
+Besides the default layout (one room per grid block), the generator can *grow* rooms one from another, off a parent's door, in free space (`layout: growth`). It gives an organic, non-lattice floor, with an entrance that can stand in the middle or against a border (`growth.start`), leaf chambers, and the topology profiles. Known limits: it leaves room for the leaf chambers by growing fewer main rooms (about 77% of the grid's), and makes about 60% of the chambers asked for (the grid layout makes 85 to 95%); with several islands the bridges are single corridors, so independent routes to the exit are left out; `growth.cluster`, `growth.islands` and `growth.reach` above 3 are experimental.
 
 ## Other open items
 
@@ -18,6 +18,7 @@ Besides the default layout (one room per grid block), the generator can *grow* r
 
 - Rust generator, validator (V1 to V5) and graph measures, byte-for-byte deterministic.
 - Native desktop app with progressive drawing.
+- The growth layout, with a test suite (determinism, validity, profiles, leaf chambers, the side of the entrance).
 - This website.
 
 Found something missing? [Open an issue](https://github.com/Lucas-BRT/tapiti/issues).

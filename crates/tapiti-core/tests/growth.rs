@@ -3,11 +3,13 @@
 //! on purpose when the layout improves, and a test failing means the layout got worse.
 
 use tapiti_core::generate::generate;
-use tapiti_core::params::{rich_of_size, Layout, Params, Size, TopologyProfile};
+use tapiti_core::params::{params_of_size, rich_of_size, Layout, Params, Size, TopologyProfile};
 use tapiti_core::stage::stage;
 
+/// Every option on, with the exit distance of the size (as the apps start from).
 fn grown(size: Size) -> Params {
     let mut p = rich_of_size(size);
+    p.exit_min_hops = params_of_size(size).exit_min_hops;
     p.layout = Layout::Growth;
     p
 }
@@ -52,10 +54,14 @@ fn grown_floors_are_valid_within_eight_draws() {
 
 #[test]
 fn grown_floors_are_often_valid_on_the_first_draw() {
-    let (first, _) = valid_counts(&grown(Size::Medium), 20);
-    assert!(first >= 10, "medium: {first}/20 valid on the first draw");
-    let (first, _) = valid_counts(&grown(Size::Large), 20);
-    assert!(first >= 17, "large: {first}/20 valid on the first draw");
+    for size in [Size::Small, Size::Medium, Size::Large] {
+        let (first, _) = valid_counts(&grown(size), 20);
+        assert!(
+            first >= 18,
+            "{}: {first}/20 valid on the first draw",
+            size.name()
+        );
+    }
 }
 
 /// Rooms that are not leaf chambers, as a share of the grid layout's, over `seeds` seeds.
@@ -78,7 +84,7 @@ fn room_share(size: Size, seeds: u32) -> f64 {
 
 #[test]
 fn the_grown_layout_reaches_most_of_the_grids_rooms() {
-    for (size, floor) in [(Size::Medium, 0.8), (Size::Large, 0.8), (Size::Huge, 0.8)] {
+    for (size, floor) in [(Size::Medium, 0.7), (Size::Large, 0.7), (Size::Huge, 0.7)] {
         let share = room_share(size, 10);
         println!("{}: {share:.2} of the grid's rooms", size.name());
         assert!(share >= floor, "{}: {share:.2} < {floor}", size.name());
@@ -96,7 +102,7 @@ fn the_grown_layout_makes_some_leaf_chambers() {
         )
     });
     println!("huge: {made} leaf chambers of {wanted} wanted");
-    assert!(made * 100 >= wanted * 12, "{made} of {wanted}");
+    assert!(made * 100 >= wanted * 35, "{made} of {wanted}");
 }
 
 #[test]

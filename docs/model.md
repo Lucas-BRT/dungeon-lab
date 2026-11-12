@@ -424,7 +424,7 @@ The parameters can be grouped by function. The names in parentheses are those us
 | Mixing | compatibility matrix between classes (`mix`) | allows or discourages connections between shapes |
 | Junctions | optional conductance (`junction`) | reference parameter, not yet used by the generator |
 
-The profile $\Pi$ complements $\Lambda$: the parameters control how the generator operates; the profile describes the structure you want to obtain. The apps start from a size (small, medium, large or huge) that only sets the grid, the large blocks and the leaf chambers; every other parameter keeps its default.
+The profile $\Pi$ complements $\Lambda$: the parameters control how the generator operates; the profile describes the structure you want to obtain. The apps start from a size (small, medium, large or huge) that only sets the grid, the large blocks, the leaf chambers and the minimum distance to the exit; every other parameter keeps its default.
 
 ## 12. What exists in the Rust crate
 
@@ -436,7 +436,7 @@ This table avoids confusing the reference specification with this repository's i
 | Directions and routes | Modes with 4 or 8 directions; I/L/Z candidates, T branches and X crossings. |
 | Main connection | Tree growth over candidate room pairs; the generator tries other proximity relations if it runs out of connections. |
 | Cycles | Later choice of cycle actions up to the target derived from `delta` and the `betaMax` reference. |
-| Layouts | One room per grid block, or rooms grown one from another off a door (`layout`; the grown layout is a prototype). |
+| Layouts | One room per grid block, or rooms grown one from another off a door (`layout`). |
 | Entrance and exit | Optional, in both layouts: one entrance room and, with it, one exit room chosen among distant rooms, usually leaves. |
 | Proximity | The Rust enum includes RNG, Gabriel and radius-based Near. Delaunay appears in the reference specification, but not in the current enum. |
 | Topology profiles | Requirements for branches, depth, independent routes, hub and minimum cycle implemented; global profile scoring not yet implemented. |

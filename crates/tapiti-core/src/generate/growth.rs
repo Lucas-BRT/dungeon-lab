@@ -1,8 +1,8 @@
-//! Growth layout (prototype): rooms grown one from another.
+//! Growth layout: rooms grown one from another.
 
 use super::*;
 
-/// Prototype of a grown layout: from a first room, each room spawns 1..=`branch` children off its doors down to generation `depth`,
+/// A grown layout: from a first room, each room spawns 1..=`branch` children off its doors down to generation `depth`,
 /// every child placed in free space and joined by a corridor on the spot, until `target` rooms stand. Replaces the grid rooms and the tree phase.
 pub(super) fn grow_rooms(
     g: &mut Gen<'_>,

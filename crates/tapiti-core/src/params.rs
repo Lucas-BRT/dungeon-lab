@@ -71,7 +71,7 @@ fn yes() -> bool {
     true
 }
 
-/// How the rooms are laid out: one per grid block, or grown one from another off a parent's door (prototype).
+/// How the rooms are laid out: one per grid block, or grown one from another off a parent's door.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Layout {
@@ -159,7 +159,7 @@ pub enum GrowthStart {
     West,
 }
 
-/// Grown layout (prototype): rooms are placed one after another off a parent's door, instead of one per grid block.
+/// Grown layout: rooms are placed one after another off a parent's door, instead of one per grid block.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct GrowthSpec {
@@ -378,7 +378,7 @@ impl Size {
     }
 }
 
-/// Λ of a size: the grid, about one large block in seven cells and one leaf chamber in eight.
+/// Λ of a size: the grid, about one large block in seven cells, one leaf chamber in eight and the exit distance that fits.
 pub fn params_of_size(size: Size) -> Params {
     let mut p = base();
     let (cols, rows) = size.grid();
@@ -387,6 +387,8 @@ pub fn params_of_size(size: Size) -> Params {
     p.rows = rows;
     p.big = (cells + 3) / 7;
     p.leaves = [1, 4, 10, 24][size as usize];
+    // A small floor has few rooms between its two ends: the exit must be at least this many room hops from the entrance.
+    p.exit_min_hops = [2, 3, 4, 5][size as usize];
     p
 }
 

@@ -2,7 +2,7 @@
 use rayon::prelude::*;
 use tapiti_core::{
     generate::generate,
-    params::{rich_of_size, Layout, Size, TopologyProfile},
+    params::{params_of_size, rich_of_size, Layout, Size, TopologyProfile},
     stage::stage,
     validate::validate,
 };
@@ -22,6 +22,7 @@ fn main() {
     };
     let seeds: u32 = a.get(3).map_or(100, |s| s.parse().unwrap());
     let mut p = rich_of_size(Size::Medium);
+    p.exit_min_hops = params_of_size(Size::Medium).exit_min_hops;
     p.layout = layout;
     p.topology.profile = prof;
     let t = std::time::Instant::now();

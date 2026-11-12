@@ -205,7 +205,7 @@ pub fn groups() -> Vec<ParamGroup> {
                 choice(
                     "layout",
                     tx("Layout"),
-                    &[("grid", tx("Grid")), ("growth", tx("Growth (prototype)"))],
+                    &[("grid", tx("Grid")), ("growth", tx("Growth"))],
                 ),
                 number("cols", tx("Columns"), 1.0, 64.0, true),
                 number("rows", tx("Rows"), 1.0, 64.0, true),
@@ -289,7 +289,7 @@ pub fn groups() -> Vec<ParamGroup> {
         ),
         group(
             "growth",
-            tx("Growth (prototype)"),
+            tx("Growth"),
             tx("Used by the Growth layout: instead of one room per grid block, rooms grow one from another, in free positions. The grid only sets the size of the world."),
             vec![
                 choice(
@@ -377,7 +377,7 @@ fn help(path: &str, label: &str) -> Text {
         "topology.minHubDegree" => tx("Minimum number of arms at a central point. Zero does not require a hub."),
         "layout" => tx("Grid puts one room in each grid block. Growth grows rooms one from another off a parent's door, in free space; isolated chambers are not generated in that mode."),
         "growth.start" => tx("Where the first room, the entrance when there is one, stands: the middle of the world or against a border (north is the top of the map). Growing from a border makes a deeper floor."),
-        "growth.rooms" => tx("Number of rooms to grow. Zero uses the number of live blocks the grid would give, less half of the leaf chambers asked for, which are placed in the room that is left."),
+        "growth.rooms" => tx("Number of rooms to grow. Zero uses the number of live blocks the grid would give, less the leaf chambers asked for, which are placed in the room that is left."),
         "growth.branch" => tx("Each room spawns from 1 up to this many children before the draw picks another parent."),
         "growth.depth" => tx("Deepest generation a room can have; the first room is 0."),
         "growth.islands" => tx("Splits the rooms into islands linked by long bridges. With more than one, cycles stay inside each island."),
