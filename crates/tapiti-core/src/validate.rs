@@ -214,7 +214,7 @@ pub fn validate(d: &Floor) -> Vec<String> {
                         e.id, r.id
                     ));
                 }
-            } else if region_shape_dist(&e.region, &r.shape, r.bounds) < p.clear - eps {
+            } else if region_shape_within(&e.region, &r.shape, r.bounds, p.clear - eps) {
                 out.push(format!(
                     "V2 corridor {} closer than σ to room {}",
                     e.id, r.id
@@ -264,7 +264,7 @@ pub fn validate(d: &Floor) -> Vec<String> {
             } else {
                 (a.region.clone(), b.region.clone())
             };
-            if region_dist(&ra, &rb) < p.clear - eps {
+            if region_within(&ra, &rb, p.clear - eps) {
                 out.push(format!("V2 corridors {} and {} closer than σ", a.id, b.id));
             }
         }
