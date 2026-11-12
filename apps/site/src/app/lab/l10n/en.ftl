@@ -209,6 +209,7 @@ lab_l_stuck_near = Widening the search radius to { $a } px.
 lab_l_left_out = { $a } room(s) were left isolated because no valid link was found.
 lab_l_exit = The exit ended up { $a } steps from the entrance; the target was { $b }.
 lab_l_anchors = Side branches and independent routes need an entrance and an exit, so the profile left them out.
+lab_l_islands = Independent routes to the exit are not supported with several islands, so the profile left them out.
 lab_l_beta = The target of { $a } cycles was not reached; the map ended with { $b }.
 lab_l_block = The { $b } shape did not fit in block { $a }; a rectangular room was used.
 lab_l_leaves = { $a } of { $b } leaf chambers fit.

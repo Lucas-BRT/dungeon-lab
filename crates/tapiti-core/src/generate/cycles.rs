@@ -10,7 +10,7 @@ pub(super) fn add_cycles(
     progress: &mut Option<&mut dyn FnMut(GenerationEvent)>,
 ) {
     let p = g.p;
-    let topology_req = p.topology.requirements_with(p.entrance && p.exit_room);
+    let topology_req = p.topology_requirements();
     let (cols, rows, cell_w, cell_h) = (p.cols.max(1), p.rows.max(1), p.cell_w, p.cell_h);
     loop {
         let beta = beta_now(g);

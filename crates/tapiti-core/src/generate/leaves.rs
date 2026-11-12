@@ -14,7 +14,7 @@ pub(super) fn add_leaf_chambers(
     progress: &mut Option<&mut dyn FnMut(GenerationEvent)>,
 ) {
     let p = g.p;
-    let topology_req = p.topology.requirements_with(p.entrance && p.exit_room);
+    let topology_req = p.topology_requirements();
     let (cell_w, cell_h, gap) = (p.cell_w, p.cell_h, p.gap);
     let leaf_weights: Vec<f64> = CLASSES
         .iter()

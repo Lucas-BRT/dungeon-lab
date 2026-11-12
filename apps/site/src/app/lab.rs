@@ -74,7 +74,7 @@ fn dictionary() -> String {
         lab_v_v3_doors(a), lab_v_v4_alphabet(a), lab_v_v4_turn(a, b), lab_v_v4_segment(a, b),
         lab_v_v4_angle(a), lab_v_v5_doors(a, b), lab_v_v5_hops(a, b), lab_v_v5_distinct, lab_v_v5_no_entrance,
         lab_v_t1(a, b), lab_v_t2(a, b), lab_v_t3(a, b), lab_v_t4(a, b), lab_v_t5(a, b),
-        lab_l_stuck_candidates(a), lab_l_stuck_near(a), lab_l_left_out(a), lab_l_exit(a, b), lab_l_anchors,
+        lab_l_stuck_candidates(a), lab_l_stuck_near(a), lab_l_left_out(a), lab_l_exit(a, b), lab_l_anchors, lab_l_islands,
         lab_l_beta(a, b), lab_l_block(a, b), lab_l_leaves(a, b),
         lab_l_routes(a, b), lab_l_hub(a), lab_l_cycle(a), lab_l_branches(a, b), lab_l_jitter(a, b),
         lab_l_caps,

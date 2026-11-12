@@ -142,7 +142,7 @@ pub(super) fn generate_inner(
     let (beta_max, all_pairs) =
         measure_beta_max(&mut g, &order, near_base, &island_of, &room_index);
     lap("β_max");
-    let topology_req = p.topology.requirements_with(p.entrance && p.exit_room);
+    let topology_req = p.topology_requirements();
     if !(p.entrance && p.exit_room) {
         let wanted = p.topology.requirements();
         if wanted.min_branches > 0 || wanted.min_branch_depth > 0 || wanted.min_exit_routes > 1 {
@@ -151,6 +151,11 @@ pub(super) fn generate_inner(
                     .to_string(),
             );
         }
+    } else if p.topology.requirements().min_exit_routes > 1 && topology_req.min_exit_routes <= 1 {
+        g.log.push(
+            "topology profile: independent routes to the exit are not supported with several islands, so they are left out"
+                .to_string(),
+        );
     }
     let beta_target = (p.delta * beta_max as f64).round() as i32;
 

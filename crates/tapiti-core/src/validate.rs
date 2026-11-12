@@ -375,7 +375,7 @@ pub fn validate(d: &Floor) -> Vec<String> {
         }
     }
 
-    let req = p.topology.requirements_with(p.entrance && p.exit_room);
+    let req = p.topology_requirements();
     if req.min_branches > 0 || req.min_branch_depth > 0 {
         let (branches, branch_depth) =
             crate::topology::side_branch_stats(&d.nodes, &d.edges, &d.main_path);

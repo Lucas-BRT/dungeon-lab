@@ -563,6 +563,7 @@ const LOGS = [
   [/^(.+) room\(s\) left out: no valid corridor reaches them$/, 'lab_l_left_out'],
   [/^exit only (.+) hops from the entrance \(wanted (.+)\)$/, 'lab_l_exit'],
   ['topology profile: side branches and independent routes need an entrance and an exit, so they are left out', 'lab_l_anchors'],
+  ['topology profile: independent routes to the exit are not supported with several islands, so they are left out', 'lab_l_islands'],
   [/^β\* = (.+) not reached: nothing more fits \(β = (.+)\)$/, 'lab_l_beta'],
   [/^block (\d+): (.+) does not fit, rect instead$/, 'lab_l_block'],
   [/^(.+) of (.+) leaf chambers fit$/, 'lab_l_leaves'],

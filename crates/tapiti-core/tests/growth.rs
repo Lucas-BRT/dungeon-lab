@@ -149,3 +149,18 @@ fn the_first_room_stands_where_growth_start_says() {
         }
     }
 }
+
+/// With several islands the bridges are single corridors, so independent routes to the exit cannot hold: the requirement is left
+/// out and the log says so, instead of every draw failing T3.
+#[test]
+fn independent_routes_are_left_out_with_several_islands() {
+    let mut p = grown(Size::Large);
+    p.topology.profile = TopologyProfile::RedundantExit;
+    p.growth.islands = 3;
+    let (_, eight) = valid_counts(&p, 10);
+    assert_eq!(eight, 10);
+    assert!(generate(1, &p)
+        .log
+        .iter()
+        .any(|m| m.contains("not supported with several islands")));
+}

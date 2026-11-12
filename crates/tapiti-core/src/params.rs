@@ -336,6 +336,20 @@ fn base() -> Params {
     }
 }
 
+impl Params {
+    /// The topology requirements this Λ can meet: those that need the path between an entrance and an exit are left out without
+    /// both, and independent routes to the exit are left out with several islands, whose bridges are single corridors.
+    pub fn topology_requirements(&self) -> TopologySpec {
+        let mut out = self
+            .topology
+            .requirements_with(self.entrance && self.exit_room);
+        if self.layout == Layout::Growth && self.growth.islands > 1 {
+            out.min_exit_routes = 1;
+        }
+        out
+    }
+}
+
 /// A starting size for the floor: the grid and how many large blocks and leaf chambers go with it. A quick way to begin;
 /// every other parameter stays at its default and any value can be changed afterwards.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
