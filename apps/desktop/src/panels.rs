@@ -219,7 +219,10 @@ fn floor_tab(app: &mut App, ui: &mut Ui) {
                                 target = m.beta_target
                             ),
                         ),
-                        ("Routes to the stairs", m.routes_to_stairs.to_string()),
+                        (
+                            "Routes to the exit",
+                            m.routes_to_exit.map_or("—".into(), |n| n.to_string()),
+                        ),
                         ("Attempts", map.draws.to_string()),
                         ("Generation", format!("{:.1} ms", map.elapsed_ms)),
                     ] {
@@ -662,7 +665,7 @@ fn metric_sections(map: &GeneratedMap) -> Vec<(&'static str, Vec<Row>)> {
                 (
                     "Single-door rooms",
                     m.leaves.to_string(),
-                    "Rooms with only one connection; includes dead ends, entrance and stairs.",
+                    "Rooms with only one connection; includes dead ends, the entrance and the exit.",
                 ),
                 (
                     "Bridges",
@@ -675,9 +678,9 @@ fn metric_sections(map: &GeneratedMap) -> Vec<(&'static str, Vec<Row>)> {
                     "Rooms whose removal would split the graph.",
                 ),
                 (
-                    "Steps to the stairs",
-                    opt(m.hops_to_stairs),
-                    "Number of rooms on the shortest path from the entrance to the stairs.",
+                    "Steps to the exit",
+                    opt(m.hops_to_exit),
+                    "Number of rooms on the shortest path from the entrance to the exit.",
                 ),
                 (
                     "Diameter",
@@ -685,9 +688,9 @@ fn metric_sections(map: &GeneratedMap) -> Vec<(&'static str, Vec<Row>)> {
                     "Largest minimum distance between two rooms, in steps.",
                 ),
                 (
-                    "Independent routes to the stairs",
-                    m.routes_to_stairs.to_string(),
-                    "Paths between the entrance and the stairs that share no corridors.",
+                    "Independent routes to the exit",
+                    m.routes_to_exit.map_or("—".into(), |n| n.to_string()),
+                    "Paths between the entrance and the exit that share no corridors.",
                 ),
                 (
                     "Shortest cycle",
@@ -713,8 +716,9 @@ fn metric_sections(map: &GeneratedMap) -> Vec<(&'static str, Vec<Row>)> {
                 ),
                 (
                     "Geometric path",
-                    format!("{:.0} px", m.geometric_path_to_stairs),
-                    "Physical length of the shortest path to the stairs.",
+                    m.geometric_path_to_exit
+                        .map_or("—".into(), |l| format!("{l:.0} px")),
+                    "Physical length of the shortest path to the exit.",
                 ),
                 (
                     "Connectivity λ₂",

@@ -622,7 +622,7 @@ pub fn translate_violation(message: &str) -> String {
             "V2" => "distance and collisions",
             "V3" => "doors",
             "V4" => "corridor geometry",
-            "V5" => "entrance and stairs",
+            "V5" => "entrance and exit",
             "T1" | "T2" | "T3" | "T4" | "T5" => "topology requirement",
             _ => "model rule",
         };
@@ -775,7 +775,7 @@ pub fn summary(map: &GeneratedMap) -> String {
         edges = m.edges,
         beta = m.beta,
         delta = m.delta,
-        routes = m.routes_to_stairs,
+        routes = m.routes_to_exit.map_or("no".to_string(), |n| n.to_string()),
         phases = map.phases,
         warnings = warnings
     )
@@ -957,8 +957,8 @@ fn validate_params(p: &Params) -> Result<(), String> {
     if let Some(value) = p.junction {
         float("junction", value, 0.0, 10000.0)?;
     }
-    int("stairsDoors", p.stairs_doors, 1, 1000)?;
-    int("minHops", p.min_hops, 1, 1000)?;
+    int("exitDoors", p.exit_doors, 1, 1000)?;
+    int("exitMinHops", p.exit_min_hops, 1, 1000)?;
     int("leaves", p.leaves, 0, 1000)?;
     count("topology.minBranches", p.topology.min_branches, 1000)?;
     count("topology.minBranchDepth", p.topology.min_branch_depth, 1000)?;
@@ -970,8 +970,8 @@ fn validate_params(p: &Params) -> Result<(), String> {
 
 fn role_label(role: Role) -> &'static str {
     match role {
-        Role::Start => "entrance",
-        Role::Stairs => "stairs",
+        Role::Entrance => "entrance",
+        Role::Exit => "exit",
         Role::Plain => "plain",
     }
 }

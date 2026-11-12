@@ -21,14 +21,14 @@ pub struct Metrics {
     pub bridges: usize,
     pub bridge_share: f64,
     pub articulations: usize,
-    pub hops_to_stairs: Option<f64>,
+    pub hops_to_exit: Option<f64>,
     pub diameter: f64,
-    pub routes_to_stairs: usize,
+    pub routes_to_exit: Option<usize>,
     pub cycle_girth: Option<usize>,
     pub side_branches: usize,
     pub deepest_branch: usize,
     pub max_node_degree: usize,
-    pub geometric_path_to_stairs: f64,
+    pub geometric_path_to_exit: Option<f64>,
     pub lambda2: f64,
     pub by_class: BTreeMap<String, usize>,
 }
@@ -115,17 +115,20 @@ pub fn metrics_of(d: &Floor) -> Metrics {
             room_node[*room] = i;
         }
     }
-    let (start_node, stairs_node) = (room_node[d.start], room_node[d.stairs]);
+    // The entrance when there is one; otherwise any live room, only to root the walks below.
+    let start_node = room_node[d.origin()];
+    let exit_node = d.entrance.zip(d.exit).map(|(_, exit)| room_node[exit]);
     let (side_branches, deepest_branch) =
         crate::topology::side_branch_stats(&d.nodes, &d.edges, &d.main_path);
-    let geometric_path_to_stairs =
-        crate::topology::shortest_path(d.nodes.len(), &d.edges, start_node, stairs_node)
+    let geometric_path_to_exit = exit_node.map(|exit_node| {
+        crate::topology::shortest_path(d.nodes.len(), &d.edges, start_node, exit_node)
             .map(|(_, path)| {
                 path.into_iter()
                     .map(|i| polyline_length(&d.edges[i].pts))
                     .sum()
             })
-            .unwrap_or(0.0);
+            .unwrap_or(0.0)
+    });
     let mut t = Tarjan {
         adj: &adj,
         disc: vec![-1; d.nodes.len()],
@@ -159,14 +162,14 @@ pub fn metrics_of(d: &Floor) -> Metrics {
         }
     }
 
-    // Edge-disjoint routes start → stairs (Menger): unit-capacity max flow on H.
+    // Edge-disjoint routes entrance → exit (Menger): unit-capacity max flow on H.
     let mut cap: HashMap<(usize, usize), i32> = HashMap::new();
     for ed in &d.edges {
         *cap.entry((ed.u, ed.v)).or_insert(0) += 1;
         *cap.entry((ed.v, ed.u)).or_insert(0) += 1;
     }
     let mut routes = 0;
-    loop {
+    while let Some(stairs_node) = exit_node {
         let mut prev: HashMap<usize, Option<usize>> = HashMap::from([(start_node, None)]);
         let mut q: VecDeque<usize> = VecDeque::from([start_node]);
         while let Some(u) = q.pop_front() {
@@ -201,7 +204,7 @@ pub fn metrics_of(d: &Floor) -> Metrics {
     for r in &rooms {
         *by_class.entry(r.cls.name().to_string()).or_insert(0) += 1;
     }
-    let hops = from_start[stairs_node];
+    let hops = exit_node.map_or(f64::INFINITY, |exit| from_start[exit]);
     Metrics {
         rooms: rooms.iter().filter(|r| !r.leaf).count(),
         leaf_chambers: rooms.iter().filter(|r| r.leaf).count(),
@@ -231,9 +234,9 @@ pub fn metrics_of(d: &Floor) -> Metrics {
         articulations: (0..d.nodes.len())
             .filter(|i| t.cut[*i] && matches!(d.nodes[*i], Node::Room { .. }))
             .count(),
-        hops_to_stairs: if hops.is_finite() { Some(hops) } else { None },
+        hops_to_exit: if hops.is_finite() { Some(hops) } else { None },
         diameter,
-        routes_to_stairs: routes,
+        routes_to_exit: exit_node.map(|_| routes),
         cycle_girth: if beta > 0 {
             crate::topology::cycle_girth(d.nodes.len(), &d.edges)
         } else {
@@ -242,7 +245,7 @@ pub fn metrics_of(d: &Floor) -> Metrics {
         side_branches,
         deepest_branch,
         max_node_degree: crate::topology::max_degree(d.nodes.len(), &d.edges),
-        geometric_path_to_stairs,
+        geometric_path_to_exit,
         lambda2: if eig.len() > 1 { eig[1] } else { 0.0 },
         by_class,
     }

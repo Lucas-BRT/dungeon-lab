@@ -62,7 +62,7 @@ let pool = null
 
 const CLASSES = ['rect', 'disc', 'oct', 'L', 'star']
 const SIZE_NAMES = ['small', 'medium', 'large', 'huge']
-const ROLES = ['start', 'stairs']
+const ROLES = ['entrance', 'exit']
 const className = (name) => dict[`lab_class_${name}`] ?? name
 const roleName = (name) => dict[`lab_role_${name}`] ?? name
 const DIRS = [[1, 0], [Math.SQRT1_2, Math.SQRT1_2], [0, 1], [-Math.SQRT1_2, Math.SQRT1_2], [-1, 0], [-Math.SQRT1_2, -Math.SQRT1_2], [0, -1], [Math.SQRT1_2, -Math.SQRT1_2]]
@@ -547,12 +547,13 @@ const VIOLATIONS = [
   [/^V4 corridor (\d+): a (\d+)° turn$/, 'lab_v_v4_turn'],
   [/^V4 corridor (\d+): a segment of (.+) px$/, 'lab_v_v4_segment'],
   [/^V4 corridor (\d+): leaves a door at an angle$/, 'lab_v_v4_angle'],
-  [/^V5 the stairs have (\d+) doors \(most (\d+)\)$/, 'lab_v_v5_doors'],
-  [/^V5 the stairs are (.+) hops from the start \(least (\d+)\)$/, 'lab_v_v5_hops'],
-  ['V5 start and stairs must be two rooms of the stage', 'lab_v_v5_distinct'],
+  [/^V5 the exit has (\d+) doors \(most (\d+)\)$/, 'lab_v_v5_doors'],
+  [/^V5 the exit is (.+) hops from the entrance \(least (\d+)\)$/, 'lab_v_v5_hops'],
+  ['V5 the entrance and the exit must be two rooms of the stage', 'lab_v_v5_distinct'],
+  ['V5 the stage has no entrance room', 'lab_v_v5_no_entrance'],
   [/^T1 profile requires (\d+) side branches; found (\d+)$/, 'lab_v_t1'],
   [/^T2 profile requires branch depth (\d+); found (\d+)$/, 'lab_v_t2'],
-  [/^T3 profile requires (\d+) independent routes to stairs; found (\d+)$/, 'lab_v_t3'],
+  [/^T3 profile requires (\d+) independent routes to the exit; found (\d+)$/, 'lab_v_t3'],
   [/^T4 profile requires a hub degree of (\d+); found (\d+)$/, 'lab_v_t4'],
   [/^T5 profile requires a cycle of at least (\d+) branches; found (\d+)$/, 'lab_v_t5'],
 ]
@@ -560,11 +561,12 @@ const LOGS = [
   [/^tree stuck: candidates from (.+)$/i, 'lab_l_stuck_candidates'],
   [/^tree stuck: near (.+) px$/i, 'lab_l_stuck_near'],
   [/^(.+) room\(s\) left out: no valid corridor reaches them$/, 'lab_l_left_out'],
-  [/^stairs only (.+) hops from the start \(wanted (.+)\)$/, 'lab_l_stairs'],
+  [/^exit only (.+) hops from the entrance \(wanted (.+)\)$/, 'lab_l_exit'],
+  ['topology profile: side branches and independent routes need an entrance and an exit, so they are left out', 'lab_l_anchors'],
   [/^β\* = (.+) not reached: nothing more fits \(β = (.+)\)$/, 'lab_l_beta'],
   [/^block (\d+): (.+) does not fit, rect instead$/, 'lab_l_block'],
   [/^(.+) of (.+) leaf chambers fit$/, 'lab_l_leaves'],
-  [/^topology profile: could not reach (\d+) independent routes to stairs \(λ = (\d+)\)$/, 'lab_l_routes'],
+  [/^topology profile: could not reach (\d+) independent routes to the exit \(λ = (\d+)\)$/, 'lab_l_routes'],
   [/^topology profile: no valid junction can reach degree (\d+)$/, 'lab_l_hub'],
   [/^topology profile: no valid cycle of at least (\d+) branches fits$/, 'lab_l_cycle'],
   [/^topology profile: added (\d+) of (\d+) required side branches$/, 'lab_l_branches'],
@@ -582,10 +584,10 @@ const METRIC_ROWS = (m) => ({
   lab_g_paths: [
     ['mean_degree', formatNumber(m.meanDegree, 2)], ['leaves', `${m.leaves}`],
     ['bridges', `${m.bridges} · ${formatNumber(m.bridgeShare * 100, 0)}%`], ['articulations', `${m.articulations}`],
-    ['hops', m.hopsToStairs == null ? '—' : formatNumber(m.hopsToStairs, 0)], ['diameter', formatNumber(m.diameter, 0)],
-    ['routes', `${m.routesToStairs}`], ['girth', m.cycleGirth == null ? '—' : `${m.cycleGirth}`],
+    ['hops', m.hopsToExit == null ? '—' : formatNumber(m.hopsToExit, 0)], ['diameter', formatNumber(m.diameter, 0)],
+    ['routes', m.routesToExit == null ? '—' : `${m.routesToExit}`], ['girth', m.cycleGirth == null ? '—' : `${m.cycleGirth}`],
     ['side_branches', `${m.sideBranches}`], ['branch_depth', `${m.deepestBranch}`], ['max_degree', `${m.maxNodeDegree}`],
-    ['geo_path', `${formatNumber(m.geometricPathToStairs, 0)} px`], ['lambda2', formatNumber(m.lambda2, 3)],
+    ['geo_path', m.geometricPathToExit == null ? '—' : `${formatNumber(m.geometricPathToExit, 0)} px`], ['lambda2', formatNumber(m.lambda2, 3)],
   ],
 })
 

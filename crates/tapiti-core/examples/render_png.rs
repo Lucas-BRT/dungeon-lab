@@ -93,9 +93,9 @@ fn render(d: &generate::Floor, scale: f64) -> (usize, usize, Vec<u8>) {
         }
     }
     for r in d.rooms.iter().filter(|r| r.alive) {
-        let col = if r.id == d.start {
+        let col = if Some(r.id) == d.entrance {
             [90, 190, 110]
-        } else if r.id == d.stairs {
+        } else if Some(r.id) == d.exit {
             [220, 90, 90]
         } else {
             [70, 90, 150]

@@ -39,7 +39,7 @@ pub(super) struct Gen<'a> {
     pub(super) no_fit: Vec<AtomicBool>,
     /// `statics[i]` can never become a crossing: its doors are taken or it already touches two corridors (both only grow).
     pub(super) no_cross: Vec<AtomicBool>,
-    pub(super) stairs_room: usize,
+    pub(super) exit_room: usize,
     /// Broad phase over the regions of `statics`, to find the candidates near a corridor that changed.
     pub(super) static_index: SpatialHash,
     /// Broad phase over the rooms and, kept up to date by `add_edge`/`split_edge`, over the corridor regions (a superset after a rollback: callers re-test exactly).
@@ -199,7 +199,7 @@ impl<'a> Gen<'a> {
     }
 
     pub(super) fn locked_full(&self, r: usize) -> bool {
-        r == self.stairs_room && self.degree(r) >= self.p.stairs_doors as usize
+        r == self.exit_room && self.degree(r) >= self.p.exit_doors as usize
     }
 
     pub(super) fn weighted(&mut self, ws: &[f64]) -> Option<usize> {

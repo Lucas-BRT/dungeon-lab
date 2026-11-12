@@ -40,7 +40,7 @@ fn run(label: &str, p: &params::Params) {
     let depth: Vec<f64> = ds
         .iter()
         .map(|d| {
-            let h = tapiti_core::generate::room_hops(&d.nodes, &d.edges, d.rooms[d.start].id);
+            let h = tapiti_core::generate::room_hops(&d.nodes, &d.edges, d.origin());
             h.iter()
                 .cloned()
                 .filter(|x| x.is_finite())

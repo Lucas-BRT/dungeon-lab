@@ -151,3 +151,31 @@ fn the_layout_field_picks_the_room_layout() {
         serde_json::to_string(&generate(7, &p).rooms).unwrap()
     );
 }
+
+/// The entrance and the exit are optional, in both layouts: without them a stage has no such room, no main path, and is still valid.
+#[test]
+fn the_entrance_and_the_exit_can_be_left_out() {
+    use tapiti_core::generate::Role;
+    use tapiti_core::params::Layout;
+    for layout in [Layout::Grid, Layout::Growth] {
+        for (entrance, exit_room) in [(true, true), (true, false), (false, true), (false, false)] {
+            let mut p = rich_of_size(Size::Medium);
+            p.layout = layout;
+            p.entrance = entrance;
+            p.exit_room = exit_room;
+            for seed in [1u32, 2, 3, 4] {
+                let s = stage(seed, &p, 8);
+                let tag = format!("{layout:?} entrance {entrance} exit {exit_room} seed {seed}");
+                assert!(s.violations.is_empty(), "{tag}: {:?}", s.violations);
+                let has = |role: Role| s.d.rooms.iter().any(|r| r.role == role);
+                assert_eq!(s.d.entrance.is_some(), entrance, "{tag}");
+                assert_eq!(s.d.exit.is_some(), entrance && exit_room, "{tag}");
+                assert_eq!(has(Role::Entrance), entrance, "{tag}");
+                assert_eq!(has(Role::Exit), entrance && exit_room, "{tag}");
+                assert_eq!(s.d.main_path.is_empty(), !(entrance && exit_room), "{tag}");
+                let m = metrics_of(&s.d);
+                assert_eq!(m.routes_to_exit.is_some(), entrance && exit_room, "{tag}");
+            }
+        }
+    }
+}

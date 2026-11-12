@@ -1,7 +1,7 @@
 /* The lab: Operate mode. Controls on the left, the map in the middle, the reading of the floor on the right. Colours come from the site's
    tokens. Below 1280px the reading becomes a drawer; below 1000px the map comes first and the two panels become tabs. */
 .lab {
-  --role-start: #62d99a; --role-stairs: #dc78dc; --role-plain: #a7b1c0;
+  --role-entrance: #62d99a; --role-exit: #dc78dc; --role-plain: #a7b1c0;
   --lab-top: 57px;
   position: relative;
   display: grid;

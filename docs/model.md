@@ -263,7 +263,7 @@ The constraints below separate different problems. **Connectivity** is about the
 - **V2 — Clearances.** Rooms keep the minimum distance $2g$; a corridor stays at least $\sigma$ from the rooms it does not connect to; two separate corridors keep the clearance, except at a valid junction. Between linked rooms, the direct distance $\ell_{min}$ is also required, so that rooms close to each other diagonally do not become nearly adjacent despite a long path.
 - **V3 — Doors.** Each used door is admissible for its room, and the exit strips of the doors of the same room are separated by at least $\sigma$.
 - **V4 — Corridors.** Directions, bends and lengths respect $\Theta_m$, $\ell_s$, $\ell_{seg}$ and the bend limit.
-- **V5 — Start and exit.** There is a start room and a distinct stairs room; the stairs respect the door limit and are at least `minHops` room hops from the start.
+- **V5 — Start and exit.** There is a start room and a distinct stairs room; the stairs respect the door limit and are at least `exitMinHops` room hops from the start.
 - **V6 — Furniture.** In the original specification, stones and crystals must also stay out of the exit strips and keep their distance from each other. This step belongs to the game's furniture and is not implemented by this crate's geometric generator.
 
 A level must satisfy all the constraints that apply to its scope. A lower aesthetic cost cannot compensate for a violation of V1–V5.
@@ -349,7 +349,7 @@ In the real cycles phase, the target is $\beta^*=\operatorname{round}(\delta_{ta
 
 Leaf chambers are added afterwards: each is a room linked by a single corridor. In the graph, the operation adds one vertex and one edge, so $\Delta\beta=0$. It raises the number of dead ends without raising the number of cycles. The roles of start, stairs, boss, rest, ambush, trap, prize and empty room describe content. Keys, switches and locks are progression data, separate from the labels.
 
-In the crate, the start is chosen among the live rooms. After the tree, the stairs are chosen among the leaves farthest from the start; if the minimum distance `minHops` is not reached, `stage` may try another seed up to the attempt limit.
+In the crate, the start is chosen among the live rooms. After the tree, the stairs are chosen among the leaves farthest from the start; if the minimum distance `exitMinHops` is not reached, `stage` may try another seed up to the attempt limit.
 
 ## 9. Topology profiles
 
@@ -435,7 +435,7 @@ The parameters can be grouped by function. The names in parentheses are those us
 | Topology | proximity, radius, density and profile (`proximity`, `near`, `delta`, `topology`) | pairs considered, cycle target and network requirements |
 | Progression | number of key and switch locks (`progression`) | crossing conditions checked in the state graph |
 | Pacing | roles distributed along the main path (`pacing`) | contrast between advancing, resting, combat and optional exploration |
-| Start and exit | stairs door limit and minimum distance in hops (`stairsDoors`, `minHops`) | topological position of the stairs |
+| Start and exit | stairs door limit and minimum distance in hops (`exitDoors`, `exitMinHops`) | topological position of the stairs |
 | Content | number of ambushes and leaf chambers; allowed classes and roles (`ambush`, `leaves`, `leafClasses`, `leafRoles`) | distribution of existing functions |
 | Mixing | compatibility matrix between classes (`mix`) | allows or discourages connections between shapes |
 | Junctions | optional conductance (`junction`) | reference parameter, not yet used by the generator |

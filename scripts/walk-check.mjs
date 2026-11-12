@@ -29,8 +29,8 @@ assert.deepEqual(scene.stations.map((s) => s.room), STATION_ROOMS)
 for (let i = 1; i < scene.stations.length; i++) assert.ok(scene.stations[i].u > scene.stations[i - 1].u, 'stations follow the path')
 assert.equal(scene.stations[0].u, 0)
 assert.ok(Math.abs(scene.stations.at(-1).u - 1) < 1e-6, 'the last station is the end of the path')
-assert.equal(floor.rooms[scene.stations[0].room].role, 'start')
-assert.equal(floor.rooms[scene.stations.at(-1).room].role, 'stairs')
+assert.equal(floor.rooms[scene.stations[0].room].role, 'entrance')
+assert.equal(floor.rooms[scene.stations.at(-1).room].role, 'exit')
 
 // The path is continuous: no hop longer than a room's width.
 const p = scene.path.points

@@ -15,8 +15,8 @@ pub struct Port {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Role {
-    Start,
-    Stairs,
+    Entrance,
+    Exit,
     Plain,
 }
 
@@ -109,9 +109,11 @@ pub struct Floor {
     pub rooms: Vec<Room>,
     pub nodes: Vec<Node>,
     pub edges: Vec<Edge>,
-    pub start: usize,
-    pub stairs: usize,
-    /// Node IDs on the designated start-to-stairs path in H, before leaf rooms are added.
+    /// The entrance room, when the Λ asks for one.
+    pub entrance: Option<usize>,
+    /// The exit room: only with an entrance, and when the Λ asks for one.
+    pub exit: Option<usize>,
+    /// Node IDs on the designated entrance-to-exit path in H, before leaf rooms are added (empty without both).
     pub main_path: Vec<usize>,
     /// Grid line coordinates; interior lines may be jittered while the outer bounds stay fixed.
     pub grid_x: Vec<f64>,
@@ -143,4 +145,13 @@ pub enum GenerationEvent {
         id: usize,
         pts: Vec<V>,
     },
+}
+
+impl Floor {
+    /// The entrance, or the first live room when the floor has none: where reading the floor from one room starts.
+    pub fn origin(&self) -> usize {
+        self.entrance
+            .or_else(|| self.rooms.iter().find(|r| r.alive).map(|r| r.id))
+            .unwrap_or(0)
+    }
 }

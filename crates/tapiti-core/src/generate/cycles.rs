@@ -5,22 +5,23 @@ use super::*;
 /// Adds corridors that close cycles until β reaches `beta_target` and the topology profile's requirements hold, or nothing more fits.
 pub(super) fn add_cycles(
     g: &mut Gen<'_>,
-    start_room: usize,
-    stairs_room: usize,
+    anchors: Option<(usize, usize)>,
     beta_target: i32,
     progress: &mut Option<&mut dyn FnMut(GenerationEvent)>,
 ) {
     let p = g.p;
-    let topology_req = p.topology.requirements();
+    let topology_req = p.topology.requirements_with(p.entrance && p.exit_room);
     let (cols, rows, cell_w, cell_h) = (p.cols.max(1), p.rows.max(1), p.cell_w, p.cell_h);
     loop {
         let beta = beta_now(g);
-        let (routes, from_cut, to_cut) = if topology_req.min_exit_routes > 1 {
+        let (routes, from_cut, to_cut) = if let (true, Some((start_room, exit_room))) =
+            (topology_req.min_exit_routes > 1, anchors)
+        {
             crate::topology::edge_connectivity_frontiers(
                 g.nodes.len(),
                 &g.edges,
                 g.node_of_room[start_room],
-                g.node_of_room[stairs_room],
+                g.node_of_room[exit_room],
             )
         } else {
             (1, vec![false; g.nodes.len()], vec![false; g.nodes.len()])
@@ -79,7 +80,7 @@ pub(super) fn add_cycles(
             None => {
                 let b = beta_now(g);
                 if need_routes {
-                    g.log.push(format!("topology profile: could not reach {} independent routes to stairs (λ = {})", topology_req.min_exit_routes, routes));
+                    g.log.push(format!("topology profile: could not reach {} independent routes to the exit (λ = {})", topology_req.min_exit_routes, routes));
                 }
                 if solving_hub {
                     g.log.push(format!(

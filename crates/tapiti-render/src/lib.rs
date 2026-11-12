@@ -56,8 +56,8 @@ pub const CLASS_NAMES: &[&str] = &[
     "c-oct",
     "c-L",
     "c-star",
-    "r-start",
-    "r-stairs",
+    "r-entrance",
+    "r-exit",
     "r-plain",
     "junction",
     "door",
@@ -71,8 +71,8 @@ fn n(v: f64) -> String {
 
 fn role_class(role: Role) -> &'static str {
     match role {
-        Role::Start => "r-start",
-        Role::Stairs => "r-stairs",
+        Role::Entrance => "r-entrance",
+        Role::Exit => "r-exit",
         Role::Plain => "r-plain",
     }
 }
@@ -108,13 +108,13 @@ fn theme_css(theme: Theme) -> &'static str {
         Theme::Dark => concat!(
             ".tapiti-floor{background:#15110e}.grid{stroke:#2b231d}.corridor{stroke:#5a4e43}",
             ".room{stroke-width:4}.c-rect{fill:#496c9a}.c-disc{fill:#29a89a}.c-oct{fill:#9b78d1}.c-L{fill:#ce843c}.c-star{fill:#d0ae38}",
-            ".r-plain{stroke:#2b231d}.r-start{stroke:#4ac26b}.r-stairs{stroke:#f08a3c}",
+            ".r-plain{stroke:#2b231d}.r-entrance{stroke:#4ac26b}.r-exit{stroke:#f08a3c}",
             ".junction{fill:#f2e9dc;stroke:#15110e}.door{stroke:#f2e9dc}.label{fill:#fff}"
         ),
         Theme::Light => concat!(
             ".tapiti-floor{background:#f7f1e6}.grid{stroke:#e6dccb}.corridor{stroke:#b3a590}",
             ".room{stroke-width:4}.c-rect{fill:#315f96}.c-disc{fill:#087f76}.c-oct{fill:#7253af}.c-L{fill:#a95812}.c-star{fill:#936c00}",
-            ".r-plain{stroke:#e6dccb}.r-start{stroke:#1d9a44}.r-stairs{stroke:#d96b13}",
+            ".r-plain{stroke:#e6dccb}.r-entrance{stroke:#1d9a44}.r-exit{stroke:#d96b13}",
             ".junction{fill:#2a2118;stroke:#f7f1e6}.door{stroke:#2a2118}.label{fill:#fff}"
         ),
     }
@@ -147,7 +147,7 @@ pub fn floor_svg(d: &Floor, style: &Style) -> String {
         d.grid_y.last().copied().unwrap_or(1.0),
     );
     let (w, h) = ((x1 - x0).max(1.0), (y1 - y0).max(1.0));
-    let hops = room_hops(&d.nodes, &d.edges, d.rooms[d.start].id);
+    let hops = room_hops(&d.nodes, &d.edges, d.origin());
     let hop_of_node = |node: usize| -> usize {
         let v = hops.get(node).copied().unwrap_or(0.0);
         if v.is_finite() {
@@ -319,7 +319,7 @@ mod tests {
         assert!(s.matches("class=\"room ").count() >= 5, "rooms");
         assert!(s.contains("class=\"corridor"), "corridors");
         assert!(
-            s.contains("r-start") && s.contains("r-stairs"),
+            s.contains("r-entrance") && s.contains("r-exit"),
             "entrance and stairs"
         );
         assert!(

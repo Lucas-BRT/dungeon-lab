@@ -67,6 +67,10 @@ pub enum Proximity {
     Near,
 }
 
+fn yes() -> bool {
+    true
+}
+
 /// How the rooms are laid out: one per grid block, or grown one from another off a parent's door (prototype).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -112,6 +116,18 @@ impl Default for TopologySpec {
 }
 
 impl TopologySpec {
+    /// The requirements of the profile and the explicit minimums. Side branches and independent routes are measured from the
+    /// path between the entrance and the exit, so without both they cannot hold and are left out.
+    pub fn requirements_with(self, anchors: bool) -> Self {
+        let mut out = self.requirements();
+        if !anchors {
+            out.min_branches = 0;
+            out.min_branch_depth = 0;
+            out.min_exit_routes = 1;
+        }
+        out
+    }
+
     pub fn requirements(self) -> Self {
         let mut out = self;
         if out.min_branch_depth > 0 {
@@ -215,8 +231,14 @@ pub struct Params {
     pub proximity: Proximity,
     pub near: f64,
     pub delta: f64,
-    pub stairs_doors: i32,
-    pub min_hops: i32,
+    /// Whether the floor has an entrance room.
+    #[serde(default = "yes")]
+    pub entrance: bool,
+    /// Whether the floor has an exit room (only with an entrance).
+    #[serde(default = "yes")]
+    pub exit_room: bool,
+    pub exit_doors: i32,
+    pub exit_min_hops: i32,
     // Leaf chambers (§7.6)
     pub leaves: i32,
     pub leaf_classes: ByClass,
@@ -287,8 +309,10 @@ fn base() -> Params {
         proximity: Proximity::Rng,
         near: 520.0,
         delta: 0.15,
-        stairs_doors: 1,
-        min_hops: 3,
+        entrance: true,
+        exit_room: true,
+        exit_doors: 1,
+        exit_min_hops: 3,
         leaves: 0,
         leaf_classes: ByClass::new(1.0, 0.0, 0.0, 0.0, 0.0),
         junction: None,
@@ -347,8 +371,8 @@ pub fn rich_of_size(size: Size) -> Params {
     p.delta = 0.55;
     p.p_t = 0.25;
     p.p_x = 0.15;
-    p.stairs_doors = 2;
-    p.min_hops = 4;
+    p.exit_doors = 2;
+    p.exit_min_hops = 4;
     p.leaf_classes = ByClass::new(1.0, 1.0, 1.0, 0.0, 0.0);
     p
 }

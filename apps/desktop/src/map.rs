@@ -117,8 +117,8 @@ impl Palette {
 
     fn role(&self, role: Role) -> Color32 {
         match role {
-            Role::Start => self.success,
-            Role::Stairs => self.accent,
+            Role::Entrance => self.success,
+            Role::Exit => self.accent,
             Role::Plain => self.grid,
         }
     }

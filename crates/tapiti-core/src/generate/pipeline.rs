@@ -51,7 +51,7 @@ pub(super) fn generate_inner(
         candidates_by_room: Vec::new(),
         no_fit: Vec::new(),
         no_cross: Vec::new(),
-        stairs_room: usize::MAX,
+        exit_room: usize::MAX,
         static_index: SpatialHash::new(1.0),
         room_grid: SpatialHash::new(1.0),
         edge_index: SpatialHash::new(1.0),
@@ -133,21 +133,41 @@ pub(super) fn generate_inner(
         &mut lap,
     );
 
-    let mut stairs_room = assign_start_and_stairs(&mut g, start_room);
+    let mut exit_room = if p.entrance {
+        assign_entrance_and_exit(&mut g, start_room, p.exit_room)
+    } else {
+        None
+    };
 
     let (beta_max, all_pairs) =
         measure_beta_max(&mut g, &order, near_base, &island_of, &room_index);
     lap("β_max");
-    let topology_req = p.topology.requirements();
+    let topology_req = p.topology.requirements_with(p.entrance && p.exit_room);
+    if !(p.entrance && p.exit_room) {
+        let wanted = p.topology.requirements();
+        if wanted.min_branches > 0 || wanted.min_branch_depth > 0 || wanted.min_exit_routes > 1 {
+            g.log.push(
+                "topology profile: side branches and independent routes need an entrance and an exit, so they are left out"
+                    .to_string(),
+            );
+        }
+    }
     let beta_target = (p.delta * beta_max as f64).round() as i32;
 
-    add_cycles(&mut g, start_room, stairs_room, beta_target, &mut progress);
+    add_cycles(
+        &mut g,
+        exit_room.map(|e| (start_room, e)),
+        beta_target,
+        &mut progress,
+    );
 
     lap("cycles");
-    if p.layout == Layout::Growth && topology_req.min_exit_routes <= 1 {
-        // A grown tree is shallow, so the cycles can bring the stairs under `minHops` of the start: move them to a room that is still far enough.
+    if let (Layout::Growth, true, Some(exit)) =
+        (p.layout, topology_req.min_exit_routes <= 1, exit_room)
+    {
+        // A grown tree is shallow, so the cycles can bring the stairs under `exitMinHops` of the start: move them to a room that is still far enough.
         let h = room_hops(&g.nodes, &g.edges, g.node_of_room[start_room]);
-        if h[g.node_of_room[stairs_room]] < p.min_hops as f64 {
+        if h[g.node_of_room[exit]] < p.exit_min_hops as f64 {
             let far: Vec<usize> = g
                 .rooms
                 .iter()
@@ -155,26 +175,30 @@ pub(super) fn generate_inner(
                     r.alive
                         && r.id != start_room
                         && r.role == Role::Plain
-                        && h[g.node_of_room[r.id]] >= p.min_hops as f64
-                        && g.degree(r.id) <= p.stairs_doors as usize
+                        && h[g.node_of_room[r.id]] >= p.exit_min_hops as f64
+                        && g.degree(r.id) <= p.exit_doors as usize
                 })
                 .map(|r| r.id)
                 .collect();
             if !far.is_empty() {
-                g.rooms[stairs_room].role = Role::Plain;
-                stairs_room = far[(g.rng.next() * far.len() as f64).floor() as usize];
-                g.rooms[stairs_room].role = Role::Stairs;
-                g.stairs_room = stairs_room;
+                g.rooms[exit].role = Role::Plain;
+                let moved = far[(g.rng.next() * far.len() as f64).floor() as usize];
+                g.rooms[moved].role = Role::Exit;
+                g.exit_room = moved;
+                exit_room = Some(moved);
             }
         }
     }
-    let (main_path, _) = crate::topology::shortest_path(
-        g.nodes.len(),
-        &g.edges,
-        g.node_of_room[start_room],
-        g.node_of_room[stairs_room],
-    )
-    .unwrap_or_default();
+    let (main_path, _) = exit_room
+        .and_then(|exit| {
+            crate::topology::shortest_path(
+                g.nodes.len(),
+                &g.edges,
+                g.node_of_room[start_room],
+                g.node_of_room[exit],
+            )
+        })
+        .unwrap_or_default();
     let main_path_rooms = path_rooms(&g.nodes, &main_path);
     // The spots for leaf chambers: the grid's dropped cells; a grown layout drops none, so they are the boxes of one cell
     // beyond a free door of a room (two reaches each), inside the world and clear of every room (`add_leaf_chambers`
@@ -250,8 +274,8 @@ pub(super) fn generate_inner(
         rooms: g.rooms,
         nodes: g.nodes,
         edges: g.edges,
-        start: start_room,
-        stairs: stairs_room,
+        entrance: p.entrance.then_some(start_room),
+        exit: exit_room,
         main_path,
         grid_x,
         grid_y,

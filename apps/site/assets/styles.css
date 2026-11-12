@@ -128,8 +128,8 @@
   .tapiti-floor .c-oct { fill: var(--map-oct); }
   .tapiti-floor .c-L { fill: var(--map-L); }
   .tapiti-floor .c-star { fill: var(--map-star); }
-  .tapiti-floor .r-start { stroke: var(--ok); }
-  .tapiti-floor .r-stairs { stroke: var(--carrot); }
+  .tapiti-floor .r-entrance { stroke: var(--ok); }
+  .tapiti-floor .r-exit { stroke: var(--carrot); }
   .tapiti-floor .junction { fill: var(--bone); stroke: var(--plate); }
   .tapiti-floor .door { stroke: var(--bone); }
 }
