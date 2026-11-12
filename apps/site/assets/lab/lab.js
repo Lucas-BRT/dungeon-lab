@@ -62,7 +62,7 @@ let pool = null
 
 const CLASSES = ['rect', 'disc', 'oct', 'L', 'star']
 const SIZE_NAMES = ['small', 'medium', 'large', 'huge']
-const ROLES = ['start', 'stairs', 'ambush', 'boss', 'rest', 'key', 'switch', 'trap', 'prize', 'empty']
+const ROLES = ['start', 'stairs']
 const className = (name) => dict[`lab_class_${name}`] ?? name
 const roleName = (name) => dict[`lab_role_${name}`] ?? name
 const DIRS = [[1, 0], [Math.SQRT1_2, Math.SQRT1_2], [0, 1], [-Math.SQRT1_2, Math.SQRT1_2], [-1, 0], [-Math.SQRT1_2, -Math.SQRT1_2], [0, -1], [Math.SQRT1_2, -Math.SQRT1_2]]
@@ -475,7 +475,7 @@ const mapObjectAt = (point, scale) => {
   const d = current.floor
   for (const room of [...d.rooms].reverse()) {
     if (!room.alive || !containsPoint(room.shape, point)) continue
-    const role = room.leaf ? tr('lab_leaf_role', { role: roleName(room.role) || roleName('empty') }) : roleName(room.role)
+    const role = room.leaf ? tr('lab_leaf_chamber') : roleName(room.role)
     const lines = [tr('lab_tip_room', { role, id: room.id, class: className(room.cls), area: formatNumber(room.area, 0), used: room.used.length, possible: room.ports.length })]
     return lines.join('\n')
   }

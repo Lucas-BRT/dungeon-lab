@@ -195,29 +195,6 @@ pub fn groups() -> Vec<ParamGroup> {
         (0.0, 1000.0),
         false,
     ));
-    leaves.extend([
-        number(
-            "leafRoles.trap",
-            tx("Relative chance · trap"),
-            0.0,
-            1000.0,
-            false,
-        ),
-        number(
-            "leafRoles.prize",
-            tx("Relative chance · prize"),
-            0.0,
-            1000.0,
-            false,
-        ),
-        number(
-            "leafRoles.empty",
-            tx("Relative chance · empty"),
-            0.0,
-            1000.0,
-            false,
-        ),
-    ]);
 
     vec![
         group(
@@ -325,18 +302,17 @@ pub fn groups() -> Vec<ParamGroup> {
         ),
         group(
             "roles",
-            tx("Entrance, stairs and roles"),
-            tx("Controls the stairs doors, the distance from the entrance and the number of ambushes."),
+            tx("Entrance and stairs"),
+            tx("Controls the stairs doors and the distance from the entrance."),
             vec![
                 number("stairsDoors", tx("Maximum doors on the stairs"), 1.0, 1000.0, true),
                 number("minHops", tx("Minimum steps to the stairs"), 1.0, 1000.0, true),
-                number("ambush", tx("Ambush rooms"), 0.0, 1000.0, true),
             ],
         ),
         group(
             "leaves",
             tx("Isolated chambers"),
-            tx("Extra rooms linked by a single corridor, like dead ends with a prize or a trap."),
+            tx("Extra rooms linked by a single corridor, like dead ends."),
             leaves,
         ),
     ]
@@ -378,7 +354,6 @@ fn help(path: &str, label: &str) -> Text {
         "delta" => tx("Fraction of the cycle reference the generator tries to reach. Higher values favor shortcuts and alternative routes."),
         "stairsDoors" => tx("Maximum number of corridors that can enter the stairs room."),
         "minHops" => tx("Minimum number of links between the entrance and the stairs, counted in rooms."),
-        "ambush" => tx("Number of larger plain rooms that get the ambush role."),
         "topology.profile" => tx("Classic keeps the base behavior; other profiles require branches, a hub, redundant routes or long cycles."),
         "topology.minBranches" => tx("Minimum number of side components linked to the main path by a single passage."),
         "topology.minBranchDepth" => tx("Minimum number of rooms in a branch from the main path."),
@@ -393,14 +368,10 @@ fn help(path: &str, label: &str) -> Text {
         "growth.cluster" => tx("Positive concentrates new rooms where there are already many; negative spreads them; zero is neutral."),
         "growth.reach" => tx("Average corridor distance beyond the minimum, in grid cells."),
         "leaves" => tx("Number of extra chambers the generator tries to place in free cells."),
-        "leafRoles.trap" => tx("Relative weight for a leaf chamber to get a trap."),
-        "leafRoles.prize" => tx("Relative weight for a leaf chamber to get a prize."),
-        "leafRoles.empty" => tx("Relative weight for a leaf chamber to stay empty."),
         _ if path.starts_with("weights.") => tx("Draw weight for rooms of this shape. It is relative to the other weights and does not need to sum to 1."),
         _ if path.starts_with("maxOf.") => tx("Limit of rooms of this shape. If the limits sum too low, the generator may exceed them."),
         _ if path.starts_with("leafClasses.") => tx("Relative weight for choosing this shape for leaf chambers."),
         _ if path.starts_with("mix.") => tx("Compatibility between two shapes: zero forbids the link; one keeps the normal chance."),
-        _ if path.starts_with("leafRoles.") => tx("Relative weight for the leaf chamber to get this role."),
         _ => format!("{label}. Adjust this value and watch how it changes the floor layout."),
     }
 }

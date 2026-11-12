@@ -15,6 +15,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Changed
 
+- The room roles are only entrance, stairs and plain: `Boss`, `Rest`, `Key`, `Switch`, `Ambush`, `Trap`, `Prize` and `Empty`, the `ambush` and `leafRoles` parameters and their colours are gone. A stage that has leaf chambers is drawn differently from the same seed, because the leaf role was drawn from the RNG.
 - Keys, switches, gated corridors and exploration pacing are gone (`progression`, `pacing`, the P1 to P3 checks, `Room.keys`/`switches`, `Edge.requiresKeys`/`requiresSwitches`): they were game design, not floor generation. The geometry of every stage is unchanged.
 - Sizes replace the five levels: small, medium, large and huge only set the grid, the large blocks and the leaf chambers (`params_of_size`); every other parameter keeps its default and can be changed. The desktop app and the lab pick a size (keys 1 to 4), the wasm module takes a size, and `rich_of_size` (every shape, junction and connection option on) serves tests, benchmarks and the landing page. The levels carried game-design settings the generator does not need.
 - The lab follows the site's stone and carrot look: a segmented level control, the reading of the floor in a drawer below 1280 px and as a tab below 1000 px (the map first), and an optional Plan / 3D switch that turns the generated floor in three dimensions, rebuilt on every regenerate.

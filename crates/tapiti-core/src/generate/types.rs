@@ -17,15 +17,7 @@ pub struct Port {
 pub enum Role {
     Start,
     Stairs,
-    Ambush,
-    Boss,
-    Rest,
-    Key,
-    Switch,
     Plain,
-    Trap,
-    Prize,
-    Empty,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]

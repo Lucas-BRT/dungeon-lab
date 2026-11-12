@@ -62,7 +62,6 @@ pub struct Palette {
     pub ink: Color32,
     pub accent: Color32,
     pub success: Color32,
-    pub warning: Color32,
     pub danger: Color32,
     pub dark: bool,
 }
@@ -77,7 +76,6 @@ impl Palette {
                 ink: Color32::from_rgb(0xee, 0xf0, 0xf3),
                 accent: Color32::from_rgb(0x5b, 0x9b, 0xf5),
                 success: Color32::from_rgb(0x4a, 0xc2, 0x6b),
-                warning: Color32::from_rgb(0xe8, 0xb3, 0x39),
                 danger: Color32::from_rgb(0xef, 0x5d, 0x5d),
                 dark,
             }
@@ -89,7 +87,6 @@ impl Palette {
                 ink: Color32::from_rgb(0x1b, 0x1f, 0x26),
                 accent: Color32::from_rgb(0x1f, 0x6f, 0xe0),
                 success: Color32::from_rgb(0x1d, 0x9a, 0x44),
-                warning: Color32::from_rgb(0xb7, 0x7d, 0x00),
                 danger: Color32::from_rgb(0xd1, 0x2f, 0x2f),
                 dark,
             }
@@ -120,11 +117,9 @@ impl Palette {
 
     fn role(&self, role: Role) -> Color32 {
         match role {
-            Role::Start | Role::Rest => self.success,
-            Role::Stairs | Role::Switch => self.accent,
-            Role::Ambush | Role::Boss | Role::Trap => self.danger,
-            Role::Key | Role::Prize => self.warning,
-            Role::Empty | Role::Plain => self.grid,
+            Role::Start => self.success,
+            Role::Stairs => self.accent,
+            Role::Plain => self.grid,
         }
     }
 }

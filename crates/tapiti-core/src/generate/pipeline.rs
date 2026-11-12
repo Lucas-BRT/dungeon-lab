@@ -226,18 +226,6 @@ pub(super) fn generate_inner(
         &mut progress,
     );
 
-    /* §7.7 (part) Ambush rooms: the biggest plain rooms. */
-    let mut plain: Vec<usize> = g
-        .rooms
-        .iter()
-        .filter(|r| r.alive && !r.leaf && r.role == Role::Plain)
-        .map(|r| r.id)
-        .collect();
-    plain.sort_by(|a, b| g.rooms[*b].area.partial_cmp(&g.rooms[*a].area).unwrap());
-    for id in plain.into_iter().take(p.ambush.max(0) as usize) {
-        g.rooms[id].role = Role::Ambush;
-    }
-
     lap("leaf chambers");
     let dropped_centers: Vec<V> = dropped
         .iter()

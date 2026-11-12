@@ -58,14 +58,6 @@ pub const CLASS_NAMES: &[&str] = &[
     "c-star",
     "r-start",
     "r-stairs",
-    "r-ambush",
-    "r-boss",
-    "r-rest",
-    "r-key",
-    "r-switch",
-    "r-trap",
-    "r-prize",
-    "r-empty",
     "r-plain",
     "junction",
     "door",
@@ -81,14 +73,6 @@ fn role_class(role: Role) -> &'static str {
     match role {
         Role::Start => "r-start",
         Role::Stairs => "r-stairs",
-        Role::Ambush => "r-ambush",
-        Role::Boss => "r-boss",
-        Role::Rest => "r-rest",
-        Role::Key => "r-key",
-        Role::Switch => "r-switch",
-        Role::Trap => "r-trap",
-        Role::Prize => "r-prize",
-        Role::Empty => "r-empty",
         Role::Plain => "r-plain",
     }
 }
@@ -124,13 +108,13 @@ fn theme_css(theme: Theme) -> &'static str {
         Theme::Dark => concat!(
             ".tapiti-floor{background:#15110e}.grid{stroke:#2b231d}.corridor{stroke:#5a4e43}",
             ".room{stroke-width:4}.c-rect{fill:#496c9a}.c-disc{fill:#29a89a}.c-oct{fill:#9b78d1}.c-L{fill:#ce843c}.c-star{fill:#d0ae38}",
-            ".r-plain,.r-empty{stroke:#2b231d}.r-start,.r-rest{stroke:#4ac26b}.r-stairs,.r-switch{stroke:#f08a3c}.r-ambush,.r-boss,.r-trap{stroke:#ef5d5d}.r-key,.r-prize{stroke:#e8b339}",
+            ".r-plain{stroke:#2b231d}.r-start{stroke:#4ac26b}.r-stairs{stroke:#f08a3c}",
             ".junction{fill:#f2e9dc;stroke:#15110e}.door{stroke:#f2e9dc}.label{fill:#fff}"
         ),
         Theme::Light => concat!(
             ".tapiti-floor{background:#f7f1e6}.grid{stroke:#e6dccb}.corridor{stroke:#b3a590}",
             ".room{stroke-width:4}.c-rect{fill:#315f96}.c-disc{fill:#087f76}.c-oct{fill:#7253af}.c-L{fill:#a95812}.c-star{fill:#936c00}",
-            ".r-plain,.r-empty{stroke:#e6dccb}.r-start,.r-rest{stroke:#1d9a44}.r-stairs,.r-switch{stroke:#d96b13}.r-ambush,.r-boss,.r-trap{stroke:#d12f2f}.r-key,.r-prize{stroke:#b77d00}",
+            ".r-plain{stroke:#e6dccb}.r-start{stroke:#1d9a44}.r-stairs{stroke:#d96b13}",
             ".junction{fill:#2a2118;stroke:#f7f1e6}.door{stroke:#2a2118}.label{fill:#fff}"
         ),
     }

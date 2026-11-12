@@ -162,13 +162,6 @@ impl Default for GrowthSpec {
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct LeafRoles {
-    pub trap: f64,
-    pub prize: f64,
-    pub empty: f64,
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Params {
@@ -224,11 +217,9 @@ pub struct Params {
     pub delta: f64,
     pub stairs_doors: i32,
     pub min_hops: i32,
-    pub ambush: i32,
     // Leaf chambers (§7.6)
     pub leaves: i32,
     pub leaf_classes: ByClass,
-    pub leaf_roles: LeafRoles,
     /// Junction conductance ω_h (§4.2.1): null merges the arms into one space. Shown, not used by the generator.
     pub junction: Option<f64>,
     #[serde(default)]
@@ -298,14 +289,8 @@ fn base() -> Params {
         delta: 0.15,
         stairs_doors: 1,
         min_hops: 3,
-        ambush: 1,
         leaves: 0,
         leaf_classes: ByClass::new(1.0, 0.0, 0.0, 0.0, 0.0),
-        leaf_roles: LeafRoles {
-            trap: 1.0,
-            prize: 1.0,
-            empty: 1.0,
-        },
         junction: None,
         topology: TopologySpec::default(),
         growth: GrowthSpec::default(),
@@ -364,7 +349,6 @@ pub fn rich_of_size(size: Size) -> Params {
     p.p_x = 0.15;
     p.stairs_doors = 2;
     p.min_hops = 4;
-    p.ambush = 2;
     p.leaf_classes = ByClass::new(1.0, 1.0, 1.0, 0.0, 0.0);
     p
 }

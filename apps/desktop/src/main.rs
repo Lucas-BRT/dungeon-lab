@@ -951,13 +951,6 @@ fn validate_params(p: &Params) -> Result<(), String> {
         0.0,
         1000.0,
     )?;
-    for (name, value) in [
-        ("leafRoles.trap", p.leaf_roles.trap),
-        ("leafRoles.prize", p.leaf_roles.prize),
-        ("leafRoles.empty", p.leaf_roles.empty),
-    ] {
-        float(name, value, 0.0, 1000.0)?;
-    }
     for (name, value) in &p.mix {
         float(&format!("mix.{name}"), *value, 0.0, 1.0)?;
     }
@@ -966,7 +959,6 @@ fn validate_params(p: &Params) -> Result<(), String> {
     }
     int("stairsDoors", p.stairs_doors, 1, 1000)?;
     int("minHops", p.min_hops, 1, 1000)?;
-    int("ambush", p.ambush, 0, 1000)?;
     int("leaves", p.leaves, 0, 1000)?;
     count("topology.minBranches", p.topology.min_branches, 1000)?;
     count("topology.minBranchDepth", p.topology.min_branch_depth, 1000)?;
@@ -980,15 +972,7 @@ fn role_label(role: Role) -> &'static str {
     match role {
         Role::Start => "entrance",
         Role::Stairs => "stairs",
-        Role::Ambush => "ambush",
-        Role::Boss => "boss",
-        Role::Rest => "rest",
-        Role::Key => "key",
-        Role::Switch => "switch",
         Role::Plain => "plain",
-        Role::Trap => "trap",
-        Role::Prize => "prize",
-        Role::Empty => "empty",
     }
 }
 
