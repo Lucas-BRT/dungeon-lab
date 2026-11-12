@@ -14,7 +14,7 @@ pub(super) fn add_cycles(
     let (cols, rows, cell_w, cell_h) = (p.cols.max(1), p.rows.max(1), p.cell_w, p.cell_h);
     loop {
         let beta = beta_now(g);
-        let (routes, from_cut, to_cut) = if let (true, Some((start_room, exit_room))) =
+        let (routes, _, _) = if let (true, Some((start_room, exit_room))) =
             (topology_req.min_exit_routes > 1, anchors)
         {
             crate::topology::edge_connectivity_frontiers(
@@ -42,6 +42,14 @@ pub(super) fn add_cycles(
         // Every cycle must keep at least `min_cycle_length` edges (the validator checks the girth), so once the profile asks for long
         // loops no link that closes a shorter one is taken, even after a long loop exists.
         let long_only = topology_req.min_cycle_length > 0 && !need_hub;
+        // While the exit is short of independent routes, a link is worth taking when it closes a cycle over a corridor that alone
+        // keeps the entrance and the exit together: it bypasses that corridor, and the next links bypass the others.
+        let bridges = match (need_routes, anchors) {
+            (true, Some((start, exit))) => {
+                route_bridges(g, g.node_of_room[start], g.node_of_room[exit])
+            }
+            _ => Vec::new(),
+        };
         if need_routes || need_loop || long_only {
             opts.retain(|opt| {
                 let Action::Add(ci) = opt.act else {
@@ -50,12 +58,13 @@ pub(super) fn add_cycles(
                 let c = &g.statics[ci];
                 let a = g.node_of_room[c.a];
                 let b = g.node_of_room[c.b];
-                let crosses_all_cuts = (from_cut[a] && to_cut[b]) || (from_cut[b] && to_cut[a]);
+                let bypasses_a_bridge = !need_routes
+                    || crate::topology::shortest_path(g.nodes.len(), &g.edges, a, b)
+                        .is_some_and(|(_, path)| path.iter().any(|e| bridges.contains(e)));
                 let makes_long_cycle =
                     crate::topology::shortest_path(g.nodes.len(), &g.edges, a, b)
                         .is_some_and(|(_, path)| path.len() + 1 >= topology_req.min_cycle_length);
-                (!need_routes || crosses_all_cuts)
-                    && (!(need_loop || long_only) || makes_long_cycle)
+                bypasses_a_bridge && (!(need_loop || long_only) || makes_long_cycle)
             });
         }
         let solving_hub = need_hub && !need_routes && !need_loop;
@@ -146,4 +155,32 @@ fn keep_exit_far(g: &Gen<'_>, opts: &mut Vec<Opt>, start: usize, exit: usize) {
         };
         shortest >= floor
     });
+}
+
+/// The corridors of the shortest walk from node `s` to node `t` whose removal would cut the two apart.
+fn route_bridges(g: &Gen<'_>, s: usize, t: usize) -> Vec<usize> {
+    let Some((_, path)) = crate::topology::shortest_path(g.nodes.len(), &g.edges, s, t) else {
+        return Vec::new();
+    };
+    let mut adj: Vec<Vec<(usize, usize)>> = vec![Vec::new(); g.nodes.len()];
+    for e in &g.edges {
+        adj[e.u].push((e.v, e.id));
+        adj[e.v].push((e.u, e.id));
+    }
+    path.into_iter()
+        .filter(|&skip| {
+            let mut seen = vec![false; g.nodes.len()];
+            let mut todo = vec![s];
+            seen[s] = true;
+            while let Some(u) = todo.pop() {
+                for &(v, id) in &adj[u] {
+                    if id != skip && !seen[v] {
+                        seen[v] = true;
+                        todo.push(v);
+                    }
+                }
+            }
+            !seen[t]
+        })
+        .collect()
 }

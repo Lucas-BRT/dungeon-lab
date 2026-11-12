@@ -164,3 +164,17 @@ fn independent_routes_are_left_out_with_several_islands() {
         .iter()
         .any(|m| m.contains("not supported with several islands")));
 }
+
+#[test]
+fn the_redundant_exit_profile_usually_holds_in_both_layouts() {
+    for layout in [Layout::Grid, Layout::Growth] {
+        let mut p = rich_of_size(Size::Medium);
+        p.layout = layout;
+        p.topology.profile = TopologyProfile::RedundantExit;
+        let (_, eight) = valid_counts(&p, 20);
+        assert!(
+            eight >= 16,
+            "{layout:?}: {eight}/20 valid within eight draws"
+        );
+    }
+}
