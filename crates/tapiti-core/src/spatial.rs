@@ -130,25 +130,50 @@ impl SpatialHash {
     }
 
     pub(crate) fn query_bounds(&self, lo: V, hi: V, margin: f64) -> Vec<usize> {
-        let mut out = Vec::with_capacity(self.wide.len() + 32);
-        if !self.push_query(lo, hi, margin, &mut out) {
-            return self.all_sorted();
-        }
-        self.sorted_unique(out)
+        self.query_parts(std::iter::once((lo, hi)), margin)
     }
 
-    /// Sorts and deduplicates the ids; with small ids a bitset on the stack does it in one pass, without a comparison sort.
-    fn sorted_unique(&self, mut out: Vec<usize>) -> Vec<usize> {
-        if self.max_id >= 1024 {
+    pub(crate) fn query_region(&self, region: &[Bounded], margin: f64) -> Vec<usize> {
+        self.query_parts(region.iter().map(|b| (b.lo, b.hi)), margin)
+    }
+
+    /// Ids whose cells meet any of the boxes (grown by `margin`), ascending and unique.
+    fn query_parts(&self, parts: impl Iterator<Item = (V, V)>, margin: f64) -> Vec<usize> {
+        // With small ids the ids are marked in a bitset on the stack and read back in order: no list of duplicates, no sort.
+        let small = self.max_id < 1024;
+        let mut bits = [0u64; 16];
+        let mut out = Vec::new();
+        for (lo, hi) in parts {
+            let Some((x0, x1, y0, y1)) = self.cells(lo, hi, margin) else {
+                return self.all_sorted();
+            };
+            let mut take = |ids: &[usize]| {
+                if small {
+                    for &id in ids {
+                        bits[id >> 6] |= 1 << (id & 63);
+                    }
+                } else {
+                    out.extend_from_slice(ids);
+                }
+            };
+            take(&self.wide);
+            if self.buckets.is_empty() {
+                continue;
+            }
+            let (x0, x1) = (x0.max(self.x0), x1.min(self.x0 + self.nx - 1));
+            let (y0, y1) = (y0.max(self.y0), y1.min(self.y0 + self.ny - 1));
+            for y in y0..=y1 {
+                let row = (y - self.y0) * self.nx - self.x0;
+                for x in x0..=x1 {
+                    take(&self.buckets[(row + x) as usize]);
+                }
+            }
+        }
+        if !small {
             out.sort_unstable();
             out.dedup();
             return out;
         }
-        let mut bits = [0u64; 16];
-        for &id in &out {
-            bits[id >> 6] |= 1 << (id & 63);
-        }
-        out.clear();
         for (w, &word) in bits[..=self.max_id >> 6].iter().enumerate() {
             let mut word = word;
             while word != 0 {
@@ -159,37 +184,13 @@ impl SpatialHash {
         out
     }
 
-    pub(crate) fn query_region(&self, region: &[Bounded], margin: f64) -> Vec<usize> {
-        let mut out = Vec::with_capacity(self.wide.len() + 32);
-        for bound in region {
-            if !self.push_query(bound.lo, bound.hi, margin, &mut out) {
-                return self.all_sorted();
-            }
-        }
-        self.sorted_unique(out)
-    }
-
-    fn push_query(&self, lo: V, hi: V, margin: f64, out: &mut Vec<usize>) -> bool {
-        let Some(range) = self.range(lo, hi, margin) else {
-            return false;
-        };
+    /// The cells a box grown by `margin` covers, or None when it is not finite or covers too many.
+    fn cells(&self, lo: V, hi: V, margin: f64) -> Option<(i64, i64, i64, i64)> {
+        let range = self.range(lo, hi, margin)?;
         if Self::cell_count(range).is_none_or(|n| n > 100_000) {
-            return false;
+            return None;
         }
-        out.extend_from_slice(&self.wide);
-        if self.buckets.is_empty() {
-            return true;
-        }
-        let (x0, x1, y0, y1) = range;
-        let (x0, x1) = (x0.max(self.x0), x1.min(self.x0 + self.nx - 1));
-        let (y0, y1) = (y0.max(self.y0), y1.min(self.y0 + self.ny - 1));
-        for y in y0..=y1 {
-            let row = (y - self.y0) * self.nx - self.x0;
-            for x in x0..=x1 {
-                out.extend_from_slice(&self.buckets[(row + x) as usize]);
-            }
-        }
-        true
+        Some(range)
     }
 
     fn all_sorted(&self) -> Vec<usize> {
