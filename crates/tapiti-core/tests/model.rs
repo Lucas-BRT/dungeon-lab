@@ -126,3 +126,24 @@ fn default_quotas_do_not_bind_on_a_big_grid() {
     let f = generate(146343314, &p);
     assert!(!f.log.iter().any(|m| m.contains("caps cannot fit")));
 }
+
+/// `layout` picks the room layout in the Λ's JSON: absent means the grid, `growth` grows the rooms.
+#[test]
+fn the_layout_field_picks_the_room_layout() {
+    use tapiti_core::params::{Layout, Params};
+    let mut value = serde_json::to_value(params_of_level(1)).unwrap();
+    value.as_object_mut().unwrap().remove("layout");
+    let p: Params = serde_json::from_value(value.clone()).unwrap();
+    assert_eq!(p.layout, Layout::Grid);
+
+    value["layout"] = "growth".into();
+    value["growth"]["rooms"] = 30.into();
+    let grown: Params = serde_json::from_value(value).unwrap();
+    assert_eq!(grown.layout, Layout::Growth);
+    let f = generate(7, &grown);
+    assert!(f.rooms.iter().filter(|r| r.alive).count() > 1);
+    assert_ne!(
+        serde_json::to_string(&f.rooms).unwrap(),
+        serde_json::to_string(&generate(7, &p).rooms).unwrap()
+    );
+}

@@ -243,16 +243,30 @@ fn floor_tab(app: &mut App, ui: &mut Ui) {
     });
 
     card(ui, "Layout", |ui| {
-        let mut enabled = app.params.growth.enabled;
-        if ui
-            .checkbox(&mut enabled, "Growth (prototype)")
-            .on_hover_text("Rooms grow one from another, instead of one per grid block.")
-            .changed()
-        {
-            app.change_param("growth.enabled", json!(enabled));
+        let current = serde_json::to_value(&app.params).unwrap_or(Value::Null);
+        let mut edit = None;
+        Grid::new("layout")
+            .num_columns(3)
+            .spacing([10.0, 6.0])
+            .show(ui, |ui| {
+                if let Some(field) = app
+                    .groups
+                    .iter()
+                    .flat_map(|g| &g.fields)
+                    .find(|f| f.path == "layout")
+                {
+                    let value = get_path(&current, "layout").cloned().unwrap_or(Value::Null);
+                    if let Some(next) =
+                        field_row(ui, field, &value, get_path(&app.defaults, "layout"))
+                    {
+                        edit = Some((field.path.clone(), next));
+                    }
+                }
+            });
+        if let Some((path, value)) = edit {
+            app.change_param(&path, value);
         }
-        if app.params.growth.enabled {
-            let current = serde_json::to_value(&app.params).unwrap_or(Value::Null);
+        if app.params.layout == tapiti_core::params::Layout::Growth {
             let mut edit = None;
             Grid::new("growth")
                 .num_columns(3)

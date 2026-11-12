@@ -225,6 +225,11 @@ pub fn groups() -> Vec<ParamGroup> {
             tx("Grid and size"),
             tx("Defines the available space and how many blocks make up the floor."),
             vec![
+                choice(
+                    "layout",
+                    tx("Layout"),
+                    &[("grid", tx("Grid")), ("growth", tx("Growth (prototype)"))],
+                ),
                 number("cols", tx("Columns"), 1.0, 64.0, true),
                 number("rows", tx("Rows"), 1.0, 64.0, true),
                 number("cellW", tx("Cell width (px)"), 1.0, 5000.0, false),
@@ -318,9 +323,8 @@ pub fn groups() -> Vec<ParamGroup> {
         group(
             "growth",
             tx("Growth (prototype)"),
-            tx("Instead of one room per grid block, rooms grow one from another, in free positions. The grid only sets the size of the world."),
+            tx("Used by the Growth layout: instead of one room per grid block, rooms grow one from another, in free positions. The grid only sets the size of the world."),
             vec![
-                boolean("growth.enabled", tx("Enable growth")),
                 number("growth.rooms", tx("Rooms (0 = as the grid)"), 0.0, 2000.0, true),
                 number("growth.branch", tx("Children per room (1 to N)"), 1.0, 16.0, true),
                 number("growth.depth", tx("Maximum depth"), 1.0, 200.0, true),
@@ -393,7 +397,7 @@ fn help(path: &str, label: &str) -> Text {
         "topology.minHubDegree" => tx("Minimum number of arms at a central point. Zero does not require a hub."),
         "progression.keyLocks" => tx("Number of gates that require a collected key before crossing."),
         "progression.switchLocks" => tx("Number of gates that require activating a switch before crossing."),
-        "growth.enabled" => tx("Turns on the growth generator. Isolated chambers are not generated in this mode."),
+        "layout" => tx("Grid puts one room in each grid block. Growth grows rooms one from another off a parent's door, in free space; isolated chambers are not generated in that mode."),
         "growth.rooms" => tx("Number of rooms to grow. Zero uses the number of live blocks the grid would give."),
         "growth.branch" => tx("Each room spawns from 1 up to this many children before the draw picks another parent."),
         "growth.depth" => tx("Deepest generation a room can have; the first room is 0."),

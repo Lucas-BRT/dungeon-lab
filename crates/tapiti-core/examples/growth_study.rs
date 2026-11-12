@@ -71,7 +71,7 @@ fn main() {
             (1.0, 6),
         ] {
             let mut g = p.clone();
-            g.growth.enabled = true;
+            g.layout = params::Layout::Growth;
             g.growth.rooms = rooms;
             g.growth.cluster = cluster;
             g.growth.islands = islands;

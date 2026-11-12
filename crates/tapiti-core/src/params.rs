@@ -67,6 +67,15 @@ pub enum Proximity {
     Near,
 }
 
+/// How the rooms are laid out: one per grid block, or grown one from another off a parent's door (prototype).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Layout {
+    #[default]
+    Grid,
+    Growth,
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum TopologyProfile {
@@ -133,7 +142,6 @@ pub struct ProgressionSpec {
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct GrowthSpec {
-    pub enabled: bool,
     /// Rooms to grow; 0 takes the number of live blocks the grid scaffold would have given.
     pub rooms: i32,
     /// Each room spawns 1..=branch children.
@@ -151,7 +159,6 @@ pub struct GrowthSpec {
 impl Default for GrowthSpec {
     fn default() -> Self {
         Self {
-            enabled: false,
             rooms: 0,
             branch: 3,
             depth: 8,
@@ -178,6 +185,9 @@ pub struct LeafRoles {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Params {
+    /// The layout mode; the `growth` settings apply only to `growth`.
+    #[serde(default)]
+    pub layout: Layout,
     // Scaffold (§7.1)
     pub cols: i32,
     pub rows: i32,
@@ -266,6 +276,7 @@ fn full_mix() -> BTreeMap<String, f64> {
 
 fn base() -> Params {
     Params {
+        layout: Layout::Grid,
         cols: 4,
         rows: 3,
         cell_w: 270.0,

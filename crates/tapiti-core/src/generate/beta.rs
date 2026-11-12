@@ -19,7 +19,7 @@ pub(super) fn measure_beta_max(
      */
     // Cycle candidates come from the base proximity graph, not the radius the tree needed to reach a stray room.
     let mut all_pairs = g.proximity_pairs(order[0], near_base);
-    if p.growth.enabled && p.growth.islands > 1 {
+    if p.layout == Layout::Growth && p.growth.islands > 1 {
         // Cycles stay inside a clump: the bridges are the only way between clumps.
         all_pairs.retain(|[a, b]| island_of.get(*a) == island_of.get(*b));
     }

@@ -18,7 +18,7 @@ pub(super) fn span_tree(
     let mut near = p.near.max(0.0);
     let mut pairs = g.proximity_pairs(order[0], near);
     let mut in_tree: HashSet<usize> = HashSet::from([start_room]);
-    if p.growth.enabled {
+    if p.layout == Layout::Growth {
         // The growth already joined every room to its parent: the tree phase has nothing left to do.
         in_tree.extend(0..g.rooms.len());
     }

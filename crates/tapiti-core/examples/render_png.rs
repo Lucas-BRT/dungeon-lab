@@ -131,20 +131,20 @@ fn main() {
         ("grid", base.clone()),
         ("grow30_islands1", {
             let mut p = base.clone();
-            p.growth.enabled = true;
+            p.layout = params::Layout::Growth;
             p.growth.rooms = 30;
             p
         }),
         ("grow30_islands3", {
             let mut p = base.clone();
-            p.growth.enabled = true;
+            p.layout = params::Layout::Growth;
             p.growth.rooms = 30;
             p.growth.islands = 3;
             p
         }),
         ("grow60_islands4_c1", {
             let mut p = base.clone();
-            p.growth.enabled = true;
+            p.layout = params::Layout::Growth;
             p.growth.rooms = 60;
             p.growth.islands = 4;
             p.growth.cluster = 1.0;

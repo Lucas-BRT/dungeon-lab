@@ -74,7 +74,7 @@ pub(super) fn generate_inner(
     };
     let live: Vec<usize> = (0..blocks.len()).filter(|i| alive[*i]).collect();
     let dropped: Vec<usize> = (0..blocks.len())
-        .filter(|i| !alive[*i] && !p.growth.enabled)
+        .filter(|i| !alive[*i] && p.layout != Layout::Growth)
         .collect();
 
     let world = Bx {
@@ -113,7 +113,7 @@ pub(super) fn generate_inner(
         g.edge_index.insert_region(e.id, &e.region);
     }
     /* §7.5.1 The spanning tree: Prim from the start, weighted by ω; the proximity graph relaxed when it gets stuck. */
-    let start_room = if p.growth.enabled {
+    let start_room = if p.layout == Layout::Growth {
         0
     } else {
         (g.rng.next() * g.rooms.len() as f64).floor() as usize
@@ -144,7 +144,7 @@ pub(super) fn generate_inner(
     add_cycles(&mut g, start_room, stairs_room, beta_target, &mut progress);
 
     lap("cycles");
-    if p.growth.enabled && topology_req.min_exit_routes <= 1 {
+    if p.layout == Layout::Growth && topology_req.min_exit_routes <= 1 {
         // A grown tree is shallow, so the cycles can bring the stairs under `minHops` of the start: move them to a room that is still far enough.
         let h = room_hops(&g.nodes, &g.edges, g.node_of_room[start_room]);
         if h[g.node_of_room[stairs_room]] < p.min_hops as f64 {

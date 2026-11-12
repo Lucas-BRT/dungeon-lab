@@ -104,7 +104,7 @@ pub(super) fn build_rooms(
     }
 
     /* Rooms: each block's shape, fitted (a rectangle when its class can't fit). */
-    for &i in live.iter().filter(|_| !p.growth.enabled) {
+    for &i in live.iter().filter(|_| p.layout != Layout::Growth) {
         let b = blocks[i];
         let bx = box_of(&b);
         let mut c = CLASSES[cls[&i]];
@@ -152,7 +152,7 @@ pub(super) fn build_rooms(
     g.node_of_room = g.rooms.iter().map(|r| r.id).collect();
 
     let mut island_of: Vec<usize> = Vec::new();
-    if p.growth.enabled {
+    if p.layout == Layout::Growth {
         let target = if p.growth.rooms > 0 {
             p.growth.rooms as usize
         } else {

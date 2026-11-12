@@ -28,7 +28,7 @@ pub(super) fn assign_start_and_stairs(g: &mut Gen<'_>, start_room: usize) -> usi
             stairs_room = r;
         }
     }
-    if p.growth.enabled {
+    if p.layout == Layout::Growth {
         // The cycles added later shorten walks, so the pick keeps a margin over `minHops` when the tree is deep enough for one.
         let pick = |g: &Gen<'_>, wanted: f64| -> Vec<usize> {
             g.rooms
