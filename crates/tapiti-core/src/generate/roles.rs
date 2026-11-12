@@ -29,7 +29,7 @@ pub(super) fn assign_entrance_and_exit(
     } else {
         leaves
     };
-    // A start room no corridor can leave leaves nothing to pick: the stairs stay on it, V5 flags the draw and `stage` redraws.
+    // An entrance room no corridor can leave leaves nothing to pick: the exit stays on it, V5 flags the draw and `stage` redraws.
     let mut exit_room = pool.first().copied().unwrap_or(start_room);
     for &r in &pool {
         if h0[g.node_of_room[r]] > h0[g.node_of_room[exit_room]] {

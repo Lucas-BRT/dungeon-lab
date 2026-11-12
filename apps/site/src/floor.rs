@@ -33,7 +33,7 @@ pub const WALK_SIZE_INDEX: usize = 2;
 pub const STATIONS: usize = 7;
 /// Shapes figure: the medium size with every shape weighted equally, so all five appear.
 pub const SHAPES_SEED: u32 = 16;
-/// Validator figure: a medium first draw that the validator rejects (the stairs end up too close to the entrance).
+/// Validator figure: a medium first draw that the validator rejects (the exit ends up too close to the entrance).
 pub const REJECTED_SEED: u32 = 17;
 
 fn svg(floor: &Floor, label: String) -> TrustedHtml {
@@ -66,7 +66,7 @@ pub struct Station {
     pub top_pct: f64,
 }
 
-/// The rooms along the main path, from the entrance to the stairs.
+/// The rooms along the main path, from the entrance to the exit.
 pub fn path_rooms(floor: &Floor) -> Vec<usize> {
     floor
         .main_path
@@ -185,7 +185,7 @@ mod tests {
         assert_eq!(stations[0].room, path[0]);
         assert_eq!(stations[STATIONS - 1].room, *path.last().unwrap());
         assert!(stations.windows(2).all(|pair| pair[0].room != pair[1].room));
-        // Entrance first, stairs last, and every shape on the way.
+        // Entrance first, exit last, and every shape on the way.
         let shapes: std::collections::HashSet<&str> = stations
             .iter()
             .map(|s| floor.rooms[s.room].cls.name())

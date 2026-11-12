@@ -298,5 +298,4 @@ pub(super) fn span_tree(
     drop(by_room);
     drop(frontier);
     drop(flat_spatial);
-    /* §7.5.2 Roles: the start, the stairs at a far leaf. */
 }

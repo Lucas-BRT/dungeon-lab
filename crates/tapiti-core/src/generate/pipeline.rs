@@ -165,7 +165,7 @@ pub(super) fn generate_inner(
     if let (Layout::Growth, true, Some(exit)) =
         (p.layout, topology_req.min_exit_routes <= 1, exit_room)
     {
-        // A grown tree is shallow, so the cycles can bring the stairs under `exitMinHops` of the start: move them to a room that is still far enough.
+        // A grown tree is shallow, so the cycles can bring the exit under `exitMinHops` of the entrance: move it to a room that is still far enough.
         let h = room_hops(&g.nodes, &g.edges, g.node_of_room[start_room]);
         if h[g.node_of_room[exit]] < p.exit_min_hops as f64 {
             let far: Vec<usize> = g

@@ -320,7 +320,7 @@ mod tests {
         assert!(s.contains("class=\"corridor"), "corridors");
         assert!(
             s.contains("r-entrance") && s.contains("r-exit"),
-            "entrance and stairs"
+            "entrance and exit"
         );
         assert!(
             !s.contains("<style>"),

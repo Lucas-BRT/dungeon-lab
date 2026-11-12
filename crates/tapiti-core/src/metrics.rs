@@ -169,11 +169,11 @@ pub fn metrics_of(d: &Floor) -> Metrics {
         *cap.entry((ed.v, ed.u)).or_insert(0) += 1;
     }
     let mut routes = 0;
-    while let Some(stairs_node) = exit_node {
+    while let Some(exit_target) = exit_node {
         let mut prev: HashMap<usize, Option<usize>> = HashMap::from([(start_node, None)]);
         let mut q: VecDeque<usize> = VecDeque::from([start_node]);
         while let Some(u) = q.pop_front() {
-            if prev.contains_key(&stairs_node) {
+            if prev.contains_key(&exit_target) {
                 break;
             }
             for &(v, _) in &adj[u] {
@@ -183,10 +183,10 @@ pub fn metrics_of(d: &Floor) -> Metrics {
                 }
             }
         }
-        if !prev.contains_key(&stairs_node) {
+        if !prev.contains_key(&exit_target) {
             break;
         }
-        let mut v = stairs_node;
+        let mut v = exit_target;
         while v != start_node {
             let u = prev[&v].unwrap();
             *cap.get_mut(&(u, v)).unwrap() -= 1;
