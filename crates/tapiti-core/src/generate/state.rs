@@ -341,11 +341,8 @@ impl<'a> Gen<'a> {
                         continue;
                     }
                     let e = &self.edges[sr.edge];
-                    let rooms_of_e: Vec<usize> = [e.u, e.v]
-                        .iter()
-                        .filter_map(|n| self.room_of_node(*n))
-                        .collect();
-                    if rooms_of_e.contains(&r.id) {
+                    let rooms_of_e = [self.room_of_node(e.u), self.room_of_node(e.v)];
+                    if rooms_of_e.contains(&Some(r.id)) {
                         continue;
                     }
                     {
@@ -545,15 +542,12 @@ impl<'a> Gen<'a> {
                         }
                     }
                 }
-                let rooms_of_e: Vec<usize> = [e.u, e.v]
-                    .iter()
-                    .filter_map(|n| self.room_of_node(*n))
-                    .collect();
-                if rooms_of_e.contains(&c.a) || rooms_of_e.contains(&c.b) {
+                let rooms_of_e = [self.room_of_node(e.u), self.room_of_node(e.v)];
+                if rooms_of_e.contains(&Some(c.a)) || rooms_of_e.contains(&Some(c.b)) {
                     return None;
                 }
                 for ra in [c.a, c.b] {
-                    for rb in &rooms_of_e {
+                    for rb in rooms_of_e.iter().flatten() {
                         if shape_within(&self.rooms[ra].shape, &self.rooms[*rb].shape, pr.min_len) {
                             return None;
                         }

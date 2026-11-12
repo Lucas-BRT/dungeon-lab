@@ -82,7 +82,7 @@ impl SpatialHash {
     }
 
     pub(crate) fn query_bounds(&self, lo: V, hi: V, margin: f64) -> Vec<usize> {
-        let mut out = Vec::new();
+        let mut out = Vec::with_capacity(self.wide.len() + 32);
         if !self.push_query(lo, hi, margin, &mut out) {
             return self.all_sorted();
         }
@@ -92,7 +92,7 @@ impl SpatialHash {
     }
 
     pub(crate) fn query_region(&self, region: &[Bounded], margin: f64) -> Vec<usize> {
-        let mut out = Vec::new();
+        let mut out = Vec::with_capacity(self.wide.len() + 32);
         for bound in region {
             if !self.push_query(bound.lo, bound.hi, margin, &mut out) {
                 return self.all_sorted();
