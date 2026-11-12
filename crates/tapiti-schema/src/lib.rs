@@ -292,6 +292,17 @@ pub fn groups() -> Vec<ParamGroup> {
             tx("Growth (prototype)"),
             tx("Used by the Growth layout: instead of one room per grid block, rooms grow one from another, in free positions. The grid only sets the size of the world."),
             vec![
+                choice(
+                    "growth.start",
+                    tx("First room"),
+                    &[
+                        ("center", tx("Middle")),
+                        ("north", tx("North border")),
+                        ("south", tx("South border")),
+                        ("east", tx("East border")),
+                        ("west", tx("West border")),
+                    ],
+                ),
                 number("growth.rooms", tx("Rooms (0 = as the grid)"), 0.0, 2000.0, true),
                 number("growth.branch", tx("Children per room (1 to N)"), 1.0, 16.0, true),
                 number("growth.depth", tx("Maximum depth"), 1.0, 200.0, true),
@@ -365,6 +376,7 @@ fn help(path: &str, label: &str) -> Text {
         "topology.minCycleLength" => tx("Minimum number of segments in the shortest cycle. Zero imposes no such requirement."),
         "topology.minHubDegree" => tx("Minimum number of arms at a central point. Zero does not require a hub."),
         "layout" => tx("Grid puts one room in each grid block. Growth grows rooms one from another off a parent's door, in free space; isolated chambers are not generated in that mode."),
+        "growth.start" => tx("Where the first room, the entrance when there is one, stands: the middle of the world or against a border (north is the top of the map). Growing from a border makes a deeper floor."),
         "growth.rooms" => tx("Number of rooms to grow. Zero uses the number of live blocks the grid would give, less half of the leaf chambers asked for, which are placed in the room that is left."),
         "growth.branch" => tx("Each room spawns from 1 up to this many children before the draw picks another parent."),
         "growth.depth" => tx("Deepest generation a room can have; the first room is 0."),

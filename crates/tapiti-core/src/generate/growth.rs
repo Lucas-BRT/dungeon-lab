@@ -71,9 +71,16 @@ pub(super) fn grow_rooms(
         }
     };
 
-    // The first room, in the middle of the world.
+    // The first room, in the middle of the world or against the border `growth.start` names (a `gap` in from it).
     let (w0, h0, cells0) = pick_box(&mut g.rng);
-    let (mx, my) = ((world.x0 + world.x1) / 2.0, (world.y0 + world.y1) / 2.0);
+    let (mut mx, mut my) = ((world.x0 + world.x1) / 2.0, (world.y0 + world.y1) / 2.0);
+    match p.growth.start {
+        GrowthStart::Center => {}
+        GrowthStart::North => my = world.y0 + p.gap + h0 / 2.0,
+        GrowthStart::South => my = world.y1 - p.gap - h0 / 2.0,
+        GrowthStart::West => mx = world.x0 + p.gap + w0 / 2.0,
+        GrowthStart::East => mx = world.x1 - p.gap - w0 / 2.0,
+    }
     let bx0 = Bx {
         x0: mx - w0 / 2.0,
         y0: my - h0 / 2.0,

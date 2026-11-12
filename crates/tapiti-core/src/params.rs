@@ -147,10 +147,24 @@ impl TopologySpec {
     }
 }
 
+/// Where the first room of the grown layout stands: the middle of the world, or against one of its borders (north is the top of the map).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum GrowthStart {
+    #[default]
+    Center,
+    North,
+    South,
+    East,
+    West,
+}
+
 /// Grown layout (prototype): rooms are placed one after another off a parent's door, instead of one per grid block.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct GrowthSpec {
+    /// Where the first room (the entrance, when there is one) stands.
+    pub start: GrowthStart,
     /// Rooms to grow; 0 takes the number of live blocks the grid scaffold would have given.
     pub rooms: i32,
     /// Each room spawns 1..=branch children.
@@ -168,6 +182,7 @@ pub struct GrowthSpec {
 impl Default for GrowthSpec {
     fn default() -> Self {
         Self {
+            start: GrowthStart::Center,
             rooms: 0,
             branch: 3,
             depth: 8,

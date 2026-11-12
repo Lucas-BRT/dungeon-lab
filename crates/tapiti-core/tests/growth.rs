@@ -119,3 +119,33 @@ fn the_long_loop_profile_holds_in_both_layouts() {
         assert_eq!(eight, 20, "{layout:?}");
     }
 }
+
+/// `growth.start` puts the first room, the entrance, against the border it names (north is the top, `y` grows downward).
+#[test]
+fn the_first_room_stands_where_growth_start_says() {
+    use tapiti_core::params::GrowthStart;
+    for start in [
+        GrowthStart::North,
+        GrowthStart::South,
+        GrowthStart::East,
+        GrowthStart::West,
+    ] {
+        let mut p = grown(Size::Medium);
+        p.growth.start = start;
+        for seed in 1..=10u32 {
+            let d = generate(seed, &p);
+            let c = d.rooms[d.entrance.unwrap()].center;
+            let (x0, x1) = (d.grid_x[0], *d.grid_x.last().unwrap());
+            let (y0, y1) = (d.grid_y[0], *d.grid_y.last().unwrap());
+            let (mx, my) = ((x0 + x1) / 2.0, (y0 + y1) / 2.0);
+            let ok = match start {
+                GrowthStart::North => c[1] < my,
+                GrowthStart::South => c[1] > my,
+                GrowthStart::West => c[0] < mx,
+                GrowthStart::East => c[0] > mx,
+                GrowthStart::Center => true,
+            };
+            assert!(ok, "{start:?} seed {seed}: entrance at {c:?}");
+        }
+    }
+}

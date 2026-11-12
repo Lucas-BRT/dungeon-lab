@@ -278,6 +278,7 @@ fn floor_tab(app: &mut App, ui: &mut Ui) {
                 .show(ui, |ui| {
                     for field in app.groups.iter().flat_map(|g| &g.fields).filter(|f| {
                         [
+                            "growth.start",
                             "growth.rooms",
                             "growth.islands",
                             "growth.branch",
