@@ -330,6 +330,22 @@ impl<'a> Gen<'a> {
             if !r.alive || self.locked_full(r.id) {
                 return out;
             }
+            // An arm is perpendicular to its segment, so where it meets the segment (`along`) is the door's own position along it:
+            // a room whose box lies outside every segment's usable stretch (plus a hair of slack) has no branch at all.
+            let [b0, b1] = [r.bounds.lo, r.bounds.hi];
+            let corners = [b0, [b1[0], b0[1]], [b0[0], b1[1]], b1];
+            let near = axes.iter().flatten().any(|sr| {
+                let (mut lo, mut hi) = (f64::INFINITY, f64::NEG_INFINITY);
+                for c in corners {
+                    let d = dot(sub(c, sr.a), sr.ds);
+                    lo = lo.min(d);
+                    hi = hi.max(d);
+                }
+                hi >= margin - 1e-3 && lo <= sr.sl - margin + 1e-3
+            });
+            if !near {
+                return out;
+            }
             // The doors in use only change when an edge is added, so the free ones are worked out once for the room, not once per segment.
             let mut free: Vec<bool> = vec![false; r.ports.len()];
             let mut free_known: Vec<bool> = vec![false; r.ports.len()];
