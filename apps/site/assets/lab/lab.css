@@ -40,14 +40,14 @@
 }
 .secondary-button:hover, .icon-button:hover, .experiment-button:hover, .map-tool-button:hover { border-color: var(--ash); }
 
-/* Levels: one segmented control. */
-.level-list { display: flex; }
-.level-button { flex: 1; min-height: 36px; margin-left: -1px; padding: 4px 2px; border: 1px solid var(--stone-500); background: var(--stone-800); color: var(--ash); font-size: .82rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.level-button:first-child { margin-left: 0; border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
-.level-button:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
-.level-button:hover { color: var(--bone); border-color: var(--ash); z-index: 1; position: relative; }
-.level-button.selected { background: var(--carrot); border-color: var(--carrot); color: var(--soil); position: relative; z-index: 1; }
-.level-description { min-height: 2.8em; margin: 8px 0 0; color: var(--ash); font-size: .88rem; }
+/* Sizes: one segmented control. */
+.size-list { display: flex; }
+.size-button { flex: 1; min-height: 36px; margin-left: -1px; padding: 4px 2px; border: 1px solid var(--stone-500); background: var(--stone-800); color: var(--ash); font-size: .82rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.size-button:first-child { margin-left: 0; border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.size-button:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.size-button:hover { color: var(--bone); border-color: var(--ash); z-index: 1; position: relative; }
+.size-button.selected { background: var(--carrot); border-color: var(--carrot); color: var(--soil); position: relative; z-index: 1; }
+.size-description { min-height: 2.8em; margin: 8px 0 0; color: var(--ash); font-size: .88rem; }
 
 .seed-card { margin-top: 14px; }
 .seed-card label { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-weight: 700; }

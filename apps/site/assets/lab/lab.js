@@ -42,7 +42,7 @@ const createPool = (size = Math.max(1, Math.min(navigator.hardwareConcurrency ||
       pending.delete(data.id)
     }
   }
-  const batch = async (level, from, count, use = size) => {
+  const batch = async (preset, from, count, use = size) => {
     const t0 = performance.now()
     const n = Math.max(1, Math.min(use, size, count))
     const slices = Array.from({ length: n }, (_, i) => [from + Math.floor((count * i) / n), Math.floor((count * (i + 1)) / n) - Math.floor((count * i) / n)])
@@ -50,7 +50,7 @@ const createPool = (size = Math.max(1, Math.min(navigator.hardwareConcurrency ||
       slices.map(([f, c], i) => new Promise((resolve) => {
         const id = next++
         pending.set(id, resolve)
-        workers[i].postMessage({ id, level, from: f, count: c })
+        workers[i].postMessage({ id, size: preset, from: f, count: c })
       })),
     )
     return { invalid: answers.reduce((a, r) => a + r.invalid, 0), ms: performance.now() - t0, workers: n }
@@ -62,12 +62,13 @@ let pool = null
 /* ---------------- Constants ---------------- */
 
 const CLASSES = ['rect', 'disc', 'oct', 'L', 'star']
+const SIZE_NAMES = ['small', 'medium', 'large', 'huge']
 const ROLES = ['start', 'stairs', 'ambush', 'boss', 'rest', 'key', 'switch', 'trap', 'prize', 'empty']
 const className = (name) => dict[`lab_class_${name}`] ?? name
 const roleName = (name) => dict[`lab_role_${name}`] ?? name
 const DIRS = [[1, 0], [Math.SQRT1_2, Math.SQRT1_2], [0, 1], [-Math.SQRT1_2, Math.SQRT1_2], [-1, 0], [-Math.SQRT1_2, -Math.SQRT1_2], [0, -1], [Math.SQRT1_2, -Math.SQRT1_2]]
 
-const state = { level: 1, seed: 1, P: JSON.parse(default_params(1)), defaults: JSON.parse(default_params(1)) }
+const state = { size: 1, seed: 1, P: JSON.parse(default_params(1)), defaults: JSON.parse(default_params(1)) }
 const overlays = { cells: true, labels: true, ports: false, pairs: false, candidates: false }
 const view = { zoom: 1, x: 0, y: 0 }
 let current = null
@@ -125,10 +126,10 @@ const showToast = (message) => {
 
 const form = $('parameter-groups')
 const fields = [...form.querySelectorAll('[name]')]
-const levelDescription = $('level-description')
+const sizeDescription = $('size-description')
 const changedStatus = $('changed-status')
 const seedInput = $('seed-input')
-const levelButtons = [...root.querySelectorAll('.level-button')]
+const sizeButtons = [...root.querySelectorAll('.size-button')]
 
 const syncForm = () => {
   for (const el of fields) {
@@ -148,13 +149,13 @@ const updateChanged = () => {
   changedStatus.classList.toggle('changed', n > 0)
 }
 
-const updateLevelButtons = () => {
-  levelButtons.forEach((button, index) => {
-    const selected = index + 1 === state.level
+const updateSizeButtons = () => {
+  sizeButtons.forEach((button, index) => {
+    const selected = index + 1 === state.size
     button.classList.toggle('selected', selected)
     button.setAttribute('aria-pressed', String(selected))
   })
-  levelDescription.textContent = tr(`lab_level_${state.level}`)
+  sizeDescription.textContent = tr(`lab_size_${state.size}`)
 }
 
 const changed = () => {
@@ -193,17 +194,17 @@ form.addEventListener('click', (event) => {
   changed()
 })
 
-function setLevel(level) {
-  state.level = level
-  state.P = JSON.parse(default_params(level))
+function setSize(size) {
+  state.size = size
+  state.P = JSON.parse(default_params(size))
   state.defaults = clone(state.P)
   syncForm()
-  updateLevelButtons()
+  updateSizeButtons()
   changed()
 }
 
-for (const button of levelButtons) button.addEventListener('click', () => setLevel(Number(button.dataset.level)))
-$('reset-level').addEventListener('click', () => setLevel(state.level))
+for (const button of sizeButtons) button.addEventListener('click', () => setSize(Number(button.dataset.size)))
+$('reset-size').addEventListener('click', () => setSize(state.size))
 
 /* ---------------- Seed, copy, overlays, experiments ---------------- */
 
@@ -234,7 +235,7 @@ seedInput.addEventListener('change', () => {
 
 $('copy-params').addEventListener('click', async () => {
   try {
-    await navigator.clipboard.writeText(JSON.stringify({ level: state.level, seed: state.seed, params: state.P }, null, 2))
+    await navigator.clipboard.writeText(JSON.stringify({ size: SIZE_NAMES[state.size - 1], seed: state.seed, params: state.P }, null, 2))
     showToast(tr('lab_copied'))
   } catch {
     showToast(tr('lab_no_clipboard'))
@@ -266,15 +267,15 @@ for (const button of root.querySelectorAll('[data-experiment]')) {
 
 const benchStatus = $('bench-status')
 $('bench-40').addEventListener('click', () => {
-  const result = JSON.parse(bench(state.level, 1, 40))
+  const result = JSON.parse(bench(state.size, 1, 40))
   benchStatus.textContent = tr('lab_perf_40_result', { ms: formatNumber(result.ms / 40, 2), invalid: result.invalid })
 })
 $('bench-800').addEventListener('click', async () => {
   benchStatus.textContent = tr('lab_perf_800_run')
   try {
     pool ??= createPool()
-    const one = await pool.batch(state.level, 1, 800, 1)
-    const all = await pool.batch(state.level, 1, 800)
+    const one = await pool.batch(state.size, 1, 800, 1)
+    const all = await pool.batch(state.size, 1, 800)
     benchStatus.textContent = tr('lab_perf_800_result', { one: formatNumber(one.ms, 0), workers: all.workers, many: formatNumber(all.ms, 0), invalid: all.invalid })
   } catch (error) {
     benchStatus.textContent = tr('lab_perf_800_fail', { error })
@@ -643,7 +644,7 @@ const renderResults = () => {
       el('p', {}, ok ? tr('lab_valid_detail', { draws, ms: formatNumber(ms, 1) }) : tr('lab_invalid_detail', { draws })),
       ...(ok ? [] : [el('ul', { class: 'violation-list' }, ...violations.slice(0, 8).map((line) => el('li', {}, translate(line, VIOLATIONS))))]),
     ))
-  results.append(el('div', { class: 'panel-header' }, el('p', { class: 'eyebrow' }, tr('lab_panel_eyebrow', { level: state.level, seed: state.seed })), el('h2', {}, tr('lab_panel_title'))), status)
+  results.append(el('div', { class: 'panel-header' }, el('p', { class: 'eyebrow' }, tr('lab_panel_eyebrow', { size: SIZE_NAMES[state.size - 1], seed: state.seed })), el('h2', {}, tr('lab_panel_title'))), status)
 
   const groups = METRIC_ROWS(m)
   Object.entries(groups).forEach(([title, rows], index) => {
@@ -687,7 +688,7 @@ const regenerate = () => {
 }
 function scheduleRegenerate() {
   clearTimeout(regenTimer)
-  updateLevelButtons()
+  updateSizeButtons()
   regenTimer = setTimeout(regenerate, 80)
 }
 
@@ -756,7 +757,7 @@ window.addEventListener('keydown', (event) => {
   // The 3D view uses the arrow keys itself, to move.
   if (event.target === canvas3d) return
   if (event.altKey || event.ctrlKey || event.metaKey) return
-  if (event.key >= '1' && event.key <= '5') setLevel(Number(event.key))
+  if (event.key >= '1' && event.key <= '4') setSize(Number(event.key))
   else if (event.key === 'r' || event.key === 'R') newSeed()
   else if (event.key === 'ArrowLeft') seedStep(-1)
   else if (event.key === 'ArrowRight') seedStep(1)
@@ -841,6 +842,6 @@ $('view-3d').addEventListener('click', () => { if (view3d.active) return; setVie
 $('view-plan').addEventListener('click', () => { if (view3d.active) leave3d() })
 
 syncForm()
-updateLevelButtons()
+updateSizeButtons()
 updateChanged()
 regenerate()

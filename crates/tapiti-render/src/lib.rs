@@ -298,15 +298,19 @@ pub fn floor_svg(d: &Floor, style: &Style) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tapiti_core::{generate::generate, params::params_of_level};
+    use tapiti_core::{
+        generate::generate,
+        params::{rich_of_size, Size},
+    };
 
-    fn svg(seed: u32, level: usize, style: &Style) -> String {
-        floor_svg(&generate(seed, &params_of_level(level)), style)
+    /// The floor of `seed` at the medium size with every option on.
+    fn svg(seed: u32, style: &Style) -> String {
+        floor_svg(&generate(seed, &rich_of_size(Size::Medium)), style)
     }
 
     #[test]
     fn the_view_box_is_the_one_the_svg_declares() {
-        let d = generate(5, &params_of_level(3));
+        let d = generate(5, &rich_of_size(Size::Medium));
         let [x, y, w, h] = view_box(&d, &Style::default());
         let svg = floor_svg(&d, &Style::default());
         assert!(
@@ -323,18 +327,18 @@ mod tests {
             labels: true,
             ..Style::default()
         };
-        assert_eq!(svg(7, 5, &style), svg(7, 5, &style));
-        assert_ne!(svg(7, 5, &style), svg(8, 5, &style));
+        assert_eq!(svg(7, &style), svg(7, &style));
+        assert_ne!(svg(7, &style), svg(8, &style));
         let named = Style {
             label: Some("A \"floor\"".into()),
             ..Style::default()
         };
-        assert!(svg(7, 5, &named).contains("aria-label=\"A &quot;floor&quot;\""));
+        assert!(svg(7, &named).contains("aria-label=\"A &quot;floor&quot;\""));
     }
 
     #[test]
     fn draws_rooms_corridors_and_a_viewbox() {
-        let s = svg(3, 5, &Style::default());
+        let s = svg(3, &Style::default());
         assert!(s.starts_with("<svg ") && s.ends_with("</svg>"));
         assert!(s.contains("viewBox=\""));
         assert!(s.matches("class=\"room ").count() >= 5, "rooms");
@@ -353,7 +357,6 @@ mod tests {
     fn standalone_themes_embed_their_colours() {
         assert!(svg(
             3,
-            2,
             &Style {
                 theme: Theme::Dark,
                 ..Style::default()
@@ -362,7 +365,6 @@ mod tests {
         .contains("<style>"));
         assert!(svg(
             3,
-            2,
             &Style {
                 theme: Theme::Light,
                 ..Style::default()
@@ -375,7 +377,6 @@ mod tests {
     fn every_emitted_class_is_documented() {
         let s = svg(
             11,
-            5,
             &Style {
                 grid: true,
                 labels: true,

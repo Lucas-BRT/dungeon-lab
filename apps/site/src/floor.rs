@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 use std::time::Instant;
 use tapiti_core::{
     generate::{Floor, Node, generate},
-    params::params_of_level,
+    params::{Size, rich_of_size},
     stage::stage,
     validate::validate,
 };
@@ -23,15 +23,17 @@ impl NodeViewParts for TrustedHtml {
     }
 }
 
-/// The floor the landing page walks along: level 5, first draw valid, a main path of ten rooms through all five shapes, one
+/// The floor the landing page walks along: the medium size with every option on, first draw valid, a main path of ten rooms through all five shapes, one
 /// junction and a leaf chamber. The scene of phase 5 builds the same floor in the browser from the same seed.
 pub const WALK_SEED: u32 = 279;
-pub const WALK_LEVEL: usize = 5;
+pub const WALK_SIZE: Size = Size::Medium;
+/// Its position among the sizes (1 to 4), as the wasm module takes it.
+pub const WALK_SIZE_INDEX: usize = 2;
 /// Sections of the landing page, one room each.
 pub const STATIONS: usize = 7;
-/// Shapes figure: level 5 with every shape weighted equally, so all five appear.
+/// Shapes figure: the medium size with every shape weighted equally, so all five appear.
 pub const SHAPES_SEED: u32 = 16;
-/// Validator figure: a level 5 first draw that the validator rejects (the stairs end up too close to the entrance).
+/// Validator figure: a medium first draw that the validator rejects (the stairs end up too close to the entrance).
 pub const REJECTED_SEED: u32 = 17;
 
 fn svg(floor: &Floor, label: String) -> TrustedHtml {
@@ -47,7 +49,7 @@ fn svg(floor: &Floor, label: String) -> TrustedHtml {
 /// The floor of the walk (a validated stage, as the browser's wasm module returns it for the same seed).
 pub fn walk() -> &'static Floor {
     static FLOOR: OnceLock<Floor> = OnceLock::new();
-    FLOOR.get_or_init(|| stage(WALK_SEED, &params_of_level(WALK_LEVEL), 8).d)
+    FLOOR.get_or_init(|| stage(WALK_SEED, &rich_of_size(WALK_SIZE), 8).d)
 }
 
 pub fn walk_svg(label: String) -> TrustedHtml {
@@ -98,7 +100,7 @@ pub fn stations() -> [Station; STATIONS] {
 pub fn shapes(label: String) -> TrustedHtml {
     static FLOOR: OnceLock<Floor> = OnceLock::new();
     let floor = FLOOR.get_or_init(|| {
-        let mut params = params_of_level(5);
+        let mut params = rich_of_size(Size::Medium);
         params.weights.rect = 1.0;
         params.weights.disc = 1.0;
         params.weights.oct = 1.0;
@@ -114,7 +116,7 @@ pub fn shapes(label: String) -> TrustedHtml {
 pub fn rejected(label: String) -> (TrustedHtml, Vec<String>) {
     static FLOOR: OnceLock<(Floor, Vec<String>)> = OnceLock::new();
     let (floor, violations) = FLOOR.get_or_init(|| {
-        let floor = generate(REJECTED_SEED, &params_of_level(5));
+        let floor = generate(REJECTED_SEED, &rich_of_size(Size::Medium));
         let violations = validate(&floor);
         (floor, violations)
     });
@@ -124,7 +126,7 @@ pub fn rejected(label: String) -> (TrustedHtml, Vec<String>) {
 /// Numbers measured on this machine when the server starts, so the landing page never quotes a figure the code did not produce.
 #[derive(Clone, Copy, Debug)]
 pub struct Speed {
-    /// Median time to dig a validated level 5 floor, in milliseconds.
+    /// Median time to dig a validated medium floor, in milliseconds.
     pub median_ms: u32,
     pub valid: usize,
     pub total: usize,
@@ -133,7 +135,7 @@ pub struct Speed {
 pub fn speed() -> Speed {
     static SPEED: OnceLock<Speed> = OnceLock::new();
     *SPEED.get_or_init(|| {
-        let params = params_of_level(5);
+        let params = rich_of_size(Size::Medium);
         let total = 60;
         let mut times = Vec::with_capacity(total);
         let mut valid = 0;

@@ -3,15 +3,24 @@ lab_eyebrow = Interactive lab
 lab_intro = Explore how the mathematical rules change the shape and paths of a floor. Change a value to generate a new map.
 lab_loading = Loading the generator…
 lab_needs_js = The lab runs the generator in your browser, with WebAssembly, so it needs JavaScript.
-lab_levels_title = Choose a level
-lab_levels_help = Each level is a starting set of parameters. You can edit any value afterwards.
-lab_level_button = Level { $n }
-lab_level_aria = Use the level { $n } configuration
-lab_level_1 = Introduction: rectangular rooms and few extra connections.
-lab_level_2 = Adds L-shaped rooms and the first junctions.
-lab_level_3 = Enlarges the map and unlocks diagonal paths and circular rooms.
-lab_level_4 = Combines more shapes, junctions and stairs doors.
-lab_level_5 = Richest setup: more rooms, shapes and connection alternatives.
+lab_sizes_title = Choose a size
+lab_sizes_help = Each size is a starting grid with the large blocks and leaf chambers that go with it. You can edit any value afterwards.
+lab_size_button = { $n ->
+    [1] Small
+    [2] Medium
+    [3] Large
+   *[4] Huge
+  }
+lab_size_aria = { $n ->
+    [1] Start from the small size
+    [2] Start from the medium size
+    [3] Start from the large size
+   *[4] Start from the huge size
+  }
+lab_size_1 = Small: a compact grid with a few rooms.
+lab_size_2 = Medium: a floor of a few dozen rooms.
+lab_size_3 = Large: a big grid with many rooms and leaf chambers.
+lab_size_4 = Huge: the largest grid, with the most rooms.
 lab_seed = Map seed
 lab_seed_help = The same seed and parameters generate the same map. Change the seed to explore another random configuration.
 lab_seed_aria = Random seed
@@ -22,11 +31,11 @@ lab_seed_error = The seed must be an integer between 0 and 4,294,967,295.
 lab_copy = Copy parameters (JSON)
 lab_copied = Parameters copied as JSON.
 lab_no_clipboard = The clipboard is not available in this browser.
-lab_reset_level = Reset to level default
+lab_reset_size = Reset to size default
 lab_changed_none = Default configuration
 lab_changed_some = { $n } parameter(s) changed
 lab_howto_title = How to explore this map
-lab_howto_text = Drag the map to move it. Use the mouse wheel or the zoom buttons. Hover a room, junction or corridor to see details. Keys: 1 to 5 pick a level, R a random seed, the arrows the previous or next seed.
+lab_howto_text = Drag the map to move it. Use the mouse wheel or the zoom buttons. Hover a room, junction or corridor to see details. Keys: 1 to 4 pick a size, R a random seed, the arrows the previous or next seed.
 lab_overlays_title = What to show
 lab_overlays_help = Layers help you understand how the generator built the map. Turn them on one at a time to compare without hiding the rooms.
 lab_overlay_cells = Grid
@@ -62,8 +71,8 @@ lab_junction_text = The conductance of a junction is a parameter of the referenc
 lab_junction_current = Current value
 lab_junction_inf = ∞ (arms joined)
 lab_perf_title = Performance
-lab_perf_intro = Benchmarks use the level default configuration, not the values changed in the form.
-lab_perf_idle = Benchmarks use the default parameters of the selected level.
+lab_perf_intro = Benchmarks use the size default configuration, not the values changed in the form.
+lab_perf_idle = Benchmarks use the default parameters of the selected size.
 lab_perf_40 = Measure 40 maps
 lab_perf_800 = Measure batch of 800
 lab_perf_40_result = Average: { $ms } ms per map · { $invalid } invalid of 40.
@@ -94,7 +103,7 @@ lab_valid_detail = { $draws } attempt(s) · { $ms } ms to generate
 lab_invalid = { $n } problem(s) found
 lab_invalid_detail = After { $draws } attempt(s), the map still does not meet every rule.
 lab_panel_title = Floor reading
-lab_panel_eyebrow = Level { $level }, seed { $seed }
+lab_panel_eyebrow = { $size } size, seed { $seed }
 lab_g_size = Map size
 lab_g_cycles = Cycles and density
 lab_g_paths = Paths and connectivity

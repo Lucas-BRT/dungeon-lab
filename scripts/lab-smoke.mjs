@@ -48,7 +48,7 @@ const run = async (body) => {
 
 const checks = [
   ['panel is filled', `return document.getElementById('results').innerText.includes('Valid map')`, (v) => v === true],
-  ['level button works', `document.querySelector('[data-level="3"]').click(); await new Promise(r => setTimeout(r, 700)); return document.getElementById('results').innerText.includes('Level 3, seed')`, (v) => v === true],
+  ['size button works', `document.querySelector('[data-size="3"]').click(); await new Promise(r => setTimeout(r, 700)); return document.getElementById('results').innerText.includes('Level 3, seed')`, (v) => v === true],
   ['a parameter change is counted', `const el = document.querySelector('[name="cols"]'); el.value = '9'; el.dispatchEvent(new Event('change', { bubbles: true })); return document.getElementById('changed-status').textContent`, (v) => /1 parameter/.test(v)],
   ['a bad value is refused', `const el = document.querySelector('[name="rows"]'); el.value = '999'; el.dispatchEvent(new Event('change', { bubbles: true })); return el.parentElement.querySelector('.field-error').textContent`, (v) => v.length > 0],
   ['benchmark runs', `document.getElementById('bench-40').click(); return document.getElementById('bench-status').textContent`, (v) => /invalid of 40/.test(v)],
@@ -76,7 +76,7 @@ await run("document.getElementById('view-3d').click()")
 const mounted = await (async () => { for (let i = 0; i < 40; i++) { if (await run('return !!window.__walk && window.__walk.calls > 0')) return true; await sleep(500) } return false })()
 report('the 3D view draws the floor', mounted, await run('return JSON.stringify(window.__walk)'))
 report('the 3D view hides the plan tools', (await run("return document.getElementById('floor-map').hidden && !document.getElementById('floor-3d').hidden && document.getElementById('zoom-in').hidden")) === true, '3d')
-await run("document.querySelector('[data-level=\"2\"]').click()")
+await run("document.querySelector('[data-size=\"2\"]').click()")
 await sleep(1500)
 report('the 3D view follows a new floor', (await run('return !!window.__walk && window.__walk.calls > 0')) === true, 'regenerate')
 await run("document.getElementById('view-plan').click()")

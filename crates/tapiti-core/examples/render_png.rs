@@ -124,7 +124,7 @@ fn render(d: &generate::Floor, scale: f64) -> (usize, usize, Vec<u8>) {
 
 fn main() {
     let dir = std::env::args().nth(1).unwrap_or_else(|| ".".into());
-    let mut base = params::params_of_level(5);
+    let mut base = params::rich_of_size(params::Size::Medium);
     base.cols = 16;
     base.rows = 12;
     let variants: Vec<(&str, params::Params)> = vec![

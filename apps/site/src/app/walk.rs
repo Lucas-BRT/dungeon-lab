@@ -43,7 +43,7 @@ fn station_name(cx: &Cx, i: usize) -> String {
 }
 
 fn floor_label(cx: &Cx) -> String {
-    t!(walk_floor_label, seed: floor::WALK_SEED, level: floor::WALK_LEVEL)
+    t!(walk_floor_label, seed: floor::WALK_SEED, size: "medium")
         .resolve(cx)
         .into_owned()
 }
@@ -144,7 +144,7 @@ pub async fn scene_backdrop(
                 data-three=(asset!("assets/vendor/three-subset.min.js"))
                 data-build=(asset!("assets/walk/build.js"))
                 data-seed=(floor::WALK_SEED.to_string())
-                data-level=(floor::WALK_LEVEL.to_string())
+                data-size=(floor::WALK_SIZE_INDEX.to_string())
             }
         >
             (child)

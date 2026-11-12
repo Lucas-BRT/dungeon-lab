@@ -44,11 +44,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
                         </a>
                     </div>
                     <p class="caption">
-                        (t!(
-                            walk_caption,
-                            seed: floor::WALK_SEED,
-                            level: floor::WALK_LEVEL,
-                        ))
+                        (t!(walk_caption, seed: floor::WALK_SEED, size: "medium"))
                     </p>
                 )
                 room(

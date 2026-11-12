@@ -1,4 +1,4 @@
-//! The parameter vector Λ of the Tapiti model (§8): one generator, a different Λ per level. The JSON field names are camelCase,
+//! The parameter vector Λ of the Tapiti model (§8): one generator, one Λ that a size preset or the user fills in. The JSON field names are camelCase,
 //! so a Λ copied from one frontend (desktop or web) loads in the other.
 
 use serde::{Deserialize, Serialize};
@@ -331,61 +331,59 @@ fn base() -> Params {
     }
 }
 
-/// Λ by level (the doc's §8 table, to be tuned here).
-pub fn params_of_level(level: usize) -> Params {
-    let mut p = base();
-    match level.clamp(1, 5) {
-        1 => {}
-        2 => {
-            p.cols = 5;
-            p.weights = ByClass::new(0.8, 0.0, 0.0, 0.2, 0.0);
-            p.delta = 0.25;
-            p.p_t = 0.1;
-            p.leaves = 1;
-        }
-        3 => {
-            p.cols = 5;
-            p.rows = 4;
-            p.m = 8;
-            p.weights = ByClass::new(0.6, 0.2, 0.0, 0.2, 0.0);
-            p.proximity = Proximity::Gabriel;
-            p.delta = 0.35;
-            p.p_t = 0.15;
-            p.p_x = 0.05;
-            p.leaves = 2;
-            p.leaf_classes = ByClass::new(1.0, 1.0, 0.0, 0.0, 0.0);
-            p.big = 3;
-        }
-        4 => {
-            p.cols = 6;
-            p.rows = 4;
-            p.m = 8;
-            p.weights = ByClass::new(0.4, 0.2, 0.1, 0.2, 0.1);
-            p.proximity = Proximity::Gabriel;
-            p.delta = 0.45;
-            p.p_t = 0.2;
-            p.p_x = 0.1;
-            p.stairs_doors = 2;
-            p.leaves = 3;
-            p.leaf_classes = ByClass::new(1.0, 1.0, 1.0, 0.0, 0.0);
-            p.big = 3;
-        }
-        _ => {
-            p.cols = 6;
-            p.rows = 5;
-            p.m = 8;
-            p.weights = ByClass::new(0.3, 0.2, 0.15, 0.2, 0.15);
-            p.proximity = Proximity::Near;
-            p.delta = 0.55;
-            p.p_t = 0.25;
-            p.p_x = 0.15;
-            p.stairs_doors = 2;
-            p.min_hops = 4;
-            p.ambush = 2;
-            p.leaves = 4;
-            p.leaf_classes = ByClass::new(1.0, 1.0, 1.0, 0.0, 0.0);
-            p.big = 4;
-        }
+/// A starting size for the floor: the grid and how many large blocks and leaf chambers go with it. A quick way to begin;
+/// every other parameter stays at its default and any value can be changed afterwards.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Size {
+    Small,
+    Medium,
+    Large,
+    Huge,
+}
+
+impl Size {
+    pub const ALL: [Size; 4] = [Size::Small, Size::Medium, Size::Large, Size::Huge];
+
+    pub fn name(self) -> &'static str {
+        ["small", "medium", "large", "huge"][self as usize]
     }
+
+    /// The size at position `n` (1 to 4) of `ALL`, clamped.
+    pub fn of_index(n: usize) -> Size {
+        Size::ALL[n.clamp(1, 4) - 1]
+    }
+
+    /// Columns by rows of the grid.
+    pub fn grid(self) -> (i32, i32) {
+        [(4, 3), (6, 5), (10, 8), (16, 12)][self as usize]
+    }
+}
+
+/// Λ of a size: the grid, about one large block in seven cells and one leaf chamber in eight.
+pub fn params_of_size(size: Size) -> Params {
+    let mut p = base();
+    let (cols, rows) = size.grid();
+    let cells = cols * rows;
+    p.cols = cols;
+    p.rows = rows;
+    p.big = (cells + 3) / 7;
+    p.leaves = [1, 4, 10, 24][size as usize];
+    p
+}
+
+/// `params_of_size` with every shape, junction and connection option switched on, for tests, benchmarks and demos: a floor that
+/// uses the whole generator. It is not a preset of the apps, which start from `params_of_size`.
+pub fn rich_of_size(size: Size) -> Params {
+    let mut p = params_of_size(size);
+    p.m = 8;
+    p.weights = ByClass::new(0.3, 0.2, 0.15, 0.2, 0.15);
+    p.proximity = Proximity::Near;
+    p.delta = 0.55;
+    p.p_t = 0.25;
+    p.p_x = 0.15;
+    p.stairs_doors = 2;
+    p.min_hops = 4;
+    p.ambush = 2;
+    p.leaf_classes = ByClass::new(1.0, 1.0, 1.0, 0.0, 0.0);
     p
 }

@@ -3,7 +3,7 @@ use eframe::egui::{self, DragValue, RichText, Ui};
 use serde_json::{json, Value};
 pub use tapiti_schema::{groups, FieldKind, ParamField, ParamGroup};
 
-/// One parameter as a grid row: label with hover help, the control, and a reset when it differs from the level default.
+/// One parameter as a grid row: label with hover help, the control, and a reset when it differs from the size default.
 /// Returns the new value when the user changed it.
 pub fn field_row(
     ui: &mut Ui,
@@ -83,7 +83,7 @@ pub fn field_row(
     if differs {
         if ui
             .small_button("default")
-            .on_hover_text("Reset to the level default")
+            .on_hover_text("Reset to the size default")
             .clicked()
         {
             next = default.cloned();

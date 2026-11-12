@@ -425,7 +425,10 @@ mod tests {
 
     #[test]
     fn every_field_path_exists_in_lambda() {
-        let lambda = serde_json::to_value(tapiti_core::params::params_of_level(5)).unwrap();
+        let lambda = serde_json::to_value(tapiti_core::params::rich_of_size(
+            tapiti_core::params::Size::Medium,
+        ))
+        .unwrap();
         for group in groups() {
             for field in &group.fields {
                 let found = field.path.split('.').try_fold(&lambda, |v, k| v.get(k));

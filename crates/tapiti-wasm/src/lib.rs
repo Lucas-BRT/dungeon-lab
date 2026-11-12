@@ -18,10 +18,19 @@ struct Answer<'a> {
     ms: f64,
 }
 
-/// Λ of a level (1 to 5) as JSON.
+/// Λ of a size (1 small, 2 medium, 3 large, 4 huge) as JSON.
 #[wasm_bindgen]
-pub fn default_params(level: u32) -> String {
-    serde_json::to_string(&params::params_of_level(level as usize)).unwrap()
+pub fn default_params(size: u32) -> String {
+    serde_json::to_string(&params::params_of_size(params::Size::of_index(
+        size as usize,
+    )))
+    .unwrap()
+}
+
+/// Λ of a size with every shape, junction and connection option on (the landing page's showcase), as JSON.
+#[wasm_bindgen]
+pub fn rich_params(size: u32) -> String {
+    serde_json::to_string(&params::rich_of_size(params::Size::of_index(size as usize))).unwrap()
 }
 
 /// A valid stage for `seed` and the Λ in `params_json`, as JSON: `{ floor, violations, draws, metrics, ms }`.
@@ -49,11 +58,11 @@ pub fn threads() -> u32 {
     par::threads() as u32
 }
 
-/// Times `count` stages of one level from the seeds `from..from + count`, one after another, and returns `{ invalid, ms, threads }`.
+/// Times `count` stages of one size from the seeds `from..from + count`, one after another, and returns `{ invalid, ms, threads }`.
 /// The page's worker pool gives each worker a slice of the seeds (see `apps/site/assets/lab/lab.js`); natively the stages of a slice also split over rayon's threads.
 #[wasm_bindgen]
-pub fn bench(level: u32, from: u32, count: u32) -> String {
-    let p = params::params_of_level(level as usize);
+pub fn bench(size: u32, from: u32, count: u32) -> String {
+    let p = params::params_of_size(params::Size::of_index(size as usize));
     let seeds: Vec<u32> = (from..from + count).collect();
     let t0 = clock::now_ms();
     let invalid: usize = par::pmap(&seeds, |seed| {

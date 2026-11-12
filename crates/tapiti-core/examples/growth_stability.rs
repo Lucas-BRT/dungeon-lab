@@ -44,10 +44,14 @@ fn run(label: &str, p: &params::Params) {
     }
 }
 fn main() {
-    for level in [1, 3, 5] {
-        let mut p = params::params_of_level(level);
+    for size in [
+        params::Size::Small,
+        params::Size::Medium,
+        params::Size::Large,
+    ] {
+        let mut p = params::rich_of_size(size);
         p.layout = Layout::Growth;
-        run(&format!("level {level} default grid"), &p);
+        run(&format!("{} default grid", size.name()), &p);
     }
     for (name, prof) in [
         ("classic", TopologyProfile::Classic),
@@ -56,12 +60,12 @@ fn main() {
         ("redundantExit", TopologyProfile::RedundantExit),
         ("longLoop", TopologyProfile::LongLoop),
     ] {
-        let mut p = params::params_of_level(5);
+        let mut p = params::rich_of_size(params::Size::Medium);
         p.layout = Layout::Growth;
         p.topology.profile = prof;
         run(&format!("level 5 profile {name}"), &p);
     }
-    let mut p = params::params_of_level(5);
+    let mut p = params::rich_of_size(params::Size::Medium);
     p.layout = Layout::Growth;
     p.leaves = 4;
     let d = generate(1, &p);
@@ -69,7 +73,7 @@ fn main() {
         "leaf rooms with growth, leaves=4: {}",
         d.rooms.iter().filter(|r| r.leaf).count()
     );
-    let mut p = params::params_of_level(5);
+    let mut p = params::rich_of_size(params::Size::Medium);
     p.layout = Layout::Growth;
     p.cols = 16;
     p.rows = 12;
