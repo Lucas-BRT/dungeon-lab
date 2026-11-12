@@ -60,7 +60,7 @@ fn main() {
     let map = SITES.lock().unwrap().take().unwrap();
     let total: u64 = map.values().sum();
     let mut v: Vec<_> = map.into_iter().collect();
-    v.sort_by(|a, b| b.1.cmp(&a.1));
+    v.sort_by_key(|entry| std::cmp::Reverse(entry.1));
     for (s, n) in v.iter().take(30) {
         println!("{:5.1}%  {s}", *n as f64 * 100.0 / total as f64);
     }
