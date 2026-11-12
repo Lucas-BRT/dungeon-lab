@@ -3,8 +3,8 @@
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
 use std::collections::HashMap;
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
+use std::sync::Mutex;
 use tapiti_core::{generate::generate, params::params_of_level};
 
 struct Sampler;
@@ -19,11 +19,18 @@ fn sample() {
     let bt = std::backtrace::Backtrace::force_capture().to_string();
     let site = bt
         .lines()
-        .filter(|l| l.contains("at ./crates/tapiti-core/src") || l.contains("at crates/tapiti-core/src"))
+        .filter(|l| {
+            l.contains("at ./crates/tapiti-core/src") || l.contains("at crates/tapiti-core/src")
+        })
         .map(|l| l.trim().trim_start_matches("at ").to_string())
         .next()
         .unwrap_or_else(|| "other".into());
-    *SITES.lock().unwrap().get_or_insert_with(HashMap::new).entry(site).or_default() += 1;
+    *SITES
+        .lock()
+        .unwrap()
+        .get_or_insert_with(HashMap::new)
+        .entry(site)
+        .or_default() += 1;
     BUSY.with(|b| b.set(false));
 }
 unsafe impl GlobalAlloc for Sampler {
