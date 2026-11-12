@@ -131,13 +131,6 @@ impl TopologySpec {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
-#[serde(default, rename_all = "camelCase")]
-pub struct ProgressionSpec {
-    pub key_locks: usize,
-    pub switch_locks: usize,
-}
-
 /// Grown layout (prototype): rooms are placed one after another off a parent's door, instead of one per grid block.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
@@ -167,12 +160,6 @@ impl Default for GrowthSpec {
             islands: 1,
         }
     }
-}
-
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
-#[serde(default, rename_all = "camelCase")]
-pub struct PacingSpec {
-    pub enabled: bool,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
@@ -246,10 +233,6 @@ pub struct Params {
     pub junction: Option<f64>,
     #[serde(default)]
     pub topology: TopologySpec,
-    #[serde(default)]
-    pub progression: ProgressionSpec,
-    #[serde(default)]
-    pub pacing: PacingSpec,
     #[serde(default)]
     pub growth: GrowthSpec,
 }
@@ -325,8 +308,6 @@ fn base() -> Params {
         },
         junction: None,
         topology: TopologySpec::default(),
-        progression: ProgressionSpec::default(),
-        pacing: PacingSpec::default(),
         growth: GrowthSpec::default(),
     }
 }

@@ -49,21 +49,8 @@ pub(crate) fn map_object_at(floor: &Floor, point: [f64; 2], zoom: f64) -> String
     for room in floor.rooms.iter().rev() {
         if room.alive && point_in_shape(&room.shape, point) {
             let kind = if room.leaf { "leaf chamber" } else { "room" };
-            let items = [
-                (room.keys != 0).then(|| format!("{n} key(s)", n = room.keys.count_ones())),
-                (room.switches != 0)
-                    .then(|| format!("{n} switch(es)", n = room.switches.count_ones())),
-            ]
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
-            let items = if items.is_empty() {
-                String::new()
-            } else {
-                format!("\nItems: {}", items.join(" · "))
-            };
             return format!(
-                "{kind} · {role}\nRoom #{id} · {class}\nArea: {area:.0} px²\nDoors used: {used} · possible: {possible}{items}",
+                "{kind} · {role}\nRoom #{id} · {class}\nArea: {area:.0} px²\nDoors used: {used} · possible: {possible}",
                 kind = kind,
                 role = role_label(room.role),
                 id = room.id,
@@ -101,26 +88,13 @@ pub(crate) fn map_object_at(floor: &Floor, point: [f64; 2], zoom: f64) -> String
                 .windows(2)
                 .map(|segment| dist(segment[0], segment[1]))
                 .sum::<f64>();
-            let gates = [
-                (edge.requires_keys != 0).then(|| format!("key {:08b}", edge.requires_keys)),
-                (edge.requires_switches != 0)
-                    .then(|| format!("switch {:08b}", edge.requires_switches)),
-            ]
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
             return format!(
-                "Corridor segment #{id}\n{from} – {to}\n{n} segment(s) · {length:.0} px{gates}",
+                "Corridor segment #{id}\n{from} – {to}\n{n} segment(s) · {length:.0} px",
                 id = edge.id,
                 from = node_label(floor, edge.u),
                 to = node_label(floor, edge.v),
                 n = edge.pts.len().saturating_sub(1),
-                length = length,
-                gates = if gates.is_empty() {
-                    String::new()
-                } else {
-                    format!("\nLocked: {}", gates.join(" and "))
-                }
+                length = length
             );
         }
     }

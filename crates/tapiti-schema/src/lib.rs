@@ -311,16 +311,6 @@ pub fn groups() -> Vec<ParamGroup> {
             ],
         ),
         group(
-            "progression",
-            tx("Progression and pacing"),
-            tx("Add gates that require items or switches and spread roles along the main path."),
-            vec![
-                number("progression.keyLocks", tx("Key locks"), 0.0, 8.0, true),
-                number("progression.switchLocks", tx("Switch locks"), 0.0, 8.0, true),
-                boolean("pacing.enabled", tx("Enable exploration pacing")),
-            ],
-        ),
-        group(
             "growth",
             tx("Growth (prototype)"),
             tx("Used by the Growth layout: instead of one room per grid block, rooms grow one from another, in free positions. The grid only sets the size of the world."),
@@ -395,8 +385,6 @@ fn help(path: &str, label: &str) -> Text {
         "topology.minExitRoutes" => tx("Minimum number of independent paths between the entrance and the stairs."),
         "topology.minCycleLength" => tx("Minimum number of segments in the shortest cycle. Zero imposes no such requirement."),
         "topology.minHubDegree" => tx("Minimum number of arms at a central point. Zero does not require a hub."),
-        "progression.keyLocks" => tx("Number of gates that require a collected key before crossing."),
-        "progression.switchLocks" => tx("Number of gates that require activating a switch before crossing."),
         "layout" => tx("Grid puts one room in each grid block. Growth grows rooms one from another off a parent's door, in free space; isolated chambers are not generated in that mode."),
         "growth.rooms" => tx("Number of rooms to grow. Zero uses the number of live blocks the grid would give."),
         "growth.branch" => tx("Each room spawns from 1 up to this many children before the draw picks another parent."),
@@ -404,7 +392,6 @@ fn help(path: &str, label: &str) -> Text {
         "growth.islands" => tx("Splits the rooms into islands linked by long bridges. With more than one, cycles stay inside each island."),
         "growth.cluster" => tx("Positive concentrates new rooms where there are already many; negative spreads them; zero is neutral."),
         "growth.reach" => tx("Average corridor distance beyond the minimum, in grid cells."),
-        "pacing.enabled" => tx("Spreads rest, boss and ambushes along the main path and prizes in optional branches."),
         "leaves" => tx("Number of extra chambers the generator tries to place in free cells."),
         "leafRoles.trap" => tx("Relative weight for a leaf chamber to get a trap."),
         "leafRoles.prize" => tx("Relative weight for a leaf chamber to get a prize."),

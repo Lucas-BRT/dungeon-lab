@@ -24,7 +24,6 @@ const remember = (key, value) => {
     return null
   }
 }
-const popcount = (bits) => bits.toString(2).replaceAll('0', '').length
 
 await init()
 
@@ -335,7 +334,6 @@ const draw = () => {
   const ink = css('--bone')
   const accent = css('--carrot')
   const corridor = css('--map-corridor')
-  const gate = css('--gate')
   const surface = css('--stone-800')
   const colorOf = (cls) => css(`--map-${cls}`) || '#59677a'
   const roleColor = (role) => css(`--role-${role}`)
@@ -383,32 +381,6 @@ const draw = () => {
   ctx.lineJoin = 'round'
   for (const edge of d.edges) strokePolyline(edge.pts)
   ctx.globalAlpha = 1
-  for (const edge of d.edges) {
-    if (!edge.requiresKeys && !edge.requiresSwitches) continue
-    const lengths = edge.pts.slice(1).map((point, i) => Math.hypot(point[0] - edge.pts[i][0], point[1] - edge.pts[i][1]))
-    let remaining = lengths.reduce((sum, length) => sum + length, 0) / 2
-    let at = edge.pts[0]
-    for (let i = 0; i < lengths.length; i++) {
-      if (remaining <= lengths[i]) {
-        const t = lengths[i] ? remaining / lengths[i] : 0
-        at = [edge.pts[i][0] + (edge.pts[i + 1][0] - edge.pts[i][0]) * t, edge.pts[i][1] + (edge.pts[i + 1][1] - edge.pts[i][1]) * t]
-        break
-      }
-      remaining -= lengths[i]
-    }
-    ctx.beginPath()
-    ctx.arc(at[0], at[1], 8 * px, 0, Math.PI * 2)
-    ctx.fillStyle = surface
-    ctx.fill()
-    ctx.strokeStyle = gate
-    ctx.lineWidth = 2 * px
-    ctx.stroke()
-    ctx.font = `bold ${9 * px}px system-ui, sans-serif`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillStyle = gate
-    ctx.fillText(edge.requiresKeys ? 'K' : 'S', at[0], at[1] + 0.5 * px)
-  }
   for (const room of d.rooms) {
     if (!room.alive) continue
     pathOf(room.shape)
@@ -460,8 +432,7 @@ const draw = () => {
     const halo = css('--abyss')
     for (const room of d.rooms) {
       if (!room.alive) continue
-      const inventory = [room.keys ? `K${popcount(room.keys)}` : '', room.switches ? `S${popcount(room.switches)}` : ''].filter(Boolean).join(' ')
-      const label = `#${room.id} ${className(room.cls)}${room.role !== 'plain' ? ` · ${roleName(room.role)}` : ''}${inventory ? ` · ${inventory}` : ''}`
+      const label = `#${room.id} ${className(room.cls)}${room.role !== 'plain' ? ` · ${roleName(room.role)}` : ''}`
       ctx.lineWidth = 2.2 * px
       ctx.strokeStyle = halo
       ctx.strokeText(label, room.center[0], room.center[1] + 4 * px)
@@ -500,16 +471,12 @@ const nodeLabel = (floor, nodeId) => {
   return room ? tr('lab_node_room', { id: room.id }) : tr('lab_node_point')
 }
 
-const gateText = (bits, one, many) => tr(popcount(bits) > 1 ? many : one, { bits: bits.toString(2) })
-
 const mapObjectAt = (point, scale) => {
   const d = current.floor
   for (const room of [...d.rooms].reverse()) {
     if (!room.alive || !containsPoint(room.shape, point)) continue
     const role = room.leaf ? tr('lab_leaf_role', { role: roleName(room.role) || roleName('empty') }) : roleName(room.role)
-    const items = [room.keys ? tr('lab_bits_keys', { n: popcount(room.keys) }) : '', room.switches ? tr('lab_bits_switches', { n: popcount(room.switches) }) : ''].filter(Boolean)
     const lines = [tr('lab_tip_room', { role, id: room.id, class: className(room.cls), area: formatNumber(room.area, 0), used: room.used.length, possible: room.ports.length })]
-    if (items.length) lines.push(tr('lab_tip_items', { list: items.join(' · ') }))
     return lines.join('\n')
   }
   const junction = d.nodes.find((node) => node.kind === 'junction' && Math.hypot(node.p[0] - point[0], node.p[1] - point[1]) <= Math.max(6, 8 / scale))
@@ -523,12 +490,7 @@ const mapObjectAt = (point, scale) => {
     for (let i = 1; i < edge.pts.length; i++) {
       if (distanceToSegment(point, edge.pts[i - 1], edge.pts[i]) > threshold) continue
       const length = edge.pts.slice(1).reduce((sum, p, j) => sum + Math.hypot(p[0] - edge.pts[j][0], p[1] - edge.pts[j][1]), 0)
-      const gates = [
-        edge.requiresKeys ? gateText(edge.requiresKeys, 'lab_gate_key', 'lab_gate_keys') : '',
-        edge.requiresSwitches ? gateText(edge.requiresSwitches, 'lab_gate_switch', 'lab_gate_switches') : '',
-      ].filter(Boolean)
       const lines = [tr('lab_tip_corridor', { id: edge.id, from: nodeLabel(d, edge.u), to: nodeLabel(d, edge.v), n: edge.pts.length - 1, length: formatNumber(length, 0) })]
-      if (gates.length) lines.push(tr('lab_tip_locked', { list: gates.join(` ${tr('lab_tip_and')} `) }))
       return lines.join('\n')
     }
   }
@@ -593,9 +555,6 @@ const VIOLATIONS = [
   [/^T3 profile requires (\d+) independent routes to stairs; found (\d+)$/, 'lab_v_t3'],
   [/^T4 profile requires a hub degree of (\d+); found (\d+)$/, 'lab_v_t4'],
   [/^T5 profile requires a cycle of at least (\d+) branches; found (\d+)$/, 'lab_v_t5'],
-  ['P1 stairs are unreachable with the generated keys and switches', 'lab_v_p1'],
-  ['P2 a required key is unreachable before its gate', 'lab_v_p2'],
-  ['P3 a required switch is unreachable before its gate', 'lab_v_p3'],
 ]
 const LOGS = [
   [/^tree stuck: candidates from (.+)$/i, 'lab_l_stuck_candidates'],
@@ -605,8 +564,6 @@ const LOGS = [
   [/^β\* = (.+) not reached: nothing more fits \(β = (.+)\)$/, 'lab_l_beta'],
   [/^block (\d+): (.+) does not fit, rect instead$/, 'lab_l_block'],
   [/^(.+) of (.+) leaf chambers fit$/, 'lab_l_leaves'],
-  [/^progression: only (\d+) of (\d+) requested locks fit on the main path$/, 'lab_l_locks'],
-  ['progression: each lock type is limited to eight bits', 'lab_l_lock_bits'],
   [/^topology profile: could not reach (\d+) independent routes to stairs \(λ = (\d+)\)$/, 'lab_l_routes'],
   [/^topology profile: no valid junction can reach degree (\d+)$/, 'lab_l_hub'],
   [/^topology profile: no valid cycle of at least (\d+) branches fits$/, 'lab_l_cycle'],

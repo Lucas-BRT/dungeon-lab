@@ -10,7 +10,7 @@ hashes 150 stages (5 levels × 30 seeds) and the hashes did not move, single-thr
 ## Speed
 
 Generation cost depends on Λ: the current model evaluates corridor candidates,
-βmax with junction actions, topology constraints, progression, and leaf chambers.
+βmax with junction actions, topology constraints and leaf chambers.
 Do not compare it with measurements from the earlier, smaller model.
 
 Recent native release measurements on the development machine (14 Rayon threads)

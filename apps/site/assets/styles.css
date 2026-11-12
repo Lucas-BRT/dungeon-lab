@@ -123,7 +123,6 @@
 
   /* Floor colours: the SVG only carries classes, the tokens colour it. */
   .tapiti-floor .corridor { stroke: var(--map-corridor); }
-  .tapiti-floor .gated { stroke: var(--gate); }
   .tapiti-floor .room { stroke: var(--plate); stroke-width: 4; }
   .tapiti-floor .c-rect { fill: var(--map-rect); }
   .tapiti-floor .c-disc { fill: var(--map-disc); }

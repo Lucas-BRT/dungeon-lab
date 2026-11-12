@@ -25,14 +25,11 @@ fn generation(c: &mut Criterion) {
         b.iter(|| generate::generate(black_box(0xD06E_0005), black_box(&extended)))
     });
 
-    let mut progression = params::rich_of_size(Size::Medium);
-    progression.topology.profile = TopologyProfile::Backbone;
-    progression.topology.min_branch_depth = 2;
-    progression.progression.key_locks = 2;
-    progression.progression.switch_locks = 1;
-    progression.pacing.enabled = true;
-    group.bench_function("medium-progression", |b| {
-        b.iter(|| generate::generate(black_box(0xD06E_0006), black_box(&progression)))
+    let mut backbone = params::rich_of_size(Size::Medium);
+    backbone.topology.profile = TopologyProfile::Backbone;
+    backbone.topology.min_branch_depth = 2;
+    group.bench_function("medium-backbone", |b| {
+        b.iter(|| generate::generate(black_box(0xD06E_0006), black_box(&backbone)))
     });
     group.finish();
 }

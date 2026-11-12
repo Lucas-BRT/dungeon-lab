@@ -61,3 +61,13 @@ pub(super) fn assign_start_and_stairs(g: &mut Gen<'_>, start_room: usize) -> usi
     g.stairs_room = stairs_room;
     stairs_room
 }
+
+/// The rooms along a path of nodes of H, in order (junctions are skipped).
+pub(super) fn path_rooms(nodes: &[Node], path: &[usize]) -> Vec<usize> {
+    path.iter()
+        .filter_map(|&node| match nodes.get(node) {
+            Some(Node::Room { room }) => Some(*room),
+            _ => None,
+        })
+        .collect()
+}

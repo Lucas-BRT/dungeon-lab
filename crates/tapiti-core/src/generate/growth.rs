@@ -68,8 +68,6 @@ pub(super) fn grow_rooms(
             leaf: false,
             alive: true,
             role: Role::Plain,
-            keys: 0,
-            switches: 0,
         }
     };
 

@@ -157,8 +157,6 @@ impl<'a> Gen<'a> {
             pts,
             ends,
             region,
-            requires_keys: 0,
-            requires_switches: 0,
         });
         self.edge_index.insert_region(id, &self.edges[id].region);
         id
@@ -225,8 +223,6 @@ impl<'a> Gen<'a> {
         self.nodes.push(Node::Junction { p: Box::new(h) });
         let old_v = self.edges[e].v;
         let old_end = self.edges[e].ends[1];
-        let requires_keys = self.edges[e].requires_keys;
-        let requires_switches = self.edges[e].requires_switches;
         let mut first: Vec<V> = self.edges[e].pts[..=seg].to_vec();
         first.push(h);
         let mut second: Vec<V> = vec![h];
@@ -248,11 +244,7 @@ impl<'a> Gen<'a> {
             pts: second,
             ends: [None, old_end],
             region: tail_region,
-            requires_keys,
-            requires_switches,
         });
-        self.edges[e].requires_keys = requires_keys;
-        self.edges[e].requires_switches = requires_switches;
         self.edge_index.insert_region(e, &self.edges[e].region);
         self.edge_index.insert_region(id, &self.edges[id].region);
         j

@@ -17,7 +17,7 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tapiti_core::generate::{Floor, GenerationEvent, Role};
-use tapiti_core::geom::{dist, Shape};
+use tapiti_core::geom::Shape;
 use tapiti_core::metrics::{metrics_of, Metrics};
 use tapiti_core::par;
 use tapiti_core::params::{params_of_size, Params, Size};
@@ -624,7 +624,6 @@ pub fn translate_violation(message: &str) -> String {
             "V4" => "corridor geometry",
             "V5" => "entrance and stairs",
             "T1" | "T2" | "T3" | "T4" | "T5" => "topology requirement",
-            "P1" | "P2" | "P3" => "progression",
             _ => "model rule",
         };
         format!("{meaning}: {detail}")
@@ -974,32 +973,7 @@ fn validate_params(p: &Params) -> Result<(), String> {
     count("topology.minExitRoutes", p.topology.min_exit_routes, 1000)?;
     count("topology.minCycleLength", p.topology.min_cycle_length, 1000)?;
     count("topology.minHubDegree", p.topology.min_hub_degree, 1000)?;
-    count("progression.keyLocks", p.progression.key_locks, 8)?;
-    count("progression.switchLocks", p.progression.switch_locks, 8)?;
     Ok(())
-}
-
-fn point_along(points: &[[f64; 2]], fraction: f64) -> [f64; 2] {
-    let lengths = points
-        .windows(2)
-        .map(|pair| dist(pair[0], pair[1]))
-        .collect::<Vec<_>>();
-    let mut remaining = lengths.iter().sum::<f64>() * fraction;
-    for (index, length) in lengths.iter().enumerate() {
-        if remaining <= *length {
-            let t = if *length > 0.0 {
-                remaining / length
-            } else {
-                0.0
-            };
-            return [
-                points[index][0] + (points[index + 1][0] - points[index][0]) * t,
-                points[index][1] + (points[index + 1][1] - points[index][1]) * t,
-            ];
-        }
-        remaining -= length;
-    }
-    points.last().copied().unwrap_or([0.0, 0.0])
 }
 
 fn role_label(role: Role) -> &'static str {

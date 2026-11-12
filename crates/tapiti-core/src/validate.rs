@@ -417,29 +417,5 @@ pub fn validate(d: &Floor) -> Vec<String> {
         }
     }
 
-    let required_keys = d.edges.iter().fold(0u8, |mask, e| mask | e.requires_keys);
-    let required_switches = d
-        .edges
-        .iter()
-        .fold(0u8, |mask, e| mask | e.requires_switches);
-    if required_keys != 0 || required_switches != 0 {
-        let (reached_stairs, reachable_keys, reachable_switches) =
-            crate::topology::progression_reachable(
-                &d.nodes,
-                &d.edges,
-                &d.rooms,
-                room_node[&d.start],
-                d.stairs,
-            );
-        if !reached_stairs {
-            out.push("P1 stairs are unreachable with the generated keys and switches".to_string());
-        }
-        if required_keys & reachable_keys != required_keys {
-            out.push("P2 a required key is unreachable before its gate".to_string());
-        }
-        if required_switches & reachable_switches != required_switches {
-            out.push("P3 a required switch is unreachable before its gate".to_string());
-        }
-    }
     out
 }

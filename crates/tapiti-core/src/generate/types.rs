@@ -53,10 +53,6 @@ pub struct Room {
     pub leaf: bool,
     pub alive: bool,
     pub role: Role,
-    /// Monotone inventory bits granted when this room is entered.
-    pub keys: u8,
-    /// Switch bits that can be activated while the player is in this room.
-    pub switches: u8,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -79,9 +75,6 @@ pub struct Edge {
     /// needed by the viewer's map representation.
     #[serde(skip)]
     pub region: Vec<Bounded>,
-    /// Required key and switch masks for traversing this corridor branch.
-    pub requires_keys: u8,
-    pub requires_switches: u8,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]

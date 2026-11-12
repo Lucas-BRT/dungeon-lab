@@ -174,14 +174,11 @@ lab_leaf_role = leaf chamber · { $role }
 lab_node_junction = junction
 lab_node_room = room #{ $id }
 lab_node_point = point
-lab_bits_keys = keys: { $n }
-lab_bits_switches = switches: { $n }
 lab_tip_room =
     { $role }
     Room #{ $id } · { $class }
     Area: { $area } px²
     Doors used: { $used } · possible doors: { $possible }
-lab_tip_items = Items: { $list }
 lab_tip_junction =
     Corridor junction
     { $degree } arms connected
@@ -190,12 +187,6 @@ lab_tip_corridor =
     Corridor segment #{ $id }
     { $from } → { $to }
     { $n } segment(s) · { $length } px
-lab_tip_locked = Locked: requires { $list }
-lab_tip_and = and
-lab_gate_key = key { $bits }
-lab_gate_keys = keys { $bits }
-lab_gate_switch = switch { $bits }
-lab_gate_switches = switches { $bits }
 lab_v_v1 = Room #{ $a } cannot be reached from the entrance.
 lab_v_v2_rooms = Rooms #{ $a } and #{ $b } are too close together.
 lab_v_v4_reach = Corridor { $a } reaches only { $b } room(s); every corridor must join rooms.
@@ -220,9 +211,6 @@ lab_v_t2 = The profile requires a branch depth of { $a }; { $b } was generated.
 lab_v_t3 = The profile requires { $a } independent routes to the stairs; { $b } were generated.
 lab_v_t4 = The profile requires a point with at least { $a } arms; the largest has { $b }.
 lab_v_t5 = The profile requires a cycle of at least { $a } stretches; the shortest has { $b }.
-lab_v_p1 = The stairs cannot be reached with the available keys and switches.
-lab_v_p2 = A required key cannot be collected before its gate.
-lab_v_p3 = A required switch cannot be activated before its gate.
 lab_l_stuck_candidates = Few connections available; widening the search ({ $a }).
 lab_l_stuck_near = Widening the search radius to { $a } px.
 lab_l_left_out = { $a } room(s) were left isolated because no valid link was found.
@@ -230,8 +218,6 @@ lab_l_stairs = The stairs ended up { $a } steps from the entrance; the target wa
 lab_l_beta = The target of { $a } cycles was not reached; the map ended with { $b }.
 lab_l_block = The { $b } shape did not fit in block { $a }; a rectangular room was used.
 lab_l_leaves = { $a } of { $b } leaf chambers fit.
-lab_l_locks = Only { $a } of the { $b } requested locks fit on the main path.
-lab_l_lock_bits = Each lock type accepts at most eight items.
 lab_l_routes = The profile reached { $b } of { $a } independent routes to the stairs.
 lab_l_hub = No junction of degree { $a } fit.
 lab_l_cycle = No cycle of at least { $a } stretches fit.

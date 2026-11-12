@@ -83,8 +83,6 @@ pub(super) fn add_leaf_chambers(
             leaf: true,
             alive: true,
             role: Role::Empty,
-            keys: 0,
-            switches: 0,
         };
         let center = room.center;
         g.rooms.push(room);
@@ -144,13 +142,7 @@ pub(super) fn add_leaf_chambers(
             GenerationEvent::RoomAdded(g.rooms[id].shape.clone())
         });
         let rw = p.leaf_roles;
-        let weights = if p.pacing.enabled
-            && (create_branch || p.topology.profile == TopologyProfile::Backbone)
-        {
-            [rw.trap * 0.5, rw.prize * 1.5, rw.empty]
-        } else {
-            [rw.trap, rw.prize, rw.empty]
-        };
+        let weights = [rw.trap, rw.prize, rw.empty];
         let k = g.pick_class(&weights);
         g.rooms[id].role = [Role::Trap, Role::Prize, Role::Empty][k];
         made_leaves += 1;

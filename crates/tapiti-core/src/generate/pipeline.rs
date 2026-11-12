@@ -168,7 +168,7 @@ pub(super) fn generate_inner(
             }
         }
     }
-    let (main_path, main_path_edges) = crate::topology::shortest_path(
+    let (main_path, _) = crate::topology::shortest_path(
         g.nodes.len(),
         &g.edges,
         g.node_of_room[start_room],
@@ -176,9 +176,6 @@ pub(super) fn generate_inner(
     )
     .unwrap_or_default();
     let main_path_rooms = path_rooms(&g.nodes, &main_path);
-    if p.pacing.enabled {
-        assign_pacing(&mut g, &main_path, p.ambush.max(0) as usize);
-    }
     // The spots for leaf chambers: the grid's dropped cells; a grown layout drops none, so they are the boxes of one cell
     // beyond a free door of a room (two reaches each), inside the world and clear of every room (`add_leaf_chambers`
     // still refuses what overlaps a room or a corridor). At most 160 of them, spread over the list.
@@ -230,20 +227,16 @@ pub(super) fn generate_inner(
     );
 
     /* §7.7 (part) Ambush rooms: the biggest plain rooms. */
-    if !p.pacing.enabled {
-        let mut plain: Vec<usize> = g
-            .rooms
-            .iter()
-            .filter(|r| r.alive && !r.leaf && r.role == Role::Plain)
-            .map(|r| r.id)
-            .collect();
-        plain.sort_by(|a, b| g.rooms[*b].area.partial_cmp(&g.rooms[*a].area).unwrap());
-        for id in plain.into_iter().take(p.ambush.max(0) as usize) {
-            g.rooms[id].role = Role::Ambush;
-        }
+    let mut plain: Vec<usize> = g
+        .rooms
+        .iter()
+        .filter(|r| r.alive && !r.leaf && r.role == Role::Plain)
+        .map(|r| r.id)
+        .collect();
+    plain.sort_by(|a, b| g.rooms[*b].area.partial_cmp(&g.rooms[*a].area).unwrap());
+    for id in plain.into_iter().take(p.ambush.max(0) as usize) {
+        g.rooms[id].role = Role::Ambush;
     }
-
-    assign_progression(&mut g, &main_path, &main_path_edges);
 
     lap("leaf chambers");
     let dropped_centers: Vec<V> = dropped

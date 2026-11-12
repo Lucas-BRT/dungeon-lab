@@ -1,6 +1,6 @@
 //! The map view: world-to-screen transform and egui painting of rooms, corridors and overlays.
 
-use crate::{class_label, point_along, role_label, view_box, BuildingMap, Overlays};
+use crate::{class_label, role_label, view_box, BuildingMap, Overlays};
 use eframe::egui::{
     epaint::PathShape, Align2, Color32, FontId, Mesh, Painter, Pos2, Rect, Shape as Draw, Stroke,
     Vec2,
@@ -367,32 +367,14 @@ pub fn draw_floor(painter: &Painter, xf: &Xf, floor: &Floor, overlays: Overlays,
         }
     }
     for edge in &floor.edges {
-        let gated = edge.requires_keys > 0 || edge.requires_switches > 0;
         polyline(
             painter,
             xf,
             &edge.pts,
-            if gated { pal.warning } else { pal.corridor },
+            pal.corridor,
             floor.params.width.max(2.0) as f32,
-            gated,
+            false,
         );
-        if gated {
-            let middle = xf.pt(point_along(&edge.pts, 0.5));
-            let radius = (13.0 * xf.scale).max(7.0);
-            painter.circle(
-                middle,
-                radius,
-                pal.background,
-                Stroke::new(2.0, pal.warning),
-            );
-            painter.text(
-                middle,
-                Align2::CENTER_CENTER,
-                if edge.requires_keys > 0 { "K" } else { "S" },
-                FontId::proportional((radius * 1.2).clamp(9.0, 30.0)),
-                pal.ink,
-            );
-        }
     }
     for room in &floor.rooms {
         if room.alive {
@@ -447,30 +429,12 @@ pub fn draw_floor(painter: &Painter, xf: &Xf, floor: &Floor, overlays: Overlays,
     }
     if overlays.labels {
         for room in floor.rooms.iter().filter(|room| room.alive) {
-            let inventory = [
-                (room.keys != 0).then(|| format!("K{}", room.keys.count_ones())),
-                (room.switches != 0).then(|| format!("S{}", room.switches.count_ones())),
-            ]
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>()
-            .join(" ");
             let role = if room.role == Role::Plain {
                 String::new()
             } else {
                 format!(" · {}", role_label(room.role))
             };
-            let text = format!(
-                "#{} {}{}{}",
-                room.id,
-                class_label(room.cls.name()),
-                role,
-                if inventory.is_empty() {
-                    String::new()
-                } else {
-                    format!(" · {inventory}")
-                }
-            );
+            let text = format!("#{} {}{}", room.id, class_label(room.cls.name()), role);
             label(painter, xf, &text, room.center, pal.on_room(), 18.0);
         }
     }
@@ -484,7 +448,7 @@ pub fn legend(painter: &Painter, rect: Rect, pal: &Palette, text_color: Color32)
         .iter()
         .map(|c| (pal.shape(c), class_label(c).to_string()))
         .collect();
-    let height = row * (items.len() as f32 + 2.0) + 14.0;
+    let height = row * (items.len() as f32 + 1.0) + 14.0;
     let panel = Rect::from_min_size(
         Pos2::new(rect.left() + 10.0, rect.bottom() - height - 10.0),
         Vec2::new(200.0, height),
@@ -511,21 +475,6 @@ pub fn legend(painter: &Painter, rect: Rect, pal: &Palette, text_color: Color32)
         );
         y += row;
     }
-    painter.line_segment(
-        [
-            Pos2::new(panel.left() + 10.0, y),
-            Pos2::new(panel.left() + 24.0, y),
-        ],
-        Stroke::new(3.0, pal.warning),
-    );
-    painter.text(
-        Pos2::new(panel.left() + 30.0, y),
-        Align2::LEFT_CENTER,
-        "gate (key/switch)",
-        font.clone(),
-        text_color,
-    );
-    y += row;
     painter.circle_filled(Pos2::new(panel.left() + 16.0, y), 4.0, pal.ink);
     painter.text(
         Pos2::new(panel.left() + 30.0, y),

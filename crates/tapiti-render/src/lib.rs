@@ -49,8 +49,6 @@ pub const CLASS_NAMES: &[&str] = &[
     "tapiti-floor",
     "grid",
     "corridor",
-    "gated",
-    "gate",
     "room",
     "leaf",
     "c-rect",
@@ -124,13 +122,13 @@ fn theme_css(theme: Theme) -> &'static str {
     match theme {
         Theme::Inherit => "",
         Theme::Dark => concat!(
-            ".tapiti-floor{background:#15110e}.grid{stroke:#2b231d}.corridor{stroke:#5a4e43}.gated{stroke:#e8b339}.gate{fill:#15110e;stroke:#e8b339}",
+            ".tapiti-floor{background:#15110e}.grid{stroke:#2b231d}.corridor{stroke:#5a4e43}",
             ".room{stroke-width:4}.c-rect{fill:#496c9a}.c-disc{fill:#29a89a}.c-oct{fill:#9b78d1}.c-L{fill:#ce843c}.c-star{fill:#d0ae38}",
             ".r-plain,.r-empty{stroke:#2b231d}.r-start,.r-rest{stroke:#4ac26b}.r-stairs,.r-switch{stroke:#f08a3c}.r-ambush,.r-boss,.r-trap{stroke:#ef5d5d}.r-key,.r-prize{stroke:#e8b339}",
             ".junction{fill:#f2e9dc;stroke:#15110e}.door{stroke:#f2e9dc}.label{fill:#fff}"
         ),
         Theme::Light => concat!(
-            ".tapiti-floor{background:#f7f1e6}.grid{stroke:#e6dccb}.corridor{stroke:#b3a590}.gated{stroke:#b77d00}.gate{fill:#f7f1e6;stroke:#b77d00}",
+            ".tapiti-floor{background:#f7f1e6}.grid{stroke:#e6dccb}.corridor{stroke:#b3a590}",
             ".room{stroke-width:4}.c-rect{fill:#315f96}.c-disc{fill:#087f76}.c-oct{fill:#7253af}.c-L{fill:#a95812}.c-star{fill:#936c00}",
             ".r-plain,.r-empty{stroke:#e6dccb}.r-start,.r-rest{stroke:#1d9a44}.r-stairs,.r-switch{stroke:#d96b13}.r-ambush,.r-boss,.r-trap{stroke:#d12f2f}.r-key,.r-prize{stroke:#b77d00}",
             ".junction{fill:#2a2118;stroke:#f7f1e6}.door{stroke:#2a2118}.label{fill:#fff}"
@@ -207,18 +205,11 @@ pub fn floor_svg(d: &Floor, style: &Style) -> String {
     }
     let width = d.params.width.max(2.0);
     for e in &d.edges {
-        let gated = e.requires_keys > 0 || e.requires_switches > 0;
         let _ = write!(
             out,
-            r#"<path class="corridor{}" style="--d:{}" fill="none" stroke-width="{}" stroke-linecap="round" stroke-linejoin="round"{} d="{}"/>"#,
-            if gated { " gated" } else { "" },
+            r#"<path class="corridor" style="--d:{}" fill="none" stroke-width="{}" stroke-linecap="round" stroke-linejoin="round" d="{}"/>"#,
             hop_of_node(e.u).max(hop_of_node(e.v)),
             n(width),
-            if gated {
-                r#" stroke-dasharray="14 9""#
-            } else {
-                ""
-            },
             points(&e.pts)
         );
     }
