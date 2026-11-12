@@ -108,3 +108,14 @@ fn the_profiles_that_do_not_depend_on_a_path_hold_on_grown_floors() {
         assert_eq!(eight, 20, "{profile:?}");
     }
 }
+
+#[test]
+fn the_long_loop_profile_holds_in_both_layouts() {
+    for layout in [Layout::Grid, Layout::Growth] {
+        let mut p = rich_of_size(Size::Medium);
+        p.layout = layout;
+        p.topology.profile = TopologyProfile::LongLoop;
+        let (_, eight) = valid_counts(&p, 20);
+        assert_eq!(eight, 20, "{layout:?}");
+    }
+}

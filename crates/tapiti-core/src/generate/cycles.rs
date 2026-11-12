@@ -39,7 +39,10 @@ pub(super) fn add_cycles(
         if let (Layout::Growth, Some((start, exit))) = (p.layout, anchors) {
             keep_exit_far(g, &mut opts, start, exit);
         }
-        if need_routes || need_loop {
+        // Every cycle must keep at least `min_cycle_length` edges (the validator checks the girth), so once the profile asks for long
+        // loops no link that closes a shorter one is taken, even after a long loop exists.
+        let long_only = topology_req.min_cycle_length > 0 && !need_hub;
+        if need_routes || need_loop || long_only {
             opts.retain(|opt| {
                 let Action::Add(ci) = opt.act else {
                     return false;
@@ -51,7 +54,8 @@ pub(super) fn add_cycles(
                 let makes_long_cycle =
                     crate::topology::shortest_path(g.nodes.len(), &g.edges, a, b)
                         .is_some_and(|(_, path)| path.len() + 1 >= topology_req.min_cycle_length);
-                (!need_routes || crosses_all_cuts) && (!need_loop || makes_long_cycle)
+                (!need_routes || crosses_all_cuts)
+                    && (!(need_loop || long_only) || makes_long_cycle)
             });
         }
         let solving_hub = need_hub && !need_routes && !need_loop;
