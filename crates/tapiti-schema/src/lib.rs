@@ -365,7 +365,7 @@ fn help(path: &str, label: &str) -> Text {
         "topology.minCycleLength" => tx("Minimum number of segments in the shortest cycle. Zero imposes no such requirement."),
         "topology.minHubDegree" => tx("Minimum number of arms at a central point. Zero does not require a hub."),
         "layout" => tx("Grid puts one room in each grid block. Growth grows rooms one from another off a parent's door, in free space; isolated chambers are not generated in that mode."),
-        "growth.rooms" => tx("Number of rooms to grow. Zero uses the number of live blocks the grid would give."),
+        "growth.rooms" => tx("Number of rooms to grow. Zero uses the number of live blocks the grid would give, less half of the leaf chambers asked for, which are placed in the room that is left."),
         "growth.branch" => tx("Each room spawns from 1 up to this many children before the draw picks another parent."),
         "growth.depth" => tx("Deepest generation a room can have; the first room is 0."),
         "growth.islands" => tx("Splits the rooms into islands linked by long bridges. With more than one, cycles stay inside each island."),

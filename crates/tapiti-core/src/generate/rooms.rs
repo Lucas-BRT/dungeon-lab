@@ -154,7 +154,10 @@ pub(super) fn build_rooms(
         let target = if p.growth.rooms > 0 {
             p.growth.rooms as usize
         } else {
+            // Half of the leaf chambers asked for are left room for (the grid layout makes about half of them too), so the main rooms are fewer.
             live.len()
+                .saturating_sub(p.leaves.max(0) as usize / 2)
+                .max(1)
         };
         // The grown rooms are as large as the grid's blocks: their sizes (in cells) are the pool the growth draws from.
         let sizes: Vec<(i32, i32)> = live.iter().map(|&i| (blocks[i].w, blocks[i].h)).collect();
