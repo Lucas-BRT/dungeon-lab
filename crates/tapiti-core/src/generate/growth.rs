@@ -104,6 +104,11 @@ pub(super) fn grow_rooms(
     let max_depth = p.growth.depth.max(1);
     let branch = p.growth.branch.max(1);
     let mut budget = target.saturating_mul(60).max(200);
+    // Diagnostics only (they never touch the RNG): why proposals were refused and why the loop ended.
+    // [out of the world, no shape fits, crowded, on a corridor, outside the clump radius, no corridor to the parent]
+    let mut refused = [0u32; 6];
+    let mut evicted = 0u32;
+    let mut stop = "target";
     // Islands: the rooms are split into clumps; each clump grows on its own and a long bridge corridor starts the next one.
     let mut islands = p.growth.islands.max(1) as usize;
     let (mut island_idx, mut island_size) = (0usize, 1usize);
@@ -120,6 +125,7 @@ pub(super) fn grow_rooms(
                 need_bridge = true;
                 bridge_tries = 0;
             } else {
+                stop = "open-empty";
                 break;
             }
         }
@@ -136,6 +142,7 @@ pub(super) fn grow_rooms(
                 .filter(|&i| g.rooms[i].ports.iter().any(|q| g.port_free(q)))
                 .collect();
             if any.is_empty() {
+                stop = "no-bridge-port";
                 break;
             }
             (
@@ -151,6 +158,7 @@ pub(super) fn grow_rooms(
                 .map(|&i| (p.growth.cluster * near[i]).clamp(-30.0, 30.0).exp())
                 .collect();
             let Some(k) = g.weighted(&ws) else {
+                stop = "weighted-none";
                 break;
             };
             (
@@ -206,9 +214,11 @@ pub(super) fn grow_rooms(
                     };
                     if bx.x0 < world.x0 || bx.y0 < world.y0 || bx.x1 > world.x1 || bx.y1 > world.y1
                     {
+                        refused[0] += 1;
                         continue;
                     }
                     let Some((c, shape)) = fit_room(g, bx, cells) else {
+                        refused[1] += 1;
                         continue;
                     };
                     let room = make_room(g.rooms.len(), c, shape, &bx);
@@ -231,10 +241,15 @@ pub(super) fn grow_rooms(
                                     p.clear,
                                 )
                         });
-                    if crowded
-                        || on_corridor
-                        || (!bridge && islands > 1 && dist(room.center, root_c) > radius)
-                    {
+                    let outside = !bridge && islands > 1 && dist(room.center, root_c) > radius;
+                    if crowded || on_corridor || outside {
+                        refused[if crowded {
+                            2
+                        } else if on_corridor {
+                            3
+                        } else {
+                            4
+                        }] += 1;
                         continue;
                     }
                     let here = g
@@ -282,6 +297,7 @@ pub(super) fn grow_rooms(
                 let ws: Vec<f64> = found.iter().map(|c| c.weight).collect();
                 let Some(k) = g.weighted(&ws) else {
                     g.rooms.pop();
+                    refused[5] += 1;
                     continue;
                 };
                 let c = found.into_iter().nth(k).unwrap();
@@ -342,6 +358,7 @@ pub(super) fn grow_rooms(
         }
         // A parent that could not place a child (no door, no space) leaves the pool.
         if !bridge && (failed || depth[parent] >= max_depth) {
+            evicted += u32::from(failed);
             open.swap_remove(k);
         }
     }
@@ -350,6 +367,25 @@ pub(super) fn grow_rooms(
             "growth stopped at {} of {} rooms",
             g.rooms.len(),
             target
+        ));
+        if budget == 0 {
+            stop = "budget";
+        }
+        let free_ports = (0..g.rooms.len())
+            .filter(|&i| g.rooms[i].ports.iter().any(|q| g.port_free(q)))
+            .count();
+        let area: f64 = g.rooms.iter().map(|r| r.area).sum();
+        let world_area = ((world.x1 - world.x0) * (world.y1 - world.y0)).max(1.0);
+        g.log.push(format!(
+            "growth stop: reason={stop} refused world={} fit={} crowded={} corridor={} radius={} no-link={} evicted={evicted} free-port-rooms={free_ports} max-depth={} area={:.0}%",
+            refused[0],
+            refused[1],
+            refused[2],
+            refused[3],
+            refused[4],
+            refused[5],
+            depth.iter().max().copied().unwrap_or(0),
+            100.0 * area / world_area
         ));
     }
     if islands > 1 || p.growth.islands > 1 {
