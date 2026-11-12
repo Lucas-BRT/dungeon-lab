@@ -8,6 +8,7 @@ pub(super) fn grow_rooms(
     g: &mut Gen<'_>,
     world: Bx,
     target: usize,
+    sizes: &[(i32, i32)],
     progress: &mut Option<&mut dyn FnMut(GenerationEvent)>,
 ) -> Vec<usize> {
     let p = g.p;
@@ -22,18 +23,13 @@ pub(super) fn grow_rooms(
             p.weights.get(c).max(0.0)
         }
     };
-    // A box of 1..3 cells a side, mostly small.
+    // A box the size of one of the grid's blocks, drawn at random (1x1 when the grid has none), so the rooms take as much room as the grid's.
     let pick_box = |rng: &mut Mulberry| -> (f64, f64, i32) {
-        let k = |u: f64| {
-            if u < 0.55 {
-                1
-            } else if u < 0.85 {
-                2
-            } else {
-                3
-            }
+        let (kw, kh) = if sizes.is_empty() {
+            (1, 1)
+        } else {
+            sizes[(rng.next() * sizes.len() as f64).floor() as usize % sizes.len()]
         };
-        let (kw, kh) = (k(rng.next()), k(rng.next()));
         (
             kw as f64 * cw - 2.0 * p.gap,
             kh as f64 * ch - 2.0 * p.gap,
@@ -96,6 +92,8 @@ pub(super) fn grow_rooms(
     g.nodes.push(Node::Room { room: 0 });
     g.node_of_room.push(0);
     let mut depth = vec![0i32];
+    // Failed rounds of each parent: it leaves the pool after three, not after one.
+    let mut strikes = vec![0u8];
     let mut island_of = vec![0usize];
     // Rooms within 2.5 cells of each room: the local density the clump bias works on.
     let near_radius = 2.5 * cell;
@@ -109,6 +107,8 @@ pub(super) fn grow_rooms(
     let mut refused = [0u32; 6];
     let mut evicted = 0u32;
     let mut stop = "target";
+    // When the pool empties short of the target, rooms that still have a free door come back (twice at most), in any clump.
+    let (mut refills, mut refilling) = (0, false);
     // Islands: the rooms are split into clumps; each clump grows on its own and a long bridge corridor starts the next one.
     let mut islands = p.growth.islands.max(1) as usize;
     let (mut island_idx, mut island_size) = (0usize, 1usize);
@@ -120,6 +120,16 @@ pub(super) fn grow_rooms(
     let mut radius = island_radius(quota);
 
     while g.rooms.len() < target && budget > 0 {
+        if !need_bridge && open.is_empty() && island_idx + 1 >= islands && refills < 2 {
+            refills += 1;
+            refilling = true;
+            strikes.iter_mut().for_each(|x| *x = 0);
+            open = (0..g.rooms.len())
+                .filter(|&i| {
+                    depth[i] < max_depth && g.rooms[i].ports.iter().any(|q| g.port_free(q))
+                })
+                .collect();
+        }
         if !need_bridge && (open.is_empty() || (island_idx + 1 < islands && island_size >= quota)) {
             if island_idx + 1 < islands {
                 need_bridge = true;
@@ -185,6 +195,30 @@ pub(super) fn grow_rooms(
                 if free.is_empty() {
                     break;
                 }
+                // Only doors with room for a corridor and the smallest room before the edge of the world.
+                let min_box = (cw.min(ch) - 2.0 * p.gap).max(1.0);
+                let free: Vec<Port> = free
+                    .into_iter()
+                    .filter(|q| {
+                        let u = dir_of(q.k);
+                        let to = |pos: f64, lo: f64, hi: f64, d: f64| {
+                            if d > 0.0 {
+                                (hi - pos) / d
+                            } else if d < 0.0 {
+                                (lo - pos) / d
+                            } else {
+                                f64::INFINITY
+                            }
+                        };
+                        let ahead = to(q.p[0], world.x0, world.x1, u[0])
+                            .min(to(q.p[1], world.y0, world.y1, u[1]));
+                        ahead >= p.min_len + min_box
+                    })
+                    .collect();
+                if free.is_empty() {
+                    refused[0] += 1;
+                    continue;
+                }
                 let mut proposals: Vec<(Room, f64)> = Vec::new();
                 for _ in 0..8 {
                     if proposals.len() >= 4 {
@@ -241,7 +275,11 @@ pub(super) fn grow_rooms(
                                     p.clear,
                                 )
                         });
-                    let outside = !bridge && islands > 1 && dist(room.center, root_c) > radius;
+                    let outside = !bridge
+                        && !refilling
+                        && islands > 1
+                        && island_idx + 1 < islands
+                        && dist(room.center, root_c) > radius;
                     if crowded || on_corridor || outside {
                         refused[if crowded {
                             2
@@ -279,28 +317,33 @@ pub(super) fn grow_rooms(
                     };
                     proposals.push((room, w));
                 }
-                if proposals.is_empty() {
-                    continue;
+                // The proposals are tried in weight order until one has a corridor to the parent.
+                let mut chosen: Option<(usize, Candidate)> = None;
+                while !proposals.is_empty() {
+                    let ws: Vec<f64> = proposals.iter().map(|(_, w)| *w).collect();
+                    let Some(k) = g.weighted(&ws) else {
+                        break;
+                    };
+                    let (room, _) = proposals.swap_remove(k);
+                    let id = room.id;
+                    g.rooms.push(room);
+                    let found: Vec<Candidate> =
+                        candidates_for_indexed(p, &g.rooms, parent, id, 4, &g.room_grid)
+                            .into_iter()
+                            .filter(|c| g.fits_now(c))
+                            .collect();
+                    let ws: Vec<f64> = found.iter().map(|c| c.weight).collect();
+                    let Some(k) = g.weighted(&ws) else {
+                        g.rooms.pop();
+                        refused[5] += 1;
+                        continue;
+                    };
+                    chosen = Some((id, found.into_iter().nth(k).unwrap()));
+                    break;
                 }
-                let ws: Vec<f64> = proposals.iter().map(|(_, w)| *w).collect();
-                let Some(k) = g.weighted(&ws) else {
+                let Some((id, c)) = chosen else {
                     continue;
                 };
-                let (room, _) = proposals.swap_remove(k);
-                let id = room.id;
-                g.rooms.push(room);
-                let found: Vec<Candidate> =
-                    candidates_for_indexed(p, &g.rooms, parent, id, 4, &g.room_grid)
-                        .into_iter()
-                        .filter(|c| g.fits_now(c))
-                        .collect();
-                let ws: Vec<f64> = found.iter().map(|c| c.weight).collect();
-                let Some(k) = g.weighted(&ws) else {
-                    g.rooms.pop();
-                    refused[5] += 1;
-                    continue;
-                };
-                let c = found.into_iter().nth(k).unwrap();
                 g.room_grid
                     .insert_bounds(id, g.rooms[id].bounds.lo, g.rooms[id].bounds.hi);
                 g.nodes.push(Node::Room { room: id });
@@ -319,6 +362,7 @@ pub(super) fn grow_rooms(
                     pts: g.edges[edge].pts.clone(),
                 });
                 depth.push(depth[parent] + 1);
+                strikes.push(0);
                 island_of.push(if bridge { island_idx + 1 } else { island_idx });
                 let centre = g.rooms[id].center;
                 let mut count = 0.0;
@@ -357,8 +401,11 @@ pub(super) fn grow_rooms(
             }
         }
         // A parent that could not place a child (no door, no space) leaves the pool.
-        if !bridge && (failed || depth[parent] >= max_depth) {
-            evicted += u32::from(failed);
+        if !bridge && failed {
+            strikes[parent] = strikes[parent].saturating_add(1);
+        }
+        if !bridge && (strikes[parent] >= 3 || depth[parent] >= max_depth) {
+            evicted += u32::from(strikes[parent] >= 3);
             open.swap_remove(k);
         }
     }

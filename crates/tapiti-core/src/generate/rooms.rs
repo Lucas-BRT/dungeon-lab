@@ -158,7 +158,9 @@ pub(super) fn build_rooms(
         } else {
             live.len()
         };
-        island_of = grow_rooms(g, world, target, progress);
+        // The grown rooms are as large as the grid's blocks: their sizes (in cells) are the pool the growth draws from.
+        let sizes: Vec<(i32, i32)> = live.iter().map(|&i| (blocks[i].w, blocks[i].h)).collect();
+        island_of = grow_rooms(g, world, target, &sizes, progress);
     }
     island_of
 }
