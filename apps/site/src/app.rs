@@ -214,7 +214,7 @@ async fn layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
                 topcoat::font::link(font: JETBRAINS_MONO)
                 <link
                     rel="icon"
-                    href=(asset!("assets/brand/mark.svg"))
+                    href=(asset!("assets/brand/icon.svg"))
                     type="image/svg+xml"
                 >
                 <link rel="icon" href="/favicon.ico" sizes="32x32">
@@ -245,9 +245,9 @@ async fn header(cx: &Cx) -> Result<impl View> {
         <header class="site-header">
             <a class="brand" href=(href!(_page::page))>
                 <img
-                    src=(asset!("assets/brand/mark.svg"))
+                    src=(asset!("assets/brand/logo.svg"))
                     alt=""
-                    width="30"
+                    width="25"
                     height="30"
                 >
                 "tapiti"
@@ -283,9 +283,9 @@ async fn footer(cx: &Cx) -> Result<impl View> {
                 <div class="footer-about">
                     <a class="brand" href=(href!(_page::page))>
                         <img
-                            src=(asset!("assets/brand/mark.svg"))
+                            src=(asset!("assets/brand/logo.svg"))
                             alt=""
-                            width="36"
+                            width="30"
                             height="36"
                         >
                         "tapiti"

@@ -1,11 +1,25 @@
+<div align="center">
+
+<img src="apps/site/assets/brand/logo.svg" alt="" width="128">
+
 # Tapiti
 
 Tapiti digs floors from a seed, in Rust and WebAssembly: rooms of many shapes (rect, disc, octagon, L, truncated star), continuous doors,
 octilinear corridors (I, L, Z/U, T, X), leaf chambers, a validator (V1 to V5) and the graph's measures (β, δ, bridges, Menger routes, λ₂), with a
 desktop app and a page to generate any floor and edit every parameter of Λ.
 
+</div>
+
 The same seed and Λ always draw the same stage (the rng is Mulberry32). Every optimization below was checked against that: `cargo run --release -p tapiti-core --example dump`
 hashes 150 stages (the four sizes × 30 seeds, then 30 grown floors) and the hashes did not move, single-threaded or parallel.
+
+## Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Lucas-BRT/tapiti/main/install.sh | bash
+```
+
+For Linux on x86_64, without `sudo`. Each [release](https://github.com/Lucas-BRT/tapiti/releases/latest) also has a `.deb`, an `.rpm` and a Windows `.exe`: see [getting started](docs/getting-started.md#install).
 
 ## Speed
 

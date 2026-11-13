@@ -21,6 +21,14 @@ env:
   CARGO_NET_RETRY: "10"
 
 jobs:
+  # The install script and the packer of the Linux tar.gz (shellcheck is on the runner image).
+  shell:
+    name: Shell scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: shellcheck install.sh scripts/package-linux.sh scripts/package-macos.sh scripts/test-linux-packages.sh
+
   # Format, lints and tests of the Rust crates. Dependencies and build outputs are cached by rust-cache.
   rust:
     name: Rust
@@ -107,7 +115,7 @@ jobs:
           key: wasm-bindgen-cli-0.2.130
       - if: steps.bindgen.outputs.cache-hit != 'true'
         run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: scripts/build-wasm.sh
@@ -152,7 +160,7 @@ jobs:
           key: topcoat-cli-0.12.0
       - if: steps.topcoat.outputs.cache-hit != 'true'
         run: cargo install topcoat-cli --version 0.12.0 --locked
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: scripts/build-wasm.sh
@@ -172,7 +180,7 @@ jobs:
       - name: Screenshots
         if: always()
         run: xvfb-run -a node scripts/site-shots.mjs shots http://127.0.0.1:3000
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: screenshots
