@@ -13,6 +13,9 @@ pub(super) fn add_cycles(
     let topology_req = p.topology_requirements();
     let (cols, rows, cell_w, cell_h) = (p.cols.max(1), p.rows.max(1), p.cell_w, p.cell_h);
     loop {
+        if g.stopped() {
+            break;
+        }
         let beta = beta_now(g);
         let (routes, _, _) = if let (true, Some((start_room, exit_room))) =
             (topology_req.min_exit_routes > 1, anchors)

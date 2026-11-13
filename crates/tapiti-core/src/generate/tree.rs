@@ -35,6 +35,9 @@ pub(super) fn span_tree(
     g.ensure(&pairs, room_index);
     lap("candidates");
     while in_tree.len() < g.rooms.len() {
+        if g.stopped() {
+            break;
+        }
         if flat.is_empty() && !pairs.is_empty() {
             #[cfg(feature = "diagnostic-profile")]
             let rebuild_started = Instant::now();

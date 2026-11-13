@@ -124,7 +124,7 @@ pub(super) fn grow_rooms(
     let mut root_c = g.rooms[0].center;
     let mut radius = island_radius(quota);
 
-    while g.rooms.len() < target && budget > 0 {
+    while g.rooms.len() < target && budget > 0 && !g.stopped() {
         if !need_bridge && open.is_empty() && island_idx + 1 >= islands && refills < 2 {
             refills += 1;
             refilling = true;

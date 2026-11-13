@@ -38,6 +38,9 @@ pub(super) fn add_leaf_chambers(
     let mut depth_branch: Option<usize> = None;
     let mut made_leaves = 0usize;
     for bi in spots {
+        if g.stopped() {
+            break;
+        }
         let need_depth_branch = depth_goal > 0 && missing_branches == 0 && depth_branch.is_none();
         let depth_satisfied =
             depth_goal == 0 || depth_branch.is_some_and(|i| branch_tips[i].1 >= depth_goal);

@@ -21,6 +21,8 @@ pub(super) struct TreeDiagnostics {
 
 pub(super) struct Gen<'a> {
     pub(super) p: &'a Params,
+    /// Set when the caller can stop the generation (see `Cancel`).
+    pub(super) cancel: Option<Cancel>,
     pub(super) rng: Mulberry,
     pub(super) log: Vec<String>,
     pub(super) rooms: Vec<Room>,
@@ -121,6 +123,11 @@ impl<'a> Gen<'a> {
     }
 
     /// Candidates for every pair in `pairs` not seen yet, worked out together: each depends only on the rooms, so they split over the threads.
+    /// Whether the caller asked to stop: the long loops end, and the pipeline returns `None` after the phase.
+    pub(super) fn stopped(&self) -> bool {
+        self.cancel.as_ref().is_some_and(Cancel::is_cancelled)
+    }
+
     pub(super) fn ensure(&mut self, pairs: &[[usize; 2]], room_index: &SpatialHash) {
         let mut missing: Vec<[usize; 2]> = pairs
             .iter()
@@ -129,8 +136,11 @@ impl<'a> Gen<'a> {
             .collect();
         missing.sort();
         missing.dedup();
-        let (p, rooms) = (self.p, &self.rooms);
+        let (p, rooms, cancel) = (self.p, &self.rooms, &self.cancel);
         let found = pmap_min(&missing, 8, |[a, b]| {
+            if cancel.as_ref().is_some_and(Cancel::is_cancelled) {
+                return Vec::new();
+            }
             candidates_for_indexed(p, rooms, *a, *b, 4, room_index)
         });
         for ([a, b], c) in missing.into_iter().zip(found) {
