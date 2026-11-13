@@ -6,8 +6,7 @@ use crate::params_ui::{field_row, FieldKind, ParamField};
 use crate::pick::map_object_at;
 use crate::theme;
 use crate::{
-    format_number, get_path, set_path, size_description, size_label, translate_violation, App,
-    Experiment, GeneratedMap, Tab,
+    format_number, get_path, set_path, size_description, size_label, App, Experiment, Tab,
 };
 use eframe::egui::{
     self, Align, Button, Color32, CursorIcon, Frame, Grid, Layout, Panel, RichText, ScrollArea,
@@ -234,7 +233,6 @@ pub fn side_panel(app: &mut App, ui: &mut Ui) {
                 ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
                 ui.horizontal(|ui| {
                     for (tab, title) in [
-                        (Tab::Floor, "Floor"),
                         (Tab::Settings, "Parameters"),
                         (Tab::Analysis, "Analysis"),
                         (Tab::Advanced, "Advanced"),
@@ -249,25 +247,25 @@ pub fn side_panel(app: &mut App, ui: &mut Ui) {
             // The clear button first, from the right, and the box takes what is left: a box sized as "the width left minus a guess" is
             // a few pixels too wide, and in a side panel (which grows to fit its content) that made the panel widen at every repaint.
             // (Inside a `horizontal`, so the right-to-left layout takes the height of one row, not what is left of the panel.)
-            ui.horizontal(|ui| {
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if ui
-                        .add_enabled(!app.filter.is_empty(), Button::new("×"))
-                        .on_hover_text("Clear the search")
-                        .clicked()
-                    {
-                        app.filter.clear();
-                    }
-                    let search = ui.add(
-                        TextEdit::singleline(&mut app.filter)
-                            .hint_text("Search every parameter…")
-                            .desired_width(ui.available_width()),
-                    );
-                    if search.changed() && !app.filter.trim().is_empty() {
-                        app.tab = Tab::Settings;
-                    }
+            // The search is for the parameters only.
+            if app.tab == Tab::Settings {
+                ui.horizontal(|ui| {
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        if ui
+                            .add_enabled(!app.filter.is_empty(), Button::new("×"))
+                            .on_hover_text("Clear the search")
+                            .clicked()
+                        {
+                            app.filter.clear();
+                        }
+                        ui.add(
+                            TextEdit::singleline(&mut app.filter)
+                                .hint_text("Search every parameter…")
+                                .desired_width(ui.available_width()),
+                        );
+                    });
                 });
-            });
+            }
             ui.separator();
             // Each tab keeps its own scroll position and starts at the top: with one shared area, leaving a long tab (the Analysis, scrolled
             // down) for a short one left the content to slide back up to fit.
@@ -280,93 +278,11 @@ pub fn side_panel(app: &mut App, ui: &mut Ui) {
                 }
             }
             area.show(ui, |ui| match app.tab {
-                Tab::Floor => floor_tab(app, ui),
                 Tab::Settings => settings_tab(app, ui),
                 Tab::Advanced => advanced_tab(app, ui),
                 Tab::Analysis => analysis_tab(app, ui),
             });
         });
-}
-
-// ---- Andar ---------------------------------------------------------------------------------------
-
-fn verdict(ui: &mut Ui, map: &GeneratedMap) {
-    let pal = Palette::new(ui.visuals().dark_mode);
-    if map.violations.is_empty() {
-        ui.label(
-            RichText::new("Valid map")
-                .strong()
-                .size(16.0)
-                .color(pal.success),
-        );
-    } else {
-        ui.label(
-            RichText::new(format!("! {n} problem(s)", n = map.violations.len()))
-                .strong()
-                .size(16.0)
-                .color(pal.danger),
-        );
-    }
-}
-
-fn floor_tab(app: &mut App, ui: &mut Ui) {
-    card(ui, "Reading", |ui| match &app.generated {
-        None => {
-            ui.horizontal(|ui| {
-                if app.busy {
-                    ui.spinner();
-                }
-                ui.label(if app.busy {
-                    "Building the floor…"
-                } else {
-                    "No floor generated."
-                });
-            });
-        }
-        Some(map) => {
-            verdict(ui, map);
-            let m = &map.metrics;
-            Grid::new("reading")
-                .num_columns(2)
-                .spacing([16.0, 4.0])
-                .show(ui, |ui| {
-                    for (label, value) in [
-                        ("Rooms", (m.rooms + m.leaf_chambers).to_string()),
-                        ("Corridors", m.edges.to_string()),
-                        (
-                            "Cycles β",
-                            format!(
-                                "{beta} (target {target})",
-                                beta = m.beta,
-                                target = m.beta_target
-                            ),
-                        ),
-                        (
-                            "Routes to the exit",
-                            m.routes_to_exit.map_or("—".into(), |n| n.to_string()),
-                        ),
-                        ("Attempts", map.draws.to_string()),
-                        ("Generation", format!("{:.1} ms", map.elapsed_ms)),
-                    ] {
-                        ui.label(muted(ui, label));
-                        ui.label(value);
-                        ui.end_row();
-                    }
-                });
-            for violation in map.violations.iter().take(6) {
-                ui.label(muted(ui, translate_violation(violation)));
-            }
-            if map.violations.len() > 6 {
-                ui.label(muted(
-                    ui,
-                    format!(
-                        "… and {n} more. See the Analysis tab.",
-                        n = map.violations.len() - 6
-                    ),
-                ));
-            }
-        }
-    });
 }
 
 // ---- Settings: one list of collapsible groups --------------------------------------------------

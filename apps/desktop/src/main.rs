@@ -86,8 +86,7 @@ pub enum BenchmarkKind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tab {
-    Floor,
-    /// One group of parameters (`App::group`): Grid and size, Room shapes…
+    /// The groups of parameters: Grid and size, Room shapes…
     Settings,
     /// The JSON, the guided experiments and the reset.
     Advanced,
@@ -170,7 +169,7 @@ impl App {
             ctx: cc.egui_ctx.clone(),
             tx,
             rx,
-            tab: Tab::Floor,
+            tab: Tab::Settings,
             size: Size::Small,
             seed: 1,
             seed_draft: "1".into(),
@@ -247,8 +246,7 @@ impl App {
         }
         if let Ok(tab) = std::env::var("TAPITI_TAB") {
             match tab.as_str() {
-                "floor" => self.tab = Tab::Floor,
-                "analysis" => self.tab = Tab::Analysis,
+                "floor" | "analysis" => self.tab = Tab::Analysis,
                 "advanced" => self.tab = Tab::Advanced,
                 id => {
                     self.tab = Tab::Settings;
