@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Changed
+
+- The app icon is the rabbit head in cream on a rounded pink tile with transparent corners, instead of a black square that looked like a hole in a launcher (Linux icon, favicon, `.exe`, `Tapiti.app`).
+
 ## [0.1.1] - 2026-11-13
 
 ### Added
