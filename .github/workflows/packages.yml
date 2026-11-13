@@ -1,0 +1,168 @@
+name: Packages
+
+# Builds and checks everything a release ships: the Linux tar.gz that install.sh unpacks, the .deb and the .rpm, the Windows .zip and
+# .exe (with its icon) and the macOS app. It runs when something that goes into them changes, and release.yml calls it for a tag, so
+# a release is built the way it was tested. Nothing is published here.
+on:
+  workflow_call:
+  workflow_dispatch:
+  push:
+    branches: ["**"]
+    paths:
+      - install.sh
+      - scripts/package-*.sh
+      - scripts/test-linux-packages.sh
+      - apps/desktop/**
+      - Cargo.toml
+      - Cargo.lock
+      - rust-toolchain.toml
+      - .github/workflows/packages.yml
+  pull_request:
+    paths:
+      - install.sh
+      - scripts/package-*.sh
+      - scripts/test-linux-packages.sh
+      - apps/desktop/**
+      - Cargo.toml
+      - Cargo.lock
+      - rust-toolchain.toml
+      - .github/workflows/packages.yml
+
+# A newer push to the same branch makes the running build pointless; a tag build is never cancelled.
+concurrency:
+  group: packages-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  linux:
+    name: Linux (tar.gz, deb, rpm)
+    # The oldest supported Ubuntu, so the binary runs on 22.04 and newer (install.sh checks for glibc 2.35).
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: The tag is the version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)
+          [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME does not match version $version in Cargo.toml"; exit 1; }
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+      - name: System libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxi-dev libxrandr-dev libgl1-mesa-dev
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: packages-linux
+      - name: Packaging tools
+        run: cargo install cargo-deb --version 3.8.0 --locked && cargo install cargo-generate-rpm --version 0.21.1 --locked
+      - run: cargo build --release --locked -p tapiti-desktop
+        env:
+          CARGO_PROFILE_RELEASE_STRIP: "true"
+      - name: Package
+        run: |
+          mkdir dist
+          scripts/package-linux.sh dist
+          cargo deb -p tapiti-desktop --no-build --output dist/
+          cargo generate-rpm -p apps/desktop --output dist/
+          ls -l dist
+      - name: Check the packages and install.sh against them
+        run: |
+          sudo apt-get install -y --no-install-recommends desktop-file-utils rpm
+          scripts/test-linux-packages.sh dist
+          ! ldd target/release/tapiti-desktop | grep 'not found'
+      - name: Install and remove the .deb
+        run: |
+          sudo apt-get install -y --no-install-recommends ./dist/tapiti_*_amd64.deb
+          test -x /usr/bin/tapiti
+          dpkg -s tapiti | grep -q '^Status: install ok installed'
+          sudo apt-get remove -y tapiti
+          test ! -e /usr/bin/tapiti
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux
+          path: dist/*
+
+  windows:
+    name: Windows (zip, exe)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: packages-windows
+      - run: cargo build --release --locked -p tapiti-desktop --target x86_64-pc-windows-msvc
+        env:
+          CARGO_PROFILE_RELEASE_STRIP: "true"
+      - name: Package
+        shell: bash
+        run: |
+          name=tapiti-x86_64-pc-windows-msvc
+          mkdir -p dist "$name"
+          cp target/x86_64-pc-windows-msvc/release/tapiti-desktop.exe "dist/$name.exe"
+          cp "dist/$name.exe" "$name/tapiti.exe"
+          cp LICENSE README.md "$name/"
+          7z a "dist/$name.zip" "$name"
+      - name: The executable carries its icon and version information
+        shell: pwsh
+        run: |
+          $info = (Get-Item dist/tapiti-x86_64-pc-windows-msvc.exe).VersionInfo
+          if ($info.FileDescription -ne 'Tapiti') { throw "no version resource in the executable: '$($info.FileDescription)'" }
+          Add-Type -AssemblyName System.Drawing
+          $icon = [System.Drawing.Icon]::ExtractAssociatedIcon((Resolve-Path dist/tapiti-x86_64-pc-windows-msvc.exe))
+          # The default icon of Windows has no red: the rabbit is pink (#ff2e63) on a dark tile.
+          $bmp = $icon.ToBitmap()
+          $pink = 0
+          foreach ($x in 0..($bmp.Width - 1)) { foreach ($y in 0..($bmp.Height - 1)) { $c = $bmp.GetPixel($x, $y); if ($c.R -gt 200 -and $c.G -lt 120 -and $c.B -gt 60 -and $c.B -lt 140) { $pink++ } } }
+          if ($pink -lt 20) { throw "the executable's icon is not the Tapiti one ($pink pink pixels)" }
+          "version $($info.FileVersion), icon ok ($pink pink pixels)"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows
+          path: dist/*
+
+  macos:
+    name: macOS (app in a tar.gz)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+          targets: aarch64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: packages-macos
+      - run: cargo build --release --locked -p tapiti-desktop --target aarch64-apple-darwin
+        env:
+          CARGO_PROFILE_RELEASE_STRIP: "true"
+      - name: Package
+        run: |
+          mkdir dist
+          scripts/package-macos.sh dist
+      - name: The app is a valid bundle
+        run: |
+          mkdir check
+          tar -xzf dist/tapiti-aarch64-apple-darwin.tar.gz -C check
+          app=check/tapiti-aarch64-apple-darwin/Tapiti.app
+          plutil -lint "$app/Contents/Info.plist"
+          iconutil -c iconset "$app/Contents/Resources/tapiti.icns" -o check/tapiti.iconset
+          ls check/tapiti.iconset
+          codesign --verify --deep --strict "$app"
+          test -x "$app/Contents/MacOS/tapiti"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos
+          path: dist/*

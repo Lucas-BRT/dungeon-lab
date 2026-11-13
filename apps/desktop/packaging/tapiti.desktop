@@ -6,6 +6,6 @@ Comment=Dig floors from a seed and inspect their rooms, corridors and graph
 Exec=tapiti
 Icon=tapiti
 Terminal=false
-Categories=Graphics;Education;
+Categories=Graphics;
 Keywords=dungeon;floor;generator;map;seed;
 StartupWMClass=dev.lucasbrt.Tapiti

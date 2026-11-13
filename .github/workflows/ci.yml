@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: shellcheck install.sh scripts/package-linux.sh
+      - run: shellcheck install.sh scripts/package-linux.sh scripts/package-macos.sh scripts/test-linux-packages.sh
 
   # Format, lints and tests of the Rust crates. Dependencies and build outputs are cached by rust-cache.
   rust:
