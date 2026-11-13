@@ -107,7 +107,7 @@ jobs:
           key: wasm-bindgen-cli-0.2.130
       - if: steps.bindgen.outputs.cache-hit != 'true'
         run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: scripts/build-wasm.sh
@@ -152,7 +152,7 @@ jobs:
           key: topcoat-cli-0.12.0
       - if: steps.topcoat.outputs.cache-hit != 'true'
         run: cargo install topcoat-cli --version 0.12.0 --locked
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: scripts/build-wasm.sh
