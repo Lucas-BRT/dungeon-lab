@@ -14,7 +14,7 @@ mod theme;
 
 use eframe::egui::{self, Key, Modifiers};
 use params_ui::ParamGroup;
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
@@ -494,6 +494,75 @@ impl App {
         self.zoom = 1.0;
         self.pan = [0.0, 0.0];
         self.request_generate();
+    }
+
+    /// The size, the seed and the Λ as the JSON that File > Save and Copy JSON write.
+    pub fn export_json(&self) -> String {
+        let export = json!({ "size": size_label(self.size).to_lowercase(), "seed": self.seed, "params": self.params });
+        serde_json::to_string_pretty(&export).unwrap_or_default()
+    }
+
+    /// File > Save Λ…: asks for a file and writes the export there. (The dialog blocks the window while it is open.)
+    pub fn save_file(&mut self) {
+        let Some(path) = rfd::FileDialog::new()
+            .set_title("Save the Λ")
+            .set_file_name("tapiti.json")
+            .add_filter("JSON", &["json"])
+            .save_file()
+        else {
+            return;
+        };
+        self.status = match std::fs::write(&path, self.export_json()) {
+            Ok(()) => format!("Saved {}.", path.display()),
+            Err(error) => format!("Could not save {}: {error}", path.display()),
+        };
+    }
+
+    /// File > Open Λ…: reads a file written by Save or Copy JSON (or a bare Λ) and generates with it.
+    pub fn open_file(&mut self) {
+        let Some(path) = rfd::FileDialog::new()
+            .set_title("Open a Λ")
+            .add_filter("JSON", &["json"])
+            .pick_file()
+        else {
+            return;
+        };
+        let loaded = std::fs::read_to_string(&path)
+            .map_err(|error| error.to_string())
+            .and_then(|text| serde_json::from_str::<Value>(&text).map_err(|e| e.to_string()))
+            .and_then(|value| {
+                let params = value.get("params").unwrap_or(&value).clone();
+                let params = serde_json::from_value::<Params>(params).map_err(|e| e.to_string())?;
+                validate_params(&params)?;
+                Ok((value, params))
+            });
+        match loaded {
+            Ok((value, params)) => {
+                if let Some(size) = value.get("size").and_then(Value::as_str).and_then(|name| {
+                    Size::ALL
+                        .into_iter()
+                        .find(|s| size_label(*s).to_lowercase() == name)
+                }) {
+                    self.size = size;
+                    self.defaults =
+                        serde_json::to_value(params_of_size(size)).unwrap_or(Value::Null);
+                }
+                if let Some(seed) = value
+                    .get("seed")
+                    .and_then(Value::as_u64)
+                    .and_then(|s| u32::try_from(s).ok())
+                {
+                    self.seed = seed;
+                    self.seed_draft = seed.to_string();
+                }
+                self.params = params;
+                self.refresh_changed();
+                self.sync_json();
+                self.status = format!("Opened {}.", path.display());
+                self.request_generate();
+            }
+            Err(error) => self.status = format!("Could not open {}: {error}", path.display()),
+        }
     }
 
     pub fn set_seed(&mut self, seed: u32) {

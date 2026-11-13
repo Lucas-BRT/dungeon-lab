@@ -10,7 +10,7 @@ use eframe::egui::{
     self, Align, Button, Color32, CursorIcon, Frame, Grid, Layout, Panel, RichText, ScrollArea,
     Sense, Stroke, TextEdit, Ui, Vec2,
 };
-use serde_json::{json, Value};
+use serde_json::Value;
 use tapiti_core::par;
 use tapiti_core::params::Size;
 
@@ -45,20 +45,29 @@ pub fn menu_bar(app: &mut App, ui: &mut Ui) {
         .show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("File", |ui| {
+                    if ui.button("Open Λ…").clicked() {
+                        ui.close();
+                        app.open_file();
+                    }
+                    if ui.button("Save Λ…").clicked() {
+                        ui.close();
+                        app.save_file();
+                    }
+                    ui.separator();
                     if ui
                         .button("Copy JSON")
                         .on_hover_text("Size, seed and the full Λ")
                         .clicked()
                     {
-                        let export = json!({ "size": size_label(app.size).to_lowercase(), "seed": app.seed, "params": app.params });
-                        ui.ctx()
-                            .copy_text(serde_json::to_string_pretty(&export).unwrap_or_default());
+                        ui.ctx().copy_text(app.export_json());
                         app.status = "Parameters copied as JSON.".into();
                         ui.close();
                     }
                     if ui
                         .add_enabled(app.generated.is_some(), Button::new("Copy SVG"))
-                        .on_hover_text("The floor as an SVG image, with the grid and labels as shown")
+                        .on_hover_text(
+                            "The floor as an SVG image, with the grid and labels as shown",
+                        )
                         .clicked()
                     {
                         if let Some(generated) = &app.generated {
@@ -85,7 +94,10 @@ pub fn menu_bar(app: &mut App, ui: &mut Ui) {
                 });
                 ui.menu_button("Edit", |ui| {
                     if ui
-                        .add_enabled(!app.changed.is_empty(), Button::new("Reset all to the size"))
+                        .add_enabled(
+                            !app.changed.is_empty(),
+                            Button::new("Reset all to the size"),
+                        )
                         .on_hover_text("Back to the defaults of the current size")
                         .clicked()
                     {
