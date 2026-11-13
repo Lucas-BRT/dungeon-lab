@@ -1,6 +1,8 @@
 //! Small charts drawn with the painter (no plotting crate): bars, columns, a stacked bar and the walk from the entrance to the exit.
 
-use eframe::egui::{Align2, Color32, FontId, Pos2, Rect, Sense, Stroke, StrokeKind, Ui, Vec2};
+use eframe::egui::{
+    Align2, Color32, FontId, Grid, Pos2, Rect, Sense, Stroke, StrokeKind, Ui, Vec2,
+};
 
 pub struct Bar {
     pub label: String,
@@ -138,18 +140,26 @@ pub fn stacked(ui: &mut Ui, parts: &[Bar]) {
         );
     }
     ui.add_space(4.0);
-    ui.horizontal_wrapped(|ui| {
-        for part in parts {
-            let (dot, _) = ui.allocate_exact_size(Vec2::splat(10.0), Sense::hover());
-            ui.painter().rect_filled(dot, 3.0, part.color);
-            let share = if total > 0.0 {
-                part.value / total * 100.0
-            } else {
-                0.0
-            };
-            ui.label(format!("{} · {share:.0}%", part.label));
-        }
-    });
+    Grid::new("stacked-legend")
+        .num_columns(2)
+        .spacing([16.0, 4.0])
+        .show(ui, |ui| {
+            for (i, part) in parts.iter().enumerate() {
+                ui.horizontal(|ui| {
+                    let (dot, _) = ui.allocate_exact_size(Vec2::splat(10.0), Sense::hover());
+                    ui.painter().rect_filled(dot, 3.0, part.color);
+                    let share = if total > 0.0 {
+                        part.value / total * 100.0
+                    } else {
+                        0.0
+                    };
+                    ui.label(format!("{} · {share:.0}%", part.label));
+                });
+                if i % 2 == 1 {
+                    ui.end_row();
+                }
+            }
+        });
 }
 
 /// The walk from the entrance to the exit: one dot per room crossed, the entrance in `from`, the exit in `to`.

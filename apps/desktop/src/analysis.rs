@@ -7,15 +7,18 @@ use crate::{
     class_label, size_label, summary, translate_log, translate_violation, App, BenchmarkKind,
     GeneratedMap,
 };
-use eframe::egui::{self, Button, Color32, Frame, Grid, RichText, Ui};
+use eframe::egui::{self, Align, Button, Color32, Frame, Grid, Layout, RichText, Ui};
 
 /// A number with what it counts, in a rounded box.
 fn tile(ui: &mut Ui, value: String, title: &str, caption: &str) {
     Frame::group(ui.style()).inner_margin(10.0).show(ui, |ui| {
         ui.set_width(ui.available_width());
-        ui.label(RichText::new(value).strong().size(24.0));
-        ui.label(RichText::new(title).strong());
-        ui.label(muted(ui, caption));
+        // Not the justified layout of `ui.columns`: it spreads the words of a wrapped caption across the line.
+        ui.with_layout(Layout::top_down(Align::LEFT), |ui| {
+            ui.label(RichText::new(value).strong().size(24.0));
+            ui.label(RichText::new(title).strong());
+            ui.label(muted(ui, caption));
+        });
     });
 }
 
@@ -219,20 +222,24 @@ pub fn analysis_tab(app: &mut App, ui: &mut Ui) {
                     pal.accent,
                     pal.corridor,
                 );
-                ui.horizontal_wrapped(|ui| {
-                    ui.label(RichText::new(format!("{hops:.0} rooms")).strong());
-                    ui.label(muted(ui, "on the shortest way"));
-                    if let Some(routes) = m.routes_to_exit {
-                        ui.separator();
-                        ui.label(RichText::new(format!("{routes} route(s)")).strong());
-                        ui.label(muted(ui, "that share no corridor"));
-                    }
-                    if let Some(length) = m.geometric_path_to_exit {
-                        ui.separator();
-                        ui.label(RichText::new(format!("{length:.0} px")).strong());
-                        ui.label(muted(ui, "of walking"));
-                    }
-                });
+                Grid::new("walk-facts")
+                    .num_columns(2)
+                    .spacing([10.0, 4.0])
+                    .show(ui, |ui| {
+                        ui.label(RichText::new(format!("{hops:.0} rooms")).strong());
+                        ui.label(muted(ui, "on the shortest way"));
+                        ui.end_row();
+                        if let Some(routes) = m.routes_to_exit {
+                            ui.label(RichText::new(format!("{routes} route(s)")).strong());
+                            ui.label(muted(ui, "that share no corridor"));
+                            ui.end_row();
+                        }
+                        if let Some(length) = m.geometric_path_to_exit {
+                            ui.label(RichText::new(format!("{length:.0} px")).strong());
+                            ui.label(muted(ui, "of walking"));
+                            ui.end_row();
+                        }
+                    });
                 explain(
                 ui,
                 "More than one independent route means a corridor that is blocked does not cut the exit off. The whole floor is at most this many rooms across:",
