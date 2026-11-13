@@ -8,6 +8,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 - `install.sh --verify` with a GitHub CLI older than 2.49 (no `gh attestation`) now says that it needs 2.49 or newer, before installing anything, instead of reporting that the provenance could not be verified.
 
+### Changed
+
+- The app icon is the rabbit head in cream on a rounded pink tile with transparent corners, instead of a black square that looked like a hole in a launcher (Linux icon, favicon, `.exe`, `Tapiti.app`).
+
 ## [0.1.1] - 2026-11-13
 
 ### Added
