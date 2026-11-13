@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="apps/site/assets/brand/logo.svg" alt="" width="96">
+<img src="apps/site/assets/brand/logo.svg" alt="" width="128">
 
 # Tapiti
 

@@ -247,7 +247,7 @@ async fn header(cx: &Cx) -> Result<impl View> {
                 <img
                     src=(asset!("assets/brand/logo.svg"))
                     alt=""
-                    width="20"
+                    width="25"
                     height="30"
                 >
                 "tapiti"
@@ -285,7 +285,7 @@ async fn footer(cx: &Cx) -> Result<impl View> {
                         <img
                             src=(asset!("assets/brand/logo.svg"))
                             alt=""
-                            width="24"
+                            width="30"
                             height="36"
                         >
                         "tapiti"
