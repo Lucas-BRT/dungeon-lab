@@ -27,13 +27,13 @@ await send('session.new', { capabilities: {} })
 const { result: { contexts: [{ context }] } } = await send('browsingContext.getTree', {})
 // The card is the top-left 1200x630 of the page, whatever the window size is.
 await send('browsingContext.setViewport', { context, viewport: { width: 1200, height: 630 } })
-await send('browsingContext.navigate', { context, url: `${base}/`, wait: 'complete' })
+await send('browsingContext.navigate', { context, url: `${base}/?tier=0`, wait: 'complete' })
 const run = async (body) => (await send('script.evaluate', { expression: `(async () => { ${body} })()`, target: { context }, awaitPromise: true })).result?.result?.value
 for (let i = 0; i < 60 && !(await run("return document.documentElement.classList.contains('walk-on')")); i++) await sleep(500)
 await sleep(2500) // the torches finish lighting
 await run(`
   const style = document.createElement('style')
-  style.textContent = '.site-header, .site-footer, .rooms, .depth, .minimap { visibility: hidden !important } .walk-backdrop { inset: 0 auto auto 0 !important; width: 1200px !important; height: 630px !important } .walk-backdrop canvas { filter: brightness(2.2) contrast(1.15) saturate(1.15); transform: translate(13%, -6%) scale(1.12) } #card { position: fixed; z-index: 5; left: 64px; top: 380px; display: grid; gap: 14px } #card b { font: 700 120px/1 var(--font-display); letter-spacing: -.02em; color: var(--bone); text-shadow: 0 2px 24px #0b0e12 } #card span { font: 500 34px/1.2 var(--font-body); color: var(--ash); text-shadow: 0 2px 16px #0b0e12 } #card img { width: 72px; height: 72px }'
+  style.textContent = '.site-header, .site-footer, .rooms, .route { visibility: hidden !important } .walk-backdrop { inset: 0 auto auto 0 !important; width: 1200px !important; height: 630px !important } .walk-backdrop canvas { filter: brightness(1.3) contrast(1.08); transform: translate(2%, -4%) scale(1.06) } #card { position: fixed; z-index: 5; left: 64px; top: 380px; display: grid; gap: 14px } #card b { font: 500 120px/1 var(--font-display); letter-spacing: -.02em; color: var(--bone); text-shadow: 0 2px 24px #0b0e12 } #card span { font: 500 34px/1.2 var(--font-body); color: var(--ash); text-shadow: 0 2px 16px #0b0e12 } #card img { width: 72px; height: 72px }'
   document.head.append(style)
   const card = document.createElement('div')
   card.id = 'card'

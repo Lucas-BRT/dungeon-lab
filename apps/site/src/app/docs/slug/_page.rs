@@ -42,7 +42,10 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
                             <a href=(page.source_url.as_str())>(t!(docs_edit))</a>
                         </p>
                     </article>
-                    <nav class="docs-toc" aria-label=(t!(docs_toc_label))>
+                    <nav class="docs-toc" aria-labelledby="docs-toc-title">
+                        <p id="docs-toc-title" class="docs-side-title">
+                            (t!(docs_toc_label))
+                        </p>
                         <ul>
                             for entry in &page.toc {
                                 <li class=(if entry.level > 2 { "sub" } else { "" })>

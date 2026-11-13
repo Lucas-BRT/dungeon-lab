@@ -1,6 +1,6 @@
 ## The lab: the page itself
-lab_eyebrow = Interactive lab
-lab_intro = Explore how the mathematical rules change the shape and paths of a floor. Change a value to generate a new map.
+lab_title = The lab
+lab_intro = Pick a level and a seed, change any rule, and the floor is dug again on the spot, in your browser.
 lab_loading = Loading the generator…
 lab_needs_js = The lab runs the generator in your browser, with WebAssembly, so it needs JavaScript.
 lab_levels_title = Choose a level
@@ -94,7 +94,7 @@ lab_valid_detail = { $draws } attempt(s) · { $ms } ms to generate
 lab_invalid = { $n } problem(s) found
 lab_invalid_detail = After { $draws } attempt(s), the map still does not meet every rule.
 lab_panel_title = Floor reading
-lab_panel_eyebrow = Level { $level }, seed { $seed }
+lab_panel_meta = Level { $level }, seed { $seed }
 lab_g_size = Map size
 lab_g_cycles = Cycles and density
 lab_g_paths = Paths and connectivity

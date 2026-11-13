@@ -39,7 +39,7 @@
         for (const e of entries) (e.isIntersecting ? seen.add(e.target) : seen.delete(e.target));
         mark();
       },
-      { rootMargin: "-72px 0px -60% 0px" },
+      { rootMargin: `-${parseInt(getComputedStyle(document.documentElement).getPropertyValue("--header-h")) + 16 || 80}px 0px -60% 0px` },
     );
     heads.forEach((h) => io.observe(h));
   }

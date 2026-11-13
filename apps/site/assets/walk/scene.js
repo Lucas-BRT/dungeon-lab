@@ -94,7 +94,7 @@ function floorTexture(THREE, floor, scene, size) {
   c.imageSmoothingEnabled = true
   c.drawImage(small, (m.ox - x0 + m.cell / 2) * sx, (m.oy - y0 + m.cell / 2) * sy, m.nx * m.cell * sx, m.ny * m.cell * sy)
   c.globalCompositeOperation = 'source-in'
-  c.fillStyle = '#4b4f58'
+  c.fillStyle = '#7a756d'
   c.fillRect(0, 0, W, H)
   c.globalCompositeOperation = 'source-atop'
   for (const room of floor.rooms) {
@@ -104,12 +104,12 @@ function floorTexture(THREE, floor, scene, size) {
     if (s.kind === 'disc') c.arc((s.c[0] - x0) * sx, (s.c[1] - y0) * sy, s.r * sx, 0, Math.PI * 2)
     else s.pts.forEach(([x, y], i) => (i ? c.lineTo((x - x0) * sx, (y - y0) * sy) : c.moveTo((x - x0) * sx, (y - y0) * sy)))
     c.closePath()
-    c.globalAlpha = 0.14
+    c.globalAlpha = 0.1
     c.fillStyle = css(`--map-${room.cls}`) || '#888'
     c.fill()
   }
   c.globalAlpha = 0.5
-  c.strokeStyle = '#1c1f26'
+  c.strokeStyle = '#2e2a25'
   c.lineWidth = 1.5
   const joints = (list, vertical) => {
     for (let i = 0; i < list.length; i++) {
@@ -142,7 +142,7 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: devicePixelRatio < 1.5, powerPreference: 'low-power' })
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.toneMapping = THREE.ACESFilmicToneMapping
-  renderer.toneMappingExposure = 1
+  renderer.toneMappingExposure = 1.15
   renderer.setClearColor(abyss, 1)
 
   const scene = new THREE.Scene()
@@ -160,7 +160,7 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
   for (let i = 0; i < w.shade.length; i++) colors.fill(w.shade[i], i * 3, i * 3 + 3)
   wallGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
   wallGeometry.setIndex(new THREE.BufferAttribute(w.indices, 1))
-  const wallMaterial = new THREE.MeshLambertMaterial({ color: '#8a8f9a', vertexColors: true })
+  const wallMaterial = new THREE.MeshLambertMaterial({ color: '#a19b90', vertexColors: true })
   scene.add(new THREE.Mesh(wallGeometry, wallMaterial))
 
   /* Floor: one plane under everything, the texture's alpha cuts it to the shape of the floor. */
@@ -177,7 +177,7 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
   const pillars = built.pillars.length / 2
   let pillarMesh = null
   if (pillars) {
-    pillarMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(7, 60, 7), new THREE.MeshLambertMaterial({ color: '#6a6f7a' }), pillars)
+    pillarMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(7, 60, 7), new THREE.MeshLambertMaterial({ color: '#80786c' }), pillars)
     const m = new THREE.Matrix4()
     for (let i = 0; i < pillars; i++) pillarMesh.setMatrixAt(i, m.makeTranslation(built.pillars[i * 2], 30, built.pillars[i * 2 + 1]))
     scene.add(pillarMesh)
@@ -189,7 +189,7 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
   const leafMode = mode === 'leaf'
   const orbitMode = mode === 'orbit'
   const side = Math.min(stairs.radius * 1.1, 110)
-  const stepMaterial = new THREE.MeshLambertMaterial({ color: '#5a5f6a' })
+  const stepMaterial = new THREE.MeshLambertMaterial({ color: '#615b52' })
   const steps = []
   for (let k = 0; landingMode && k < 8; k++) {
     const step = new THREE.Mesh(new THREE.BoxGeometry(side, 20, side / 8), stepMaterial)
@@ -197,13 +197,13 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
     steps.push(step)
     scene.add(step)
   }
-  const below = new THREE.PointLight(css('--light-below') || '#5a7bb0', 30000, 380, 2)
+  const below = new THREE.PointLight(css('--light-below') || '#6d8fc4', 400, 380, 1)
   below.position.set(stairs.center[0], -90, stairs.center[1])
   if (landingMode) scene.add(below)
 
   /* Torches: brackets and flames (two draw calls), lit by a fixed pool of lights that follows the camera. */
   const count = built.torches.length / 4
-  const brackets = new THREE.InstancedMesh(new THREE.BoxGeometry(4, 16, 4), new THREE.MeshLambertMaterial({ color: '#2c2a2a' }), count)
+  const brackets = new THREE.InstancedMesh(new THREE.BoxGeometry(4, 16, 4), new THREE.MeshLambertMaterial({ color: '#3a3430' }), count)
   const flames = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), null, count)
   const phase = new Float32Array(count)
   const lit = new Float32Array(count)
@@ -220,7 +220,7 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
   flames.geometry.setAttribute('phase', new THREE.InstancedBufferAttribute(phase, 1))
   const litAttribute = new THREE.InstancedBufferAttribute(lit, 1)
   flames.geometry.setAttribute('lit', litAttribute)
-  const flameUniforms = { uTime: { value: 0 }, uSway: { value: 1 }, uColor: { value: new THREE.Color(css('--light-torch') || '#ff8a3d') } }
+  const flameUniforms = { uTime: { value: 0 }, uSway: { value: 1 }, uColor: { value: new THREE.Color(css('--light-torch') || '#ffbf85') } }
   flames.material = new THREE.ShaderMaterial({ vertexShader: FLAME_VERTEX, fragmentShader: FLAME_FRAGMENT, uniforms: flameUniforms, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })
   flames.frustumCulled = false
   scene.add(brackets, flames)
@@ -240,21 +240,41 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
   const delays = spots.map(([x, , z]) => { const d = Math.sqrt((x - entrance.x) ** 2 + (z - entrance.y) ** 2); farthest = Math.max(farthest, d); return d })
   for (let i = 0; i < count; i++) delays[i] = (delays[i] / farthest) * 0.8
 
-  /* Lights */
-  const fill = new THREE.Color(css('--light-fill') || '#1c2a44')
-  const dayFill = new THREE.Color('#8196ba')
+  /* Lights. Warm torches against cool stone; the overview is lit like a model on a table, neutral and soft. */
+  // Decay 1, not the physical 2: wide soft pools of light instead of hot spots on the nearest wall and black beyond.
+  const TORCH = 120
+  const CARRIED = 110
+  const fill = new THREE.Color(css('--light-fill') || '#2b3442')
+  const dayFill = new THREE.Color('#b4ad9f')
   const hemisphere = new THREE.HemisphereLight(fill, abyss, 1.1)
   scene.add(hemisphere)
-  const carried = new THREE.PointLight(css('--light-carried') || '#ffa457', 24000, 560, 2)
+  const carried = new THREE.PointLight(css('--light-carried') || '#ffd4ad', CARRIED, 600, 1)
   scene.add(carried)
   const pool = []
   const POOL = 6
   for (let i = 0; i < POOL; i++) {
-    const light = new THREE.PointLight(css('--light-torch') || '#ff8a3d', 18000, 420, 2)
+    const light = new THREE.PointLight(css('--light-torch') || '#ffbf85', TORCH, 360, 1)
     pool.push({ light, torch: -1 })
     scene.add(light)
   }
   let poolSize = leafMode ? 1 : POOL
+  // For the overview: torches spread over the whole floor (farthest-point picks from the entrance), so the map reads as a lit model.
+  const spread = []
+  if (count) {
+    const far = new Float32Array(count).fill(Infinity)
+    let pick = 0
+    let bestD = Infinity
+    spots.forEach(([x, , z], i) => { const d = (x - built.stations[0].x) ** 2 + (z - built.stations[0].y) ** 2; if (d < bestD) { bestD = d; pick = i } })
+    while (spread.length < Math.min(POOL, count)) {
+      spread.push(pick)
+      let next = 0
+      for (let i = 0; i < count; i++) {
+        far[i] = Math.min(far[i], (spots[i][0] - spots[pick][0]) ** 2 + (spots[i][2] - spots[pick][2]) ** 2)
+        if (far[i] > far[next]) next = i
+      }
+      pick = next
+    }
+  }
 
   /* The path */
   const pts = built.path.points
@@ -272,12 +292,18 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
     return out
   }
   const stationU = built.stations.map((s) => s.u)
-  const ALTITUDE = [900, 420, 300, 220, 160, 140, 130]
+  const ALTITUDE = [900, 380, 320, 290, 260, 240, 220]
   const altitude = (u) => {
     for (let i = 0; i < stationU.length - 1; i++) if (u <= stationU[i + 1]) return lerp(ALTITUDE[i], ALTITUDE[i + 1], smooth(stationU[i], stationU[i + 1], u))
     return ALTITUDE[ALTITUDE.length - 1]
   }
   const centre = [(bx0 + bx1) / 2, (by0 + by1) / 2]
+  // Where each room's text stands, as a share of the width to move the picture away from it (+ right, - left). Matches landing.css.
+  const SHIFT = [0.14, 0.16, 0, 0, -0.14, 0.16, -0.05]
+  const shiftAt = (u) => {
+    for (let i = 0; i < stationU.length - 1; i++) if (u <= stationU[i + 1]) return lerp(SHIFT[i], SHIFT[i + 1], smooth(stationU[i], stationU[i + 1], u))
+    return SHIFT[SHIFT.length - 1]
+  }
   const leafAngle = (t) => 0.5 + (stepped ? 0 : 0.14 * Math.sin(t * 0.35))
   const aheadU = 0.035
 
@@ -331,15 +357,15 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
     const bird = 1 - smooth(0, stationU[1], u)
     const portrait = innerWidth < innerHeight * 0.8
     // Walking pose: above the path and a little behind, looking ahead along it.
-    const back = alt * 0.55
+    const back = alt * 0.7
     const wx = here[0]
     const wy = alt
     const wz = here[2] + back
     // Bird's-eye pose over the middle of the floor, so the floor reads as a map.
     const span = Math.max(bx1 - bx0, by1 - by0)
     const bxp = centre[0]
-    const byp = span * (portrait ? 1.5 : 0.95)
-    const bzp = centre[1] + span * 0.62
+    const byp = span * (portrait ? 1.45 : 0.98)
+    const bzp = centre[1] + span * 0.5
     pose.px = lerp(wx, bxp, bird)
     pose.py = lerp(wy, byp, bird)
     pose.pz = lerp(wz, bzp, bird)
@@ -393,7 +419,11 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
   let stepped = reduced()
   const paused = () => remember('tapiti.walk.paused') === '1'
   if (paused()) stepped = true
-  let tier = Number(remember('tapiti.walk.tier', undefined, sessionStorage)) || 0
+  // `?tier=0` (to 3) pins the quality tier, for screenshots on slow software renderers.
+  const pinned = params.has('tier')
+  let tier = pinned ? clamp(Number(params.get('tier')) || 0, 0, 3) : Number(remember('tapiti.walk.tier', undefined, sessionStorage)) || 0
+  if (tier >= 2) poolSize = Math.min(poolSize, 3)
+  if (tier >= 3) flames.visible = false
   let dpr = 1
   const applySize = () => {
     const rect = canvas.getBoundingClientRect()
@@ -423,7 +453,7 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
   const you = document.querySelector('.minimap .you')
   const viewBox = minimapSvg ? minimapSvg.viewBox.baseVal : null
   const stops = [...document.querySelectorAll('.minimap .stop')]
-  const ticks = [...document.querySelectorAll('.depth li a')]
+  const ticks = [...document.querySelectorAll('.route-list a')]
   let currentStation = -1
   const markStation = (i) => {
     if (i === currentStation) return
@@ -454,10 +484,16 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
       camera.position.set(p.px, p.py, p.pz)
       camera.lookAt(p.lx, p.ly, p.lz)
       camera.fov = innerWidth < innerHeight * 0.8 ? lerp(50, 60, p.bird) : 50
+      // On wide screens the text stands at one side: the picture moves to the other, without turning the camera.
+      const w = canvas.width
+      const h = canvas.height
+      const shift = landingMode && innerWidth >= 1100 ? shiftAt(state.u) * (1 - state.dive) : 0
+      if (shift) camera.setViewOffset(w, h, -shift * w, 0, w, h)
+      else camera.clearViewOffset()
       camera.updateProjectionMatrix()
     }
-    scene.fog.density = leafMode ? 0.0035 : orbitMode ? 0.0005 : lerp(0.0016, 0.0004, p.bird)
-    hemisphere.intensity = leafMode ? 0.8 : orbitMode ? 3.4 : lerp(1.1, 2.8, p.bird)
+    scene.fog.density = leafMode ? 0.0035 : orbitMode ? 0.0003 : lerp(0.0014, 0.0002, p.bird)
+    hemisphere.intensity = leafMode ? 1 : orbitMode ? 2.2 : lerp(1.4, 2.6, p.bird)
     hemisphere.color.lerpColors(fill, dayFill, orbitMode ? 1 : p.bird)
     for (let i = 0; i < count; i++) scratch[i] = (spots[i][0] - p.lx) ** 2 + (spots[i][2] - p.lz) ** 2
     for (let i = 0; i < count; i++) ordered[i] = i
@@ -473,15 +509,15 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
     for (let k = 0; k < POOL; k++) {
       const slot = pool[k]
       if (k >= poolSize) { slot.light.intensity = 0; continue }
-      const torch = ordered[k]
+      const torch = !orbitMode && !leafMode && p.bird > 0.5 && spread[k] !== undefined ? spread[k] : ordered[k]
       const [x, y, z] = spots[torch]
       slot.light.position.set(x, y, z)
       const n = stepped ? 0 : (Math.sin(t * 7.1 + hash(torch) * 6.28) + Math.sin(t * 11.3 + hash(torch) * 17) + Math.sin(t * 17.9 + hash(torch) * 31)) / 3
-      slot.light.intensity = 18000 * (0.86 + 0.14 * n) * lit[torch]
+      slot.light.intensity = TORCH * (1 + 2 * p.bird) * (0.86 + 0.14 * n) * lit[torch]
     }
     carried.position.set(p.px + (p.lx - p.px) * 0.15, Math.max(p.py - 40, -40), p.pz + (p.lz - p.pz) * 0.15)
-    carried.intensity = (leafMode ? 9000 : orbitMode ? 14000 : 24000) * smooth(0, 0.45, t) * (1 - p.bird * 0.7)
-    below.intensity = landingMode ? 30000 * smooth(0.6, 1, state.u) * (1 - state.dive * 0.4) : 0
+    carried.intensity = (leafMode ? 0.5 : orbitMode ? 0.8 : 1) * CARRIED * smooth(0, 0.45, t) * (1 - p.bird * 0.7)
+    below.intensity = landingMode ? 400 * smooth(0.6, 1, state.u) * (1 - state.dive * 0.4) : 0
     renderer.render(scene, camera)
     if (first) {
       first = false
@@ -499,7 +535,7 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
   const adapt = (now) => {
     const dt = now - prev
     prev = now
-    if (stepped || dt > 200) return
+    if (stepped || pinned || dt > 200) return
     if (!sampleStart) sampleStart = now
     samples.push(dt)
     if (now - sampleStart >= 2000) {
@@ -511,7 +547,7 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
         tier++
         remember('tapiti.walk.tier', String(tier), sessionStorage)
         if (tier === 1) applySize()
-        else if (tier === 2) poolSize = 3
+        else if (tier === 2) poolSize = Math.min(poolSize, 3)
         else flames.visible = false
       }
     }
@@ -520,7 +556,7 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
   const step = (now) => {
     frameId = 0
     timer = 0
-    if (stopped || document.hidden) return
+    if (stopped || document.hidden || offscreen) return
     if (leafMode) {
       adapt(now)
       render(now)
@@ -574,6 +610,9 @@ export function mount({ THREE, canvas, floor, scene: built, mode = 'landing', pa
     document.documentElement.classList.remove('walk-on')
   })
   new ResizeObserver(onResize).observe(canvas)
+  // On narrow screens the scene sits behind the entrance only and scrolls away: no frames while it is out of sight.
+  let offscreen = false
+  new IntersectionObserver(([entry]) => { offscreen = !entry.isIntersecting; if (!offscreen) wake() }).observe(canvas)
 
   measure()
   applySize()
@@ -624,7 +663,7 @@ async function boot() {
   const built = build.build(floor)
   const handle = mount({ THREE, canvas, floor, scene: built, mode: sceneMode, page: document.querySelector('.rooms') })
 
-  const toggle = document.querySelector('.depth-pause')
+  const toggle = document.querySelector('.route-pause')
   if (toggle) {
     toggle.hidden = false
     const label = () => {

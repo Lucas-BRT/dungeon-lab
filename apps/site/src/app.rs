@@ -238,20 +238,37 @@ async fn layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
 
 #[component]
 async fn header(cx: &Cx) -> Result<impl View> {
+    let path = topcoat::router::request::try_uri(cx).map_or("", |uri| uri.path());
+    let in_docs = path.starts_with("/docs") || path.starts_with("/search");
+    let in_lab = path.starts_with("/lab");
     Ok(view! {
         <header class="site-header">
             <a class="brand" href=(href!(_page::page))>
                 <img
                     src=(asset!("assets/brand/mark.svg"))
                     alt=""
-                    width="28"
-                    height="28"
+                    width="30"
+                    height="30"
                 >
                 "tapiti"
             </a>
             <nav class="site-nav" aria-label=(t!(nav_label))>
-                <a href=(href!(docs::_page::page))>(t!(nav_docs))</a>
-                <a href=(href!(lab::page))>(t!(nav_lab))</a>
+                <a
+                    href=(href!(docs::_page::page))
+                    if in_docs {
+                        aria-current="page"
+                    }
+                >
+                    (t!(nav_docs))
+                </a>
+                <a
+                    href=(href!(lab::page))
+                    if in_lab {
+                        aria-current="page"
+                    }
+                >
+                    (t!(nav_lab))
+                </a>
                 <a href=(GITHUB)>"GitHub"</a>
             </nav>
         </header>
@@ -262,28 +279,31 @@ async fn header(cx: &Cx) -> Result<impl View> {
 async fn footer(cx: &Cx) -> Result<impl View> {
     Ok(view! {
         <footer class="site-footer">
-            <div class="footer-about">
-                <a class="brand" href=(href!(_page::page))>
-                    <img
-                        src=(asset!("assets/brand/mark.svg"))
-                        alt=""
-                        width="28"
-                        height="28"
-                    >
-                    "tapiti"
-                </a>
-                <p>(t!(footer_license))</p>
+            <div class="footer-inner">
+                <div class="footer-about">
+                    <a class="brand" href=(href!(_page::page))>
+                        <img
+                            src=(asset!("assets/brand/mark.svg"))
+                            alt=""
+                            width="36"
+                            height="36"
+                        >
+                        "tapiti"
+                    </a>
+                    <p>(t!(footer_about))</p>
+                    <p class="footer-small">(t!(footer_license))</p>
+                </div>
+                <nav aria-label=(t!(footer_explore))>
+                    <h2>(t!(footer_explore))</h2>
+                    <a href=(href!(docs::_page::page))>(t!(nav_docs))</a>
+                    <a href=(href!(lab::page))>(t!(nav_lab))</a>
+                </nav>
+                <nav aria-label=(t!(footer_project))>
+                    <h2>(t!(footer_project))</h2>
+                    <a href=(GITHUB)>(t!(footer_source))</a>
+                    <a href=(GITHUB_ISSUES)>(t!(footer_issues))</a>
+                </nav>
             </div>
-            <nav aria-label=(t!(footer_explore))>
-                <h2>(t!(footer_explore))</h2>
-                <a href=(href!(docs::_page::page))>(t!(nav_docs))</a>
-                <a href=(href!(lab::page))>(t!(nav_lab))</a>
-            </nav>
-            <nav aria-label=(t!(footer_project))>
-                <h2>(t!(footer_project))</h2>
-                <a href=(GITHUB)>(t!(footer_source))</a>
-                <a href=(GITHUB_ISSUES)>(t!(footer_issues))</a>
-            </nav>
         </footer>
     })
 }

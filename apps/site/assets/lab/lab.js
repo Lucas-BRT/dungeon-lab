@@ -643,7 +643,7 @@ const renderResults = () => {
       el('p', {}, ok ? tr('lab_valid_detail', { draws, ms: formatNumber(ms, 1) }) : tr('lab_invalid_detail', { draws })),
       ...(ok ? [] : [el('ul', { class: 'violation-list' }, ...violations.slice(0, 8).map((line) => el('li', {}, translate(line, VIOLATIONS))))]),
     ))
-  results.append(el('div', { class: 'panel-header' }, el('p', { class: 'eyebrow' }, tr('lab_panel_eyebrow', { level: state.level, seed: state.seed })), el('h2', {}, tr('lab_panel_title'))), status)
+  results.append(el('div', { class: 'panel-header' }, el('h2', {}, tr('lab_panel_title')), el('p', { class: 'panel-meta' }, tr('lab_panel_meta', { level: state.level, seed: state.seed }))), status)
 
   const groups = METRIC_ROWS(m)
   Object.entries(groups).forEach(([title, rows], index) => {

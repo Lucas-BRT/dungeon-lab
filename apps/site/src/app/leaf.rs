@@ -42,12 +42,17 @@ pub async fn leaf_chamber(cx: &Cx, missing: bool) -> Result<impl View> {
                     <h1>(t!(missing_title))</h1>
                     <p>(t!(missing_text))</p>
                     <p>
-                        <a href=(href!(crate::app::_page::page))>(t!(missing_back))</a>
+                        <a class="button primary" href=(href!(crate::app::_page::page))>
+                            (t!(missing_back))
+                        </a>
                     </p>
                 } else {
                     <h1>(t!(chamber_title))</h1>
                     <p>(t!(chamber_text_one))</p>
                     <p>(t!(chamber_text_two))</p>
+                    <p>
+                        <a href=(href!(crate::app::_page::page))>(t!(missing_back))</a>
+                    </p>
                 }
             </div>
         </section>

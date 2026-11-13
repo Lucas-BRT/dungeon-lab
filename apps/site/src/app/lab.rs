@@ -48,7 +48,7 @@ fn dictionary() -> String {
         lab_perf_800_result(one, workers, many, invalid), lab_perf_800_fail(error),
         lab_err_int(min, max), lab_err_range(min, max),
         lab_help_prefix(text), lab_gen_failed, lab_valid, lab_valid_detail(draws, ms), lab_invalid(n), lab_invalid_detail(draws),
-        lab_panel_title, lab_panel_eyebrow(level, seed),
+        lab_panel_title, lab_panel_meta(level, seed),
         lab_g_size, lab_g_cycles, lab_g_paths,
         lab_m_rooms, lab_m_rooms_help, lab_m_leaf_chambers, lab_m_leaf_chambers_help,
         lab_m_junctions, lab_m_junctions_help, lab_m_edges, lab_m_edges_help,
@@ -229,8 +229,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
                 </button>
             </div>
             <section id="controls" class="lab-panel" aria-label=(e!(lab_controls_aria))>
-                <p class="eyebrow">(e!(lab_eyebrow))</p>
-                <h1>"Tapiti"</h1>
+                <h1>(e!(lab_title))</h1>
                 <p class="intro-copy">(e!(lab_intro))</p>
                 <div class="level-section">
                     <div class="section-title">

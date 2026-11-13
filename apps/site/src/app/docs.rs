@@ -37,7 +37,10 @@ pub async fn frame(cx: &Cx, current: &str, #[default] child: Child<'_>) -> Resul
                         placeholder=(t!(docs_search_placeholder))
                     >
                 </form>
-                <nav aria-label=(t!(docs_nav_label))>
+                <nav aria-labelledby="docs-nav-title">
+                    <p id="docs-nav-title" class="docs-side-title">
+                        (t!(docs_nav_label))
+                    </p>
                     <ul>
                         for page in pages {
                             <li>

@@ -1,5 +1,5 @@
-/* Tapiti: a torchlit stone floor. Dark only. Wet stone in shadow (cool) so the warm torch reads as warm; one accent, carrot.
-   The floors are the colour on the page. The page's base colour is also the 3D scene's fog and clear colour (phase 5). */
+/* Tapiti: a torchlit stone floor. Dark only. Stone in shadow is cool, so the warm torch reads as warm; one accent, carrot, the colour of
+   the mark. The floors are the colour on the page. The page's base colour is also the 3D scene's fog and clear colour. */
 @layer reset, tokens, base, layout, components, pages;
 
 @layer tokens {
@@ -7,14 +7,18 @@
     color-scheme: dark;
 
     --abyss: #0b0e12;      /* page, scene fog */
-    --stone-900: #14181e;  /* header, panels, docs nav */
-    --stone-800: #1d222a;  /* raised: code, inputs, details */
-    --stone-600: #3a414c;  /* hairlines (decorative) */
-    --stone-500: #5d6573;  /* control borders (3:1) */
-    --bone: #ece3d0;       /* text */
-    --ash: #b0a898;        /* secondary text */
-    --faint: #857e72;      /* large or non-text only */
+    --stone-950: #101318;  /* footer, lab view */
+    --stone-900: #15191f;  /* panels, docs nav */
+    --stone-800: #1e232b;  /* raised: code, inputs, details */
+    --stone-700: #2a3039;  /* hover on raised */
+    --stone-600: #39404b;  /* hairlines (decorative) */
+    --stone-500: #646c79;  /* control borders (3:1) */
+    --bone: #efe7d6;       /* text */
+    --ash: #c2baab;        /* secondary text: 9.6:1 on abyss */
+    --faint: #8f887c;      /* large or non-text only */
     --carrot: #f08a3c;     /* the one accent, same as mark.svg */
+    --carrot-hi: #ffa25e;  /* hover on carrot */
+    --link: #f7a565;       /* links in prose: carrot lifted for small text */
     --soil: #1a1410;       /* text on carrot */
     --plate: #1b1712;      /* floor figures and the minimap */
     --ok: #7cc98f;
@@ -28,22 +32,26 @@
     --map-star: #cdb850;
     --map-corridor: #6d7584;
 
-    --light-torch: #ff8a3d;
-    --light-carried: #ffa457;
-    --light-fill: #1c2a44;
-    --light-below: #5a7bb0;
+    /* Read by the 3D scene: CSS is the one place that says what the light looks like. */
+    --light-torch: #ffbf85;   /* about 2700 K: warm, not orange paint */
+    --light-carried: #ffd4ad; /* the lantern you carry, a little cooler */
+    --light-fill: #2b3442;    /* the stone in shadow */
+    --light-below: #6d8fc4;   /* cold air rising from the stairwell */
 
-    --sel: #5a3a1f; /* text selection */
+    --sel: #6a4220; /* text selection */
 
     --font-display: "Grenze", Georgia, "Times New Roman", serif;
     --font-body: "Alegreya Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-    --radius-sm: 4px;
-    --radius-md: 8px;
+    --radius-xs: 3px;  /* chips, inline code */
+    --radius-sm: 6px;  /* controls */
+    --radius-md: 10px; /* panels, figures */
+    --shadow-lift: 0 1px 2px rgb(0 0 0 / .4), 0 14px 36px -8px rgb(0 0 0 / .6);
     --ease-out: cubic-bezier(.2, .7, .2, 1);
+    --header-h: 64px;
     --gutter: clamp(16px, 4vw, 40px);
-    --edge: max(var(--gutter), calc((100% - 1240px) / 2));
+    --edge: max(var(--gutter), calc((100% - 1280px) / 2));
   }
 }
 
@@ -52,7 +60,7 @@
 }
 
 @layer base {
-  html { background: var(--abyss); scrollbar-color: var(--stone-500) var(--abyss); accent-color: var(--carrot); }
+  html { background: var(--abyss); scrollbar-color: var(--stone-500) var(--abyss); accent-color: var(--carrot); scroll-padding-top: calc(var(--header-h) + 16px); }
   body {
     margin: 0;
     min-height: 100vh;
@@ -60,65 +68,73 @@
     flex-direction: column;
     background: var(--abyss);
     color: var(--bone);
-    font: 17px/1.65 var(--font-body);
+    font: 18px/1.6 var(--font-body);
     -webkit-font-smoothing: antialiased;
     caret-color: var(--carrot);
   }
-  ::selection { background: var(--sel); color: var(--bone); }
-  a { color: inherit; text-underline-offset: .2em; text-decoration-thickness: 1px; }
-  :focus-visible { outline: 2px solid var(--carrot); outline-offset: 2px; box-shadow: 0 0 0 4px var(--abyss); border-radius: 2px; }
-  h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 600; letter-spacing: -.015em; text-wrap: balance; }
-  p, li { text-wrap: pretty; }
+  ::selection { background: var(--sel); color: #fff6ea; }
+  a { color: inherit; text-underline-offset: .22em; text-decoration-thickness: 1px; }
+  :focus-visible { outline: 2px solid var(--carrot); outline-offset: 3px; border-radius: 2px; }
+  h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spacing: -.01em; text-wrap: balance; }
+  p, li, dd { text-wrap: pretty; }
   code, kbd, pre { font-family: var(--font-mono); }
-  code { font-size: .88em; }
+  code { font-size: .86em; }
   main { position: relative; flex: 1; }
   .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: 0s !important; scroll-behavior: auto !important; }
+  }
 }
 
 @layer layout {
-  .skip-link { position: absolute; left: 12px; top: -48px; padding: 8px 14px; background: var(--carrot); color: var(--soil); border-radius: var(--radius-sm); z-index: 30; }
+  .skip-link { position: absolute; left: 12px; top: -64px; padding: 8px 14px; background: var(--carrot); color: var(--soil); font-weight: 700; border-radius: var(--radius-sm); z-index: 30; }
   .skip-link:focus { top: 12px; }
 
-  .site-header { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 24px; padding: 12px var(--edge); background: rgb(20 24 30 / .9); border-bottom: 1px solid var(--stone-600); }
-  .brand { display: inline-flex; align-items: center; gap: 10px; font: 700 1.45rem/1 var(--font-display); letter-spacing: -.01em; text-decoration: none; }
+  .site-header { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 24px; height: var(--header-h); padding: 0 var(--edge); background: rgb(16 19 24 / .94); border-bottom: 1px solid var(--stone-600); }
+  .brand { display: inline-flex; align-items: center; gap: 10px; font: 600 1.6rem/1 var(--font-display); letter-spacing: 0; text-decoration: none; color: var(--bone); }
   .brand img { display: block; }
-  .site-nav { display: flex; align-items: center; gap: 22px; margin-left: auto; font-size: .98rem; }
-  .site-nav a { text-decoration: none; color: var(--ash); transition: color .15s; }
-  .site-nav a:hover, .site-nav a[aria-current] { color: var(--bone); }
+  .site-nav { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+  .site-nav a { padding: 8px 12px; border-radius: var(--radius-sm); text-decoration: none; color: var(--ash); font-weight: 500; transition: color .15s, background-color .15s; }
+  .site-nav a:hover { color: var(--bone); background: rgb(255 240 220 / .06); }
+  .site-nav a[aria-current] { color: var(--bone); box-shadow: inset 0 -2px 0 var(--carrot); border-radius: 0; }
 
-  .site-footer { position: relative; z-index: 2; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 32px; padding: 40px var(--edge) 36px; background: var(--abyss); border-top: 1px solid var(--stone-600); color: var(--ash); font-size: .95rem; }
-  .site-footer p { margin: 10px 0 0; max-width: 24rem; }
-  .site-footer nav { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
-  .site-footer h2 { margin: 0 0 4px; color: var(--bone); font: 600 1rem/1.2 var(--font-body); letter-spacing: 0; }
-  .site-footer a { text-decoration: none; }
-  .site-footer a:hover { color: var(--bone); text-decoration: underline; }
-  .site-footer .brand { color: var(--bone); }
+  .site-footer { position: relative; z-index: 2; padding: 56px var(--edge) 40px; background: var(--stone-950); border-top: 1px solid var(--stone-600); color: var(--ash); font-size: 1rem; }
+  .footer-inner { display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(2, minmax(0, 1fr)); gap: 40px; }
+  .footer-about .brand { font-size: 2.4rem; gap: 12px; }
+  .footer-about p { margin: 14px 0 0; max-width: 30rem; }
+  .footer-about .footer-small { margin-top: 10px; color: var(--faint); font-size: .92rem; }
+  .site-footer nav { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+  .site-footer h2 { margin: 6px 0 6px; color: var(--bone); font: 700 1rem/1.2 var(--font-body); letter-spacing: 0; }
+  .site-footer nav a { padding: 2px 0; text-decoration: none; }
+  .site-footer nav a:hover { color: var(--bone); text-decoration: underline; }
 }
 
 @layer layout {
   @media (max-width: 640px) {
-    .site-header { flex-wrap: wrap; gap: 10px 16px; position: static; }
-    .site-nav { width: 100%; margin-left: 0; flex-wrap: wrap; gap: 6px 18px; }
+    :root { --header-h: 56px; }
+    .site-header { gap: 12px; }
+    .brand { font-size: 1.4rem; }
+    .site-nav a { padding: 8px 9px; }
   }
   @media (max-width: 860px) {
-    .site-footer { grid-template-columns: 1fr 1fr; }
+    .footer-inner { grid-template-columns: 1fr 1fr; gap: 32px 24px; }
     .footer-about { grid-column: 1 / -1; }
   }
 }
 
 @layer components {
   /* The fixed backdrop of the 3D scene (landing page, leaf chamber): the dimmed map or nothing until the scene is ready. */
-  .walk-backdrop { position: fixed; inset: 0 0 auto 0; height: 100lvh; z-index: 0; display: grid; place-items: center; pointer-events: none; background: radial-gradient(60vw 50vh at 72% 38%, rgb(255 138 61 / .1), transparent 70%), var(--abyss); }
-  .walk-backdrop svg { width: 100%; height: 100%; opacity: .32; transition: opacity .4s; }
-  .walk-backdrop canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity .4s; }
+  .walk-backdrop { position: fixed; inset: 0 0 auto 0; height: 100lvh; z-index: 0; display: grid; place-items: center; pointer-events: none; background: radial-gradient(60vw 50vh at 66% 42%, rgb(255 173 102 / .08), transparent 70%), var(--abyss); }
+  .walk-backdrop svg { width: min(100%, 1100px); height: 100%; margin-left: auto; opacity: .3; transition: opacity .5s; }
+  .walk-backdrop canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity .8s var(--ease-out); }
   html.walk-on .walk-backdrop canvas { opacity: 1; }
   html.walk-on .walk-backdrop svg { opacity: 0; }
-  .walk-backdrop::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 70% 45%, transparent 25%, var(--abyss) 85%); }
 
-  .button { display: inline-flex; align-items: center; padding: 11px 22px; border-radius: var(--radius-sm); font-weight: 700; text-decoration: none; border: 1px solid var(--stone-500); background: transparent; color: var(--bone); transition: background-color .15s, border-color .15s, color .15s; }
-  .button:hover { background: var(--stone-800); border-color: var(--ash); }
-  .button.primary { background: var(--carrot); border-color: var(--carrot); color: var(--soil); }
-  .button.primary:hover { background: #ff9d57; border-color: #ff9d57; }
+  .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 10px 22px; border-radius: var(--radius-sm); font-weight: 700; font-size: 1.05rem; text-decoration: none; border: 1px solid rgb(239 231 214 / .32); background: rgb(11 14 18 / .55); color: var(--bone); transition: background-color .15s, border-color .15s, color .15s; }
+  .button:hover { background: var(--stone-800); border-color: rgb(239 231 214 / .6); }
+  .button:active { transform: translateY(1px); }
+  .button.primary { background: var(--carrot); border-color: var(--carrot); color: var(--soil); box-shadow: 0 1px 0 rgb(255 255 255 / .25) inset, 0 8px 24px -8px rgb(240 138 60 / .55); }
+  .button.primary:hover { background: var(--carrot-hi); border-color: var(--carrot-hi); }
   .cta-row { display: flex; flex-wrap: wrap; gap: 12px; }
 
   /* Floor colours: the SVG only carries classes, the tokens colour it. */
@@ -136,8 +152,4 @@
   .tapiti-floor .r-key, .tapiti-floor .r-prize { stroke: var(--gate); }
   .tapiti-floor .junction { fill: var(--bone); stroke: var(--plate); }
   .tapiti-floor .door { stroke: var(--bone); }
-}
-
-@layer pages {
-
 }

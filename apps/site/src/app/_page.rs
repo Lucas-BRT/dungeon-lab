@@ -6,7 +6,7 @@ use topcoat::{
     view::{View, view},
 };
 
-use super::walk::{ROOM_IDS, depth_gauge, minimap, plate, room, step, walk_backdrop};
+use super::walk::{ROOM_IDS, plate, room, route, step, token, walk_backdrop};
 use crate::{
     app::{leaf, t},
     floor::{self, TrustedHtml},
@@ -17,6 +17,12 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
     let shapes = floor::shapes(t!(shapes_figure_label).resolve(cx).into_owned());
     let (rejected, violations) =
         floor::rejected(t!(rejected_figure_label).resolve(cx).into_owned());
+    let kept_caption = t!(validator_kept_caption, seed: floor::SHAPES_SEED)
+        .resolve(cx)
+        .into_owned();
+    let rejected_caption = t!(validator_caption, seed: floor::REJECTED_SEED)
+        .resolve(cx)
+        .into_owned();
     let speed = floor::speed();
     // For whoever reads the source.
     let hint = TrustedHtml(format!(
@@ -27,8 +33,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
         <link rel="stylesheet" href=(asset!("assets/landing.css"))>
         <div class="walk">
             walk_backdrop()
-            depth_gauge()
-            minimap()
+            route()
             <div class="rooms">
                 room(
                     id: ROOM_IDS[0],
@@ -56,44 +61,47 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
                     station: 1,
                     <h2>(t!(shapes_title))</h2>
                     <p>(t!(shapes_text))</p>
-                    <ul class="shape-legend">
+                    <ul class="shape-row">
                         <li>
-                            <i class="swatch c-rect"></i>
+                            token(shape: "rect")
                             (t!(shape_rect))
                         </li>
                         <li>
-                            <i class="swatch c-disc"></i>
+                            token(shape: "disc")
                             (t!(shape_disc))
                         </li>
                         <li>
-                            <i class="swatch c-oct"></i>
+                            token(shape: "oct")
                             (t!(shape_oct))
                         </li>
                         <li>
-                            <i class="swatch c-L"></i>
+                            token(shape: "L")
                             (t!(shape_l))
                         </li>
                         <li>
-                            <i class="swatch c-star"></i>
+                            token(shape: "star")
                             (t!(shape_star))
                         </li>
                     </ul>
-                    plate((shapes))
                 )
                 room(
                     id: ROOM_IDS[2],
                     station: 2,
-                    <h2>(t!(validator_title))</h2>
-                    <p>(t!(validator_text))</p>
-                    <div class="verdict">
-                        <p class="verdict-caption">
-                            (t!(validator_caption, seed: floor::REJECTED_SEED))
-                        </p>
-                        for violation in violations {
-                            <code>(violation)</code>
-                        }
+                    <div class="table-text">
+                        <h2>(t!(validator_title))</h2>
+                        <p>(t!(validator_text))</p>
                     </div>
-                    plate((rejected))
+                    <div class="table-plates">
+                        plate(caption: kept_caption, (shapes))
+                        <div class="rejected">
+                            plate(caption: rejected_caption, (rejected))
+                            <ul class="verdict">
+                                for violation in violations {
+                                    <li><code>(violation)</code></li>
+                                }
+                            </ul>
+                        </div>
+                    </div>
                 )
                 room(
                     id: ROOM_IDS[3],
@@ -149,16 +157,16 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
                     <h2>(t!(run_title))</h2>
                     <dl class="run-panel">
                         <div>
-                            <dt>(t!(run_desktop))</dt>
-                            <dd><code>"cargo run --release"</code></dd>
-                        </div>
-                        <div>
                             <dt>(t!(run_browser))</dt>
                             <dd>
                                 <a href=(href!(crate::app::lab::page))>
                                     (t!(run_browser_link))
                                 </a>
                             </dd>
+                        </div>
+                        <div>
+                            <dt>(t!(run_desktop))</dt>
+                            <dd><code>"cargo run --release"</code></dd>
                         </div>
                         <div>
                             <dt>(t!(run_crate))</dt>
@@ -182,6 +190,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
                     id: ROOM_IDS[6],
                     station: 6,
                     <h2>(t!(final_title))</h2>
+                    <p class="lede">(t!(final_text))</p>
                     <div class="cta-row">
                         <a class="button primary" href=(href!(crate::app::lab::page))>
                             (t!(cta_lab))
