@@ -177,7 +177,7 @@ pub fn apply(ctx: &egui::Context) {
     }
 }
 
-/// One tab of a tab bar, as Zed draws it: 32 px high, the active one on the editor surface with the accent along its top edge, the
+/// One tab of a tab bar, as Zed draws it: 32 px high, the active one on the editor surface with the accent along its bottom edge, the
 /// others on the bar in muted text, a 1 px border under all of them. Returns the response for clicks.
 pub fn tab(ui: &mut egui::Ui, label: &str, selected: bool) -> egui::Response {
     let c = of(ui);
@@ -204,7 +204,7 @@ pub fn tab(ui: &mut egui::Ui, label: &str, selected: bool) -> egui::Response {
     );
     if selected {
         painter.line_segment(
-            [rect.left_top(), rect.right_top()],
+            [rect.left_bottom(), rect.right_bottom()],
             Stroke::new(2.0, c.accent),
         );
     }
