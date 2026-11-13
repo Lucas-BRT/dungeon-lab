@@ -172,7 +172,7 @@ jobs:
       - name: Screenshots
         if: always()
         run: xvfb-run -a node scripts/site-shots.mjs shots http://127.0.0.1:3000
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: screenshots
