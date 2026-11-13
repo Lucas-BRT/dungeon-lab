@@ -208,9 +208,7 @@ pub fn tab(ui: &mut egui::Ui, label: &str, selected: bool) -> egui::Response {
             Stroke::new(2.0, c.accent),
         );
     }
-    let color = if selected {
-        c.text
-    } else if response.hovered() {
+    let color = if selected || response.hovered() {
         c.text
     } else {
         c.text_muted
