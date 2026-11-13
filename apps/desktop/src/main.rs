@@ -781,6 +781,10 @@ fn main() -> eframe::Result {
         viewport: egui::ViewportBuilder::default()
             .with_app_id(APP_ID)
             .with_title("Tapiti")
+            .with_icon(
+                eframe::icon_data::from_png_bytes(include_bytes!("../assets/icon.png"))
+                    .expect("assets/icon.png is a valid PNG"),
+            )
             .with_inner_size([1360.0, 860.0])
             .with_min_inner_size([960.0, 640.0]),
         ..Default::default()
