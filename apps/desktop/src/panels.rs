@@ -5,9 +5,7 @@ use crate::map::{self, Palette, Xf};
 use crate::params_ui::{field_row, FieldKind, ParamField};
 use crate::pick::map_object_at;
 use crate::theme;
-use crate::{
-    format_number, get_path, set_path, size_description, size_label, App, Experiment, Tab,
-};
+use crate::{get_path, set_path, size_description, size_label, App, Experiment, Tab};
 use eframe::egui::{
     self, Align, Button, Color32, CursorIcon, Frame, Grid, Layout, Panel, RichText, ScrollArea,
     Sense, Stroke, TextEdit, Ui, Vec2,
@@ -46,6 +44,32 @@ pub fn menu_bar(app: &mut App, ui: &mut Ui) {
         .frame(theme::bar_frame(ui))
         .show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
+                ui.menu_button("File", |ui| {
+                    if ui
+                        .button("Copy JSON")
+                        .on_hover_text("Size, seed and the full Λ")
+                        .clicked()
+                    {
+                        let export = json!({ "size": size_label(app.size).to_lowercase(), "seed": app.seed, "params": app.params });
+                        ui.ctx()
+                            .copy_text(serde_json::to_string_pretty(&export).unwrap_or_default());
+                        app.status = "Parameters copied as JSON.".into();
+                        ui.close();
+                    }
+                    if ui.button("Quit").clicked() {
+                        ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+                    }
+                });
+                ui.menu_button("Edit", |ui| {
+                    if ui
+                        .add_enabled(!app.changed.is_empty(), Button::new("Reset all to the size"))
+                        .on_hover_text("Back to the defaults of the current size")
+                        .clicked()
+                    {
+                        app.set_size(app.size);
+                        ui.close();
+                    }
+                });
                 ui.menu_button("View", |ui| {
                     let mut theme = ui.options(|o| o.theme_preference);
                     for (value, name) in [
@@ -56,6 +80,25 @@ pub fn menu_bar(app: &mut App, ui: &mut Ui) {
                         ui.radio_value(&mut theme, value, name);
                     }
                     ui.ctx().set_theme(theme);
+                });
+                ui.menu_button("Tools", |ui| {
+                    ui.label(muted(ui, "Guided experiments"));
+                    for (preset, name) in [
+                        (Experiment::Shapes, "Shapes and diagonals"),
+                        (Experiment::Cycles, "More routes"),
+                        (Experiment::Junctions, "T/X junctions"),
+                        (Experiment::CircularRooms, "Circular rooms"),
+                    ] {
+                        if ui.button(name).clicked() {
+                            app.set_preset(preset);
+                            ui.close();
+                        }
+                    }
+                    ui.separator();
+                    if ui.button("JSON editor…").clicked() {
+                        app.show_json = true;
+                        ui.close();
+                    }
                 });
                 ui.menu_button("Help", |ui| {
                     if ui.button("Shortcuts").clicked() {
@@ -160,6 +203,17 @@ pub fn bottom_bar(app: &mut App, ui: &mut Ui) {
                 ui.label(muted(ui, &app.status));
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     ui.label(muted(ui, format!("{} threads", par::threads())));
+                    if !app.changed.is_empty() {
+                        ui.separator();
+                        if ui
+                            .small_button("Reset")
+                            .on_hover_text("Back to the defaults of the current size")
+                            .clicked()
+                        {
+                            app.set_size(app.size);
+                        }
+                        ui.label(muted(ui, format!("{} changed", app.changed.len())));
+                    }
                 });
             });
         });
@@ -232,11 +286,8 @@ pub fn side_panel(app: &mut App, ui: &mut Ui) {
             ui.scope(|ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
                 ui.horizontal(|ui| {
-                    for (tab, title) in [
-                        (Tab::Settings, "Parameters"),
-                        (Tab::Analysis, "Analysis"),
-                        (Tab::Advanced, "Advanced"),
-                    ] {
+                    for (tab, title) in [(Tab::Settings, "Parameters"), (Tab::Analysis, "Analysis")]
+                    {
                         if theme::tab(ui, title, app.tab == tab).clicked() {
                             app.tab = tab;
                         }
@@ -279,7 +330,6 @@ pub fn side_panel(app: &mut App, ui: &mut Ui) {
             }
             area.show(ui, |ui| match app.tab {
                 Tab::Settings => settings_tab(app, ui),
-                Tab::Advanced => advanced_tab(app, ui),
                 Tab::Analysis => analysis_tab(app, ui),
             });
         });
@@ -378,79 +428,20 @@ fn settings_tab(app: &mut App, ui: &mut Ui) {
     }
 }
 
-/// The tools that are not one group of parameters: copying the Λ, going back to the size, the guided experiments and the JSON.
-fn advanced_tab(app: &mut App, ui: &mut Ui) {
-    ui.label(muted(
-        ui,
-        "Every change regenerates the floor after a short pause. Hover a name to see what it does.",
-    ));
-    ui.add_space(4.0);
-    ui.horizontal_wrapped(|ui| {
-        if ui
-            .button("Copy JSON")
-            .on_hover_text("Size, seed and the full Λ")
-            .clicked()
-        {
-            let export = json!({ "size": size_label(app.size).to_lowercase(), "seed": app.seed, "params": app.params });
-            ui.ctx()
-                .copy_text(serde_json::to_string_pretty(&export).unwrap_or_default());
-            app.status = "Parameters copied as JSON.".into();
-        }
-        if ui
-            .add_enabled(!app.changed.is_empty(), Button::new("Reset to size"))
-            .clicked()
-        {
-            app.set_size(app.size);
-        }
-        ui.label(muted(
-            ui,
-            if app.changed.is_empty() {
-                "size default".to_string()
-            } else {
-                format!("{n} changed", n = app.changed.len())
-            },
-        ));
-    });
-
-    ui.add_space(6.0);
-    ui.label(RichText::new("Guided experiments").strong());
-    ui.label(muted(
-        ui,
-        "One click changes a few parameters to show what they do.",
-    ));
-    ui.horizontal_wrapped(|ui| {
-        for (preset, name) in [
-            (Experiment::Shapes, "Shapes and diagonals"),
-            (Experiment::Cycles, "More routes"),
-            (Experiment::Junctions, "T/X junctions"),
-            (Experiment::CircularRooms, "Circular rooms"),
-        ] {
-            if ui.button(name).clicked() {
-                app.set_preset(preset);
-            }
-        }
-    });
-
-    ui.add_space(8.0);
-    ui.label(muted(
-        ui,
-        format!(
-            "Junction conductance: {value} (informational; does not change the generation yet).",
-            value = app
-                .params
-                .junction
-                .map(|v| format_number(v, 2))
-                .unwrap_or_else(|| "∞, arms joined".into())
-        ),
-    ));
-    ui.add_space(4.0);
-    egui::CollapsingHeader::new(RichText::new("JSON editor").strong())
-        .id_salt("json")
-        .show(ui, |ui| {
+pub fn json_window(app: &mut App, ctx: &egui::Context) {
+    let mut open = app.show_json;
+    egui::Window::new("JSON editor")
+        .open(&mut open)
+        .default_width(460.0)
+        .show(ctx, |ui| {
+            ui.label(muted(
+                ui,
+                "Size, seed and the full Λ. A valid edit regenerates the floor after a short pause.",
+            ));
             let editor = ui.add(
                 TextEdit::multiline(&mut app.json_text)
                     .code_editor()
-                    .desired_rows(16)
+                    .desired_rows(18)
                     .desired_width(ui.available_width()),
             );
             if editor.changed() {
@@ -467,6 +458,7 @@ fn advanced_tab(app: &mut App, ui: &mut Ui) {
                 _ => {}
             }
         });
+    app.show_json = open;
 }
 
 // ---- Map ----------------------------------------------------------------------------------------

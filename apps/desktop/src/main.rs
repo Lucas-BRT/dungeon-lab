@@ -88,8 +88,6 @@ pub enum BenchmarkKind {
 pub enum Tab {
     /// The groups of parameters: Grid and size, Room shapes…
     Settings,
-    /// The JSON, the guided experiments and the reset.
-    Advanced,
     Analysis,
 }
 
@@ -220,7 +218,7 @@ impl App {
         app
     }
 
-    /// `TAPITI_LAYOUT`, `TAPITI_SIZE` (1 to 4) and `TAPITI_TAB` (floor, analysis, advanced or the id of a group) choose what a screenshot shows.
+    /// `TAPITI_LAYOUT`, `TAPITI_SIZE` (1 to 4) and `TAPITI_TAB` (analysis, parameters or the id of a group) choose what a screenshot shows.
     fn pick_from_env(&mut self) {
         if self.shot.is_none() {
             return;
@@ -247,7 +245,7 @@ impl App {
         if let Ok(tab) = std::env::var("TAPITI_TAB") {
             match tab.as_str() {
                 "floor" | "analysis" => self.tab = Tab::Analysis,
-                "advanced" => self.tab = Tab::Advanced,
+                "advanced" | "parameters" => self.tab = Tab::Settings,
                 id => {
                     self.tab = Tab::Settings;
                     self.focus_group = Some(id.to_string());
@@ -697,6 +695,7 @@ impl eframe::App for App {
         panels::side_panel(self, ui);
         panels::central(self, ui);
         panels::shortcuts_window(self, &ctx);
+        panels::json_window(self, &ctx);
         self.take_screenshot(&ctx);
     }
 }
@@ -796,10 +795,6 @@ fn set_path(value: &mut Value, path: &str, next: Value) {
             .entry(part.to_string())
             .or_insert_with(|| Value::Object(Default::default()));
     }
-}
-
-fn format_number(value: f64, decimals: usize) -> String {
-    format!("{value:.decimals$}")
 }
 
 fn view_box(min: [f64; 2], max: [f64; 2], zoom: f64, pan: [f64; 2]) -> (f64, f64, f64, f64) {
