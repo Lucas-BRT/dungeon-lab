@@ -67,8 +67,7 @@ The website is a [Topcoat](https://github.com/tokio-rs/topcoat) app (`apps/site`
 Needs the `wasm32-unknown-unknown` target and the `wasm-bindgen` CLI at the version in `crates/tapiti-wasm/Cargo.toml` (`=0.2.130`).
 
 The native egui frontend is the workspace's default application. It calls the shared Rust generator directly with Rayon enabled and renders the map
-without WebAssembly. The map fills the window; a right-hand panel has three tabs (floor reading and layout, every Λ parameter, analysis). Controls: the size
-presets, Λ parameters with per-field reset and a filter, guided experiments, JSON editing and copying, five map overlays and a legend,
+without WebAssembly. The map fills the window; the top bar holds the layout, the size presets, the seed and Generate, and a menu bar has File (open and save a Λ, copy the JSON or the floor as SVG), Edit, View (theme), Tools (guided experiments, JSON editor) and Help (shortcuts); a right-hand panel has two tabs: the parameters (a collapsible group each) and the analysis (charts and plain explanations). Controls: Λ parameters with per-field reset and a search, guided experiments, JSON editing and copying, a Cancel button for a long generation, five map overlays and a legend,
 pan/zoom/hover inspection, validation, and metrics. Edits regenerate the map after a short pause. Each interactive request generates one floor;
 a slow generation shows rooms and corridor connections as the generator creates them. A separate benchmark compares single-thread and
 multi-thread throughput over many independent maps. Shortcuts: Alt+1–4 size, Alt+R random seed, Alt+left/right seed.

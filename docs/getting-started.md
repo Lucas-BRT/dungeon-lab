@@ -13,7 +13,7 @@ cd tapiti
 cargo run --release
 ```
 
-Pick a size (small, medium, large or huge), change the seed, and edit any parameter: the floor is dug again a moment after each change. The side panel has three tabs: the floor reading and layout, every parameter of Λ, and the analysis. The theme is in the bottom bar.
+Pick a layout (grid, or growth, where rooms grow one from another) and a size (small, medium, large or huge) in the top bar, next to the seed and the Generate button; the grid, the leaf chambers and, for growth, where it starts are in their group of the Parameters tab. Change the seed and edit any parameter: the floor is dug again a moment after each change. A very large floor can be stopped with the Cancel button (or <kbd>Esc</kbd>), and the floor on the screen stays. The side panel has two tabs: the parameters (one collapsible group each: Grid and size and Room shapes open, then Corridors and junctions…, plus Growth with the growth layout, with the number of changed ones in the title), and the analysis (charts and plain explanations of what the floor is). A search box opens the groups that have a match. The menu bar has File (open and save a Λ as a JSON file, copy the JSON, copy the floor as SVG, quit), Edit (reset all to the size), View (the theme), Tools (the guided experiments and the JSON editor, in a window) and Help (the shortcuts); the status bar shows how many parameters changed, with a Reset.
 
 Shortcuts: <kbd>Alt</kbd>+<kbd>1</kbd> to <kbd>4</kbd> switch the size, <kbd>Alt</kbd>+<kbd>R</kbd> draws a random seed, <kbd>Alt</kbd>+<kbd>←</kbd> and <kbd>→</kbd> step the seed. Drag the map to pan, scroll to zoom, double-click to fit.
 

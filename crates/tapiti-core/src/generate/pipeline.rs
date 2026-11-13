@@ -3,7 +3,7 @@
 use super::*;
 
 pub fn generate(seed: u32, p: &Params) -> Floor {
-    generate_inner(seed, p, None)
+    generate_inner(seed, p, None, None).expect("only a cancelled generation gives up")
 }
 
 /// Generate one floor and report drawable geometry as it becomes available.
@@ -12,7 +12,18 @@ pub fn generate_with_progress(
     p: &Params,
     progress: &mut dyn FnMut(GenerationEvent),
 ) -> Floor {
-    generate_inner(seed, p, Some(progress))
+    generate_inner(seed, p, Some(progress), None).expect("only a cancelled generation gives up")
+}
+
+/// Like `generate_with_progress`, but `None` when `cancel` was called before the floor was done. A floor that is not cancelled is the
+/// same as the one `generate` draws.
+pub fn generate_cancellable(
+    seed: u32,
+    p: &Params,
+    cancel: &Cancel,
+    progress: &mut dyn FnMut(GenerationEvent),
+) -> Option<Floor> {
+    generate_inner(seed, p, Some(progress), Some(cancel.clone()))
 }
 
 pub(super) fn report_progress(
@@ -28,7 +39,8 @@ pub(super) fn generate_inner(
     seed: u32,
     p: &Params,
     mut progress: Option<&mut dyn FnMut(GenerationEvent)>,
-) -> Floor {
+    cancel: Option<Cancel>,
+) -> Option<Floor> {
     let mut phases: Vec<(String, f64)> = Vec::new();
     let mut t_last = crate::clock::now_ms();
     let mut lap = |name: &str| {
@@ -38,6 +50,7 @@ pub(super) fn generate_inner(
     };
     let mut g = Gen {
         p,
+        cancel,
         rng: Mulberry(seed),
         log: Vec::new(),
         rooms: Vec::new(),
@@ -94,6 +107,9 @@ pub(super) fn generate_inner(
         &mut progress,
     );
     lap("rooms");
+    if g.stopped() {
+        return None;
+    }
     let room_index_cell = [p.cell_w, p.cell_h]
         .into_iter()
         .filter(|v| v.is_finite())
@@ -132,6 +148,9 @@ pub(super) fn generate_inner(
         &mut progress,
         &mut lap,
     );
+    if g.stopped() {
+        return None;
+    }
 
     let mut exit_room = if p.entrance {
         assign_entrance_and_exit(&mut g, start_room, p.exit_room)
@@ -142,6 +161,9 @@ pub(super) fn generate_inner(
     let (beta_max, all_pairs) =
         measure_beta_max(&mut g, &order, near_base, &island_of, &room_index);
     lap("β_max");
+    if g.stopped() {
+        return None;
+    }
     let topology_req = p.topology_requirements();
     if !(p.entrance && p.exit_room) {
         let wanted = p.topology.requirements();
@@ -167,6 +189,9 @@ pub(super) fn generate_inner(
     );
 
     lap("cycles");
+    if g.stopped() {
+        return None;
+    }
     if let (Layout::Growth, true, Some(exit)) =
         (p.layout, topology_req.min_exit_routes <= 1, exit_room)
     {
@@ -256,6 +281,9 @@ pub(super) fn generate_inner(
     );
 
     lap("leaf chambers");
+    if g.stopped() {
+        return None;
+    }
     let dropped_centers: Vec<V> = dropped
         .iter()
         .map(|i| {
@@ -273,7 +301,7 @@ pub(super) fn generate_inner(
             kind: c.kind,
         })
         .collect();
-    Floor {
+    Some(Floor {
         params: p.clone(),
         seed,
         rooms: g.rooms,
@@ -291,5 +319,5 @@ pub(super) fn generate_inner(
         dropped: dropped_centers,
         log: g.log,
         phases,
-    }
+    })
 }

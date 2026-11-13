@@ -4,18 +4,22 @@
 //! `parallel` feature enabled. Generation runs on a background OS thread so the
 //! window remains responsive while Rayon handles the generator's parallel phases.
 
+mod analysis;
+mod charts;
 mod map;
 mod panels;
 mod params_ui;
 mod pick;
+mod theme;
 
 use eframe::egui::{self, Key, Modifiers};
 use params_ui::ParamGroup;
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use tapiti_core::cancel::Cancel;
 use tapiti_core::generate::{Floor, GenerationEvent, Role};
 use tapiti_core::geom::Shape;
 use tapiti_core::metrics::{metrics_of, Metrics};
@@ -82,8 +86,8 @@ pub enum BenchmarkKind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tab {
-    Floor,
-    Parameters,
+    /// The groups of parameters: Grid and size, Room shapes…
+    Settings,
     Analysis,
 }
 
@@ -102,6 +106,8 @@ pub struct Overlays {
 enum Event {
     Progress(Vec<GenerationEvent>),
     Generated(Result<GeneratedMap, String>),
+    /// The generation was stopped by the user before it was done.
+    Cancelled,
     Benchmark(String),
 }
 
@@ -127,15 +133,30 @@ pub struct App {
     pub pan: [f64; 2],
     pub busy: bool,
     pub queued: bool,
+    /// Stops the generation that is running, when there is one.
+    cancel: Option<Cancel>,
     work_id: u64,
     launched_at: Instant,
     show_building: bool,
+    show_shortcuts: bool,
     apply_at: Option<Instant>,
     pub status: String,
     pub performance_status: Option<String>,
     pub generated: Option<GeneratedMap>,
     pub building: BuildingMap,
     pub groups: Vec<ParamGroup>,
+    /// `TAPITI_SCREENSHOT=file.ppm`: writes the window once the first floor is drawn and quits (for the pictures of the docs and for checks).
+    shot: Option<Shot>,
+    /// `TAPITI_SCROLL`: where the side panel starts, for a screenshot of the part below the fold.
+    pub scroll_to: Option<f32>,
+    /// A group of parameters to open and scroll to once (the screenshots of the docs ask for it).
+    pub focus_group: Option<String>,
+}
+
+struct Shot {
+    path: String,
+    frames: u32,
+    requested: bool,
 }
 
 impl App {
@@ -146,7 +167,7 @@ impl App {
             ctx: cc.egui_ctx.clone(),
             tx,
             rx,
-            tab: Tab::Floor,
+            tab: Tab::Settings,
             size: Size::Small,
             seed: 1,
             seed_draft: "1".into(),
@@ -170,19 +191,89 @@ impl App {
             pan: [0.0, 0.0],
             busy: false,
             queued: false,
+            cancel: None,
             work_id: 0,
             launched_at: Instant::now(),
             show_building: false,
+            show_shortcuts: false,
             apply_at: None,
             status: "Preparing the generator…".into(),
             performance_status: None,
             generated: None,
             building: BuildingMap::default(),
             groups: params_ui::groups(),
+            focus_group: None,
+            scroll_to: std::env::var("TAPITI_SCROLL")
+                .ok()
+                .and_then(|v| v.parse().ok()),
+            shot: std::env::var("TAPITI_SCREENSHOT").ok().map(|path| Shot {
+                path,
+                frames: 0,
+                requested: false,
+            }),
         };
+        app.pick_from_env();
         app.sync_json();
         app.launch_generate();
         app
+    }
+
+    /// `TAPITI_LAYOUT`, `TAPITI_SIZE` (1 to 4) and `TAPITI_TAB` (analysis, parameters or the id of a group) choose what a screenshot shows.
+    fn pick_from_env(&mut self) {
+        if self.shot.is_none() {
+            return;
+        }
+        if let Ok(size) = std::env::var("TAPITI_SIZE") {
+            if let Ok(n) = size.parse::<usize>() {
+                self.size = Size::of_index(n);
+                self.params = params_of_size(self.size);
+                self.defaults = serde_json::to_value(&self.params).unwrap_or(Value::Null);
+            }
+        }
+        if std::env::var("TAPITI_LAYOUT").is_ok_and(|v| v == "growth") {
+            self.params.layout = tapiti_core::params::Layout::Growth;
+        }
+        if std::env::var("TAPITI_THEME").is_ok_and(|v| v == "light") {
+            self.ctx.set_theme(egui::ThemePreference::Light);
+        }
+        if let Some(zoom) = std::env::var("TAPITI_ZOOM")
+            .ok()
+            .and_then(|z| z.parse::<f32>().ok())
+        {
+            self.ctx.set_zoom_factor(zoom);
+        }
+        if let Ok(tab) = std::env::var("TAPITI_TAB") {
+            match tab.as_str() {
+                "floor" | "analysis" => self.tab = Tab::Analysis,
+                "advanced" | "parameters" => self.tab = Tab::Settings,
+                id => {
+                    self.tab = Tab::Settings;
+                    self.focus_group = Some(id.to_string());
+                }
+            }
+        }
+        self.refresh_changed();
+    }
+
+    /// Asks the window for a picture once the first floor is on it, writes it as a PPM and quits.
+    fn take_screenshot(&mut self, ctx: &egui::Context) {
+        let ready = !self.busy && self.generated.is_some();
+        let Some(shot) = &mut self.shot else { return };
+        ctx.request_repaint();
+        shot.frames += 1;
+        if ready && shot.frames > 20 && !shot.requested {
+            shot.requested = true;
+            let path = shot.path.clone();
+            ctx.request_screenshot(move |image| {
+                let [w, h] = image.size;
+                let mut out = format!("P6\n{w} {h}\n255\n").into_bytes();
+                for pixel in &image.pixels {
+                    out.extend_from_slice(&[pixel.r(), pixel.g(), pixel.b()]);
+                }
+                let _ = std::fs::write(&path, out);
+                std::process::exit(0);
+            });
+        }
     }
 
     // ---- generation -------------------------------------------------------------------------
@@ -207,6 +298,8 @@ impl App {
         let (work_id, size, seed, params) =
             (self.work_id, self.size, self.seed, self.params.clone());
         let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
+        let cancel = Cancel::new();
+        self.cancel = Some(cancel.clone());
         std::thread::spawn(move || {
             // One message per frame keeps generation fast and avoids waking the UI for every room and corridor.
             let frame = Duration::from_millis(33);
@@ -220,14 +313,35 @@ impl App {
                     last_flush = Instant::now();
                 }
             };
-            let result = generate_map(size, seed, params, &mut progress);
+            let result = generate_map(size, seed, params, &cancel, &mut progress);
             drop(progress);
             if !events.is_empty() {
                 let _ = tx.send((work_id, Event::Progress(events)));
             }
-            let _ = tx.send((work_id, Event::Generated(result)));
+            let _ = tx.send((
+                work_id,
+                match result {
+                    Some(result) => Event::Generated(result),
+                    None => Event::Cancelled,
+                },
+            ));
             ctx.request_repaint();
         });
+    }
+
+    /// Whether a generation is running that the Cancel button can stop (a benchmark is not).
+    pub fn can_cancel(&self) -> bool {
+        self.cancel.is_some()
+    }
+
+    /// Stops the generation that is running (a very large floor can take a long time) and forgets the one queued after it.
+    pub fn cancel_generation(&mut self) {
+        self.queued = false;
+        self.apply_at = None;
+        if let Some(cancel) = &self.cancel {
+            cancel.cancel();
+            self.status = "Cancelling the generation…".into();
+        }
     }
 
     pub fn start_benchmark(&mut self, kind: BenchmarkKind) {
@@ -254,15 +368,15 @@ impl App {
                 Event::Progress(events) => self.apply_progress(events),
                 Event::Generated(result) => {
                     self.busy = false;
+                    self.cancel = None;
                     self.show_building = false;
                     self.building = BuildingMap::default();
                     match result {
                         Ok(map) => {
                             self.status = format!(
-                                "Floor generated in {ms:.1} ms · {draws} attempt(s) · {threads} threads available.",
+                                "Floor generated in {ms:.1} ms · {draws} attempt(s).",
                                 ms = map.elapsed_ms,
-                                draws = map.draws,
-                                threads = par::threads()
+                                draws = map.draws
                             );
                             self.generated = Some(map);
                         }
@@ -270,6 +384,17 @@ impl App {
                             self.status = format!("Generation failed: {error}", error = error)
                         }
                     }
+                    if self.queued {
+                        self.launch_generate();
+                    }
+                }
+                Event::Cancelled => {
+                    self.busy = false;
+                    self.cancel = None;
+                    self.show_building = false;
+                    self.building = BuildingMap::default();
+                    self.status =
+                        "Generation cancelled; the floor on the screen is the previous one.".into();
                     if self.queued {
                         self.launch_generate();
                     }
@@ -371,6 +496,75 @@ impl App {
         self.request_generate();
     }
 
+    /// The size, the seed and the Λ as the JSON that File > Save and Copy JSON write.
+    pub fn export_json(&self) -> String {
+        let export = json!({ "size": size_label(self.size).to_lowercase(), "seed": self.seed, "params": self.params });
+        serde_json::to_string_pretty(&export).unwrap_or_default()
+    }
+
+    /// File > Save Λ…: asks for a file and writes the export there. (The dialog blocks the window while it is open.)
+    pub fn save_file(&mut self) {
+        let Some(path) = rfd::FileDialog::new()
+            .set_title("Save the Λ")
+            .set_file_name("tapiti.json")
+            .add_filter("JSON", &["json"])
+            .save_file()
+        else {
+            return;
+        };
+        self.status = match std::fs::write(&path, self.export_json()) {
+            Ok(()) => format!("Saved {}.", path.display()),
+            Err(error) => format!("Could not save {}: {error}", path.display()),
+        };
+    }
+
+    /// File > Open Λ…: reads a file written by Save or Copy JSON (or a bare Λ) and generates with it.
+    pub fn open_file(&mut self) {
+        let Some(path) = rfd::FileDialog::new()
+            .set_title("Open a Λ")
+            .add_filter("JSON", &["json"])
+            .pick_file()
+        else {
+            return;
+        };
+        let loaded = std::fs::read_to_string(&path)
+            .map_err(|error| error.to_string())
+            .and_then(|text| serde_json::from_str::<Value>(&text).map_err(|e| e.to_string()))
+            .and_then(|value| {
+                let params = value.get("params").unwrap_or(&value).clone();
+                let params = serde_json::from_value::<Params>(params).map_err(|e| e.to_string())?;
+                validate_params(&params)?;
+                Ok((value, params))
+            });
+        match loaded {
+            Ok((value, params)) => {
+                if let Some(size) = value.get("size").and_then(Value::as_str).and_then(|name| {
+                    Size::ALL
+                        .into_iter()
+                        .find(|s| size_label(*s).to_lowercase() == name)
+                }) {
+                    self.size = size;
+                    self.defaults =
+                        serde_json::to_value(params_of_size(size)).unwrap_or(Value::Null);
+                }
+                if let Some(seed) = value
+                    .get("seed")
+                    .and_then(Value::as_u64)
+                    .and_then(|s| u32::try_from(s).ok())
+                {
+                    self.seed = seed;
+                    self.seed_draft = seed.to_string();
+                }
+                self.params = params;
+                self.refresh_changed();
+                self.sync_json();
+                self.status = format!("Opened {}.", path.display());
+                self.request_generate();
+            }
+            Err(error) => self.status = format!("Could not open {}: {error}", path.display()),
+        }
+    }
+
     pub fn set_seed(&mut self, seed: u32) {
         self.seed = seed;
         self.seed_draft = seed.to_string();
@@ -432,7 +626,8 @@ impl App {
             return;
         };
         let mut value = serde_json::to_value(&self.params).unwrap_or(Value::Null);
-        for field in &group.fields {
+        // The layout has its own strip: a tab's reset does not switch it back.
+        for field in group.fields.iter().filter(|f| f.path != "layout") {
             if let Some(default) = get_path(&self.defaults, &field.path).cloned() {
                 set_path(&mut value, &field.path, default);
             }
@@ -511,6 +706,9 @@ impl App {
                 self.set_size(Size::ALL[index]);
             }
         }
+        if self.busy && ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape)) {
+            self.cancel_generation();
+        }
         if alt(ctx, Key::R) {
             self.random_seed();
         }
@@ -560,38 +758,19 @@ impl eframe::App for App {
         self.poll_events();
         self.shortcuts(&ctx);
         self.apply_due(&ctx);
+        panels::menu_bar(self, ui);
         panels::top_bar(self, ui);
         panels::bottom_bar(self, ui);
         panels::side_panel(self, ui);
         panels::central(self, ui);
+        panels::shortcuts_window(self, &ctx);
+        panels::json_window(self, &ctx);
+        self.take_screenshot(&ctx);
     }
 }
 
 fn setup_style(ctx: &egui::Context) {
-    ctx.all_styles_mut(|style| {
-        style.spacing.item_spacing = egui::vec2(8.0, 6.0);
-        style.spacing.button_padding = egui::vec2(10.0, 5.0);
-        style.spacing.interact_size.y = 26.0;
-        style.visuals.widgets.noninteractive.corner_radius = 6.0.into();
-        style.visuals.widgets.inactive.corner_radius = 6.0.into();
-        style.visuals.widgets.hovered.corner_radius = 6.0.into();
-        style.visuals.widgets.active.corner_radius = 6.0.into();
-        style.visuals.window_corner_radius = 10.0.into();
-        style.visuals.selection.bg_fill = egui::Color32::from_rgb(0x2f, 0x6f, 0xd6);
-        style.visuals.selection.stroke.color = egui::Color32::WHITE;
-        style
-            .text_styles
-            .insert(egui::TextStyle::Heading, egui::FontId::proportional(20.0));
-        style
-            .text_styles
-            .insert(egui::TextStyle::Body, egui::FontId::proportional(14.5));
-        style
-            .text_styles
-            .insert(egui::TextStyle::Button, egui::FontId::proportional(14.5));
-        style
-            .text_styles
-            .insert(egui::TextStyle::Small, egui::FontId::proportional(12.0));
-    });
+    theme::apply(ctx);
 }
 
 fn main() -> eframe::Result {
@@ -687,10 +866,6 @@ fn set_path(value: &mut Value, path: &str, next: Value) {
     }
 }
 
-fn format_number(value: f64, decimals: usize) -> String {
-    format!("{value:.decimals$}")
-}
-
 fn view_box(min: [f64; 2], max: [f64; 2], zoom: f64, pan: [f64; 2]) -> (f64, f64, f64, f64) {
     let width = (max[0] - min[0]).max(1.0);
     let height = (max[1] - min[1]).max(1.0);
@@ -781,14 +956,19 @@ pub fn summary(map: &GeneratedMap) -> String {
     )
 }
 
+/// `None` when the user cancelled before the floor was done.
 fn generate_map(
     size: Size,
     seed: u32,
     params: Params,
+    cancel: &Cancel,
     mut progress: impl FnMut(GenerationEvent),
-) -> Result<GeneratedMap, String> {
+) -> Option<Result<GeneratedMap, String>> {
     let started = Instant::now();
-    let stage = stage::stage_with_progress(seed, &params, 8, &mut progress);
+    let stage = stage::stage_cancellable(seed, &params, 8, cancel, &mut progress)?;
+    if cancel.is_cancelled() {
+        return None;
+    }
     let elapsed_ms = started.elapsed().as_secs_f64() * 1000.0;
     let measures = metrics_of(&stage.d);
     let chosen_seed = stage.d.seed;
@@ -799,7 +979,7 @@ fn generate_map(
         .map(|(name, ms)| format!("{name} {ms:.1} ms"))
         .collect::<Vec<_>>()
         .join(" · ");
-    Ok(GeneratedMap {
+    Some(Ok(GeneratedMap {
         floor: Arc::new(stage.d),
         metrics: measures,
         size,
@@ -808,7 +988,7 @@ fn generate_map(
         violations: stage.violations,
         draws: stage.draws,
         elapsed_ms,
-    })
+    }))
 }
 
 fn validate_params(p: &Params) -> Result<(), String> {

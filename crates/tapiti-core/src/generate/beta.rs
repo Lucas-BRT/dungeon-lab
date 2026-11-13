@@ -48,6 +48,9 @@ pub(super) fn measure_beta_max(
         let save_nodes = g.nodes.clone();
         let save_edges = g.edges.clone();
         loop {
+            if g.stopped() {
+                break;
+            }
             let mut opts = g.options();
             let best = opts
                 .iter()
