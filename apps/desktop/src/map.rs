@@ -427,12 +427,13 @@ pub fn draw_floor(painter: &Painter, xf: &Xf, floor: &Floor, overlays: Overlays,
     }
 }
 
-/// Small key over the map: what the fills and outlines mean.
-pub fn legend(painter: &Painter, rect: Rect, pal: &Palette, text_color: Color32) {
+/// Small key over the map: what the fills and outlines mean, for the shapes the floor has.
+pub fn legend(painter: &Painter, rect: Rect, pal: &Palette, text_color: Color32, present: &[&str]) {
     let font = FontId::proportional(12.0);
     let row = 18.0;
     let items: Vec<(Color32, String)> = SHAPE_CLASSES
         .iter()
+        .filter(|c| present.contains(c))
         .map(|c| (pal.shape(c), class_label(c).to_string()))
         .collect();
     let height = row * (items.len() as f32 + 1.0) + 14.0;

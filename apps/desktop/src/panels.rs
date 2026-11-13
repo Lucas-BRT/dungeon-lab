@@ -475,8 +475,6 @@ pub fn central(app: &mut App, ui: &mut Ui) {
     egui::CentralPanel::default()
         .frame(Frame::new().fill(theme::of(ui).panel).inner_margin(10.0))
         .show(ui, |ui| {
-            toolbar(app, ui);
-            ui.add_space(4.0);
             let (rect, response) =
                 ui.allocate_exact_size(ui.available_size(), Sense::click_and_drag());
             let pal = Palette::new(ui.visuals().dark_mode);
@@ -545,8 +543,18 @@ pub fn central(app: &mut App, ui: &mut Ui) {
                 map::draw_floor(&painter, &xf, &generated.floor, overlays, &pal);
             }
             if app.overlays.legend && rect.width() > 520.0 && rect.height() > 380.0 {
-                map::legend(&painter, rect, &pal, ui.visuals().text_color());
+                if let Some(generated) = &app.generated {
+                    let present: Vec<&str> = generated
+                        .floor
+                        .rooms
+                        .iter()
+                        .filter(|room| room.alive)
+                        .map(|room| room.cls.name())
+                        .collect();
+                    map::legend(&painter, rect, &pal, ui.visuals().text_color(), &present);
+                }
             }
+            map_controls(app, ui, rect);
             if app.busy {
                 painter.text(
                     rect.right_top() + Vec2::new(-14.0, 16.0),
@@ -583,45 +591,50 @@ fn zoom_at(app: &mut App, xf: &Xf, anchor: egui::Pos2, factor: f64) {
     }
 }
 
-fn toolbar(app: &mut App, ui: &mut Ui) {
-    ui.horizontal_wrapped(|ui| {
-        if ui.button("−").on_hover_text("Zoom out").clicked() {
-            app.zoom = (app.zoom * 0.8).max(0.3);
-        }
-        ui.label(format!("{}%", (app.zoom * 100.0).round() as u32));
-        if ui.button("+").on_hover_text("Zoom in").clicked() {
-            app.zoom = (app.zoom * 1.25).min(20.0);
-        }
-        if ui
-            .button("Fit")
-            .on_hover_text("Double-click on the map")
-            .clicked()
-        {
-            app.zoom = 1.0;
-            app.pan = [0.0, 0.0];
-        }
-        ui.separator();
-        ui.label(muted(ui, "Layers"));
-        let o = &mut app.overlays;
-        for (flag, name, hint) in [
-            (&mut o.cells, "Grid", "Grid blocks of the floor"),
-            (
-                &mut o.labels,
-                "Labels",
-                "Number, shape and role of each room",
-            ),
-            (&mut o.ports, "Doors", "Every possible door position"),
-            (&mut o.pairs, "Pairs", "Candidate room pairs for connection"),
-            (&mut o.candidates, "Routes", "Candidate corridor routes"),
-            (&mut o.legend, "Legend", "Shape and role colors"),
-        ] {
-            if ui
-                .selectable_label(*flag, name)
-                .on_hover_text(hint)
-                .clicked()
-            {
-                *flag = !*flag;
-            }
-        }
-    });
+/// What floats over the map: the layers at the top left, the zoom at the bottom right.
+fn map_controls(app: &mut App, ui: &mut Ui, rect: egui::Rect) {
+    let margin = Vec2::splat(10.0);
+    egui::Area::new(ui.scope_id().with("map_layers"))
+        .fixed_pos(rect.left_top() + margin)
+        .show(ui.ctx(), |ui| {
+            ui.menu_button("Layers", |ui| {
+                let o = &mut app.overlays;
+                for (flag, name, hint) in [
+                    (&mut o.cells, "Grid", "Grid blocks of the floor"),
+                    (
+                        &mut o.labels,
+                        "Labels",
+                        "Number, shape and role of each room",
+                    ),
+                    (&mut o.ports, "Doors", "Every possible door position"),
+                    (&mut o.pairs, "Pairs", "Candidate room pairs for connection"),
+                    (&mut o.candidates, "Routes", "Candidate corridor routes"),
+                    (&mut o.legend, "Legend", "Shape and role colors"),
+                ] {
+                    ui.checkbox(flag, name).on_hover_text(hint);
+                }
+            });
+        });
+    egui::Area::new(ui.scope_id().with("map_zoom"))
+        .fixed_pos(rect.right_bottom() - margin)
+        .pivot(egui::Align2::RIGHT_BOTTOM)
+        .show(ui.ctx(), |ui| {
+            ui.horizontal(|ui| {
+                if ui.button("−").on_hover_text("Zoom out").clicked() {
+                    app.zoom = (app.zoom * 0.8).max(0.3);
+                }
+                ui.label(format!("{}%", (app.zoom * 100.0).round() as u32));
+                if ui.button("+").on_hover_text("Zoom in").clicked() {
+                    app.zoom = (app.zoom * 1.25).min(20.0);
+                }
+                if ui
+                    .button("Fit")
+                    .on_hover_text("Double-click on the map")
+                    .clicked()
+                {
+                    app.zoom = 1.0;
+                    app.pan = [0.0, 0.0];
+                }
+            });
+        });
 }
