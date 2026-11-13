@@ -89,8 +89,19 @@ pub fn top_bar(app: &mut App, ui: &mut Ui) {
                 app.random_seed();
             }
             ui.separator();
-            if ui
-                .add(primary(ui, "Generate"))
+            if app.busy && app.can_cancel() {
+                if ui
+                    .add(
+                        Button::new(RichText::new("Cancel").strong().color(Color32::WHITE))
+                            .fill(Palette::new(ui.visuals().dark_mode).danger),
+                    )
+                    .on_hover_text("Stop this generation (Esc). The floor on the screen stays.")
+                    .clicked()
+                {
+                    app.cancel_generation();
+                }
+            } else if ui
+                .add_enabled(!app.busy, primary(ui, "Generate"))
                 .on_hover_text("Generate again with the current Λ")
                 .clicked()
             {

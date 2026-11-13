@@ -16,6 +16,7 @@ use std::collections::HashSet;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use tapiti_core::cancel::Cancel;
 use tapiti_core::generate::{Floor, GenerationEvent, Role};
 use tapiti_core::geom::Shape;
 use tapiti_core::metrics::{metrics_of, Metrics};
@@ -102,6 +103,8 @@ pub struct Overlays {
 enum Event {
     Progress(Vec<GenerationEvent>),
     Generated(Result<GeneratedMap, String>),
+    /// The generation was stopped by the user before it was done.
+    Cancelled,
     Benchmark(String),
 }
 
@@ -127,6 +130,8 @@ pub struct App {
     pub pan: [f64; 2],
     pub busy: bool,
     pub queued: bool,
+    /// Stops the generation that is running, when there is one.
+    cancel: Option<Cancel>,
     work_id: u64,
     launched_at: Instant,
     show_building: bool,
@@ -170,6 +175,7 @@ impl App {
             pan: [0.0, 0.0],
             busy: false,
             queued: false,
+            cancel: None,
             work_id: 0,
             launched_at: Instant::now(),
             show_building: false,
@@ -207,6 +213,8 @@ impl App {
         let (work_id, size, seed, params) =
             (self.work_id, self.size, self.seed, self.params.clone());
         let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
+        let cancel = Cancel::new();
+        self.cancel = Some(cancel.clone());
         std::thread::spawn(move || {
             // One message per frame keeps generation fast and avoids waking the UI for every room and corridor.
             let frame = Duration::from_millis(33);
@@ -220,14 +228,35 @@ impl App {
                     last_flush = Instant::now();
                 }
             };
-            let result = generate_map(size, seed, params, &mut progress);
+            let result = generate_map(size, seed, params, &cancel, &mut progress);
             drop(progress);
             if !events.is_empty() {
                 let _ = tx.send((work_id, Event::Progress(events)));
             }
-            let _ = tx.send((work_id, Event::Generated(result)));
+            let _ = tx.send((
+                work_id,
+                match result {
+                    Some(result) => Event::Generated(result),
+                    None => Event::Cancelled,
+                },
+            ));
             ctx.request_repaint();
         });
+    }
+
+    /// Whether a generation is running that the Cancel button can stop (a benchmark is not).
+    pub fn can_cancel(&self) -> bool {
+        self.cancel.is_some()
+    }
+
+    /// Stops the generation that is running (a very large floor can take a long time) and forgets the one queued after it.
+    pub fn cancel_generation(&mut self) {
+        self.queued = false;
+        self.apply_at = None;
+        if let Some(cancel) = &self.cancel {
+            cancel.cancel();
+            self.status = "Cancelling the generation…".into();
+        }
     }
 
     pub fn start_benchmark(&mut self, kind: BenchmarkKind) {
@@ -254,6 +283,7 @@ impl App {
                 Event::Progress(events) => self.apply_progress(events),
                 Event::Generated(result) => {
                     self.busy = false;
+                    self.cancel = None;
                     self.show_building = false;
                     self.building = BuildingMap::default();
                     match result {
@@ -270,6 +300,17 @@ impl App {
                             self.status = format!("Generation failed: {error}", error = error)
                         }
                     }
+                    if self.queued {
+                        self.launch_generate();
+                    }
+                }
+                Event::Cancelled => {
+                    self.busy = false;
+                    self.cancel = None;
+                    self.show_building = false;
+                    self.building = BuildingMap::default();
+                    self.status =
+                        "Generation cancelled; the floor on the screen is the previous one.".into();
                     if self.queued {
                         self.launch_generate();
                     }
@@ -510,6 +551,9 @@ impl App {
             if alt(ctx, key) {
                 self.set_size(Size::ALL[index]);
             }
+        }
+        if self.busy && ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape)) {
+            self.cancel_generation();
         }
         if alt(ctx, Key::R) {
             self.random_seed();
@@ -781,14 +825,19 @@ pub fn summary(map: &GeneratedMap) -> String {
     )
 }
 
+/// `None` when the user cancelled before the floor was done.
 fn generate_map(
     size: Size,
     seed: u32,
     params: Params,
+    cancel: &Cancel,
     mut progress: impl FnMut(GenerationEvent),
-) -> Result<GeneratedMap, String> {
+) -> Option<Result<GeneratedMap, String>> {
     let started = Instant::now();
-    let stage = stage::stage_with_progress(seed, &params, 8, &mut progress);
+    let stage = stage::stage_cancellable(seed, &params, 8, cancel, &mut progress)?;
+    if cancel.is_cancelled() {
+        return None;
+    }
     let elapsed_ms = started.elapsed().as_secs_f64() * 1000.0;
     let measures = metrics_of(&stage.d);
     let chosen_seed = stage.d.seed;
@@ -799,7 +848,7 @@ fn generate_map(
         .map(|(name, ms)| format!("{name} {ms:.1} ms"))
         .collect::<Vec<_>>()
         .join(" · ");
-    Ok(GeneratedMap {
+    Some(Ok(GeneratedMap {
         floor: Arc::new(stage.d),
         metrics: measures,
         size,
@@ -808,7 +857,7 @@ fn generate_map(
         violations: stage.violations,
         draws: stage.draws,
         elapsed_ms,
-    })
+    }))
 }
 
 fn validate_params(p: &Params) -> Result<(), String> {
