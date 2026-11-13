@@ -312,7 +312,11 @@ pub fn side_panel(app: &mut App, ui: &mut Ui) {
                 }
             });
             ui.separator();
-            let mut area = ScrollArea::vertical().auto_shrink(false);
+            // Each tab keeps its own scroll position and starts at the top: with one shared area, leaving a long tab (the Analysis, scrolled
+            // down) for a short one left the content to slide back up to fit.
+            let mut area = ScrollArea::vertical()
+                .id_salt((app.tab as u8, app.group.clone()))
+                .auto_shrink(false);
             if app.generated.is_some() {
                 if let Some(offset) = app.scroll_to.take() {
                     area = area.vertical_scroll_offset(offset);
