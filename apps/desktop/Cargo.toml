@@ -12,3 +12,4 @@ tapiti-core = { path = "../../crates/tapiti-core" }
 tapiti-render = { path = "../../crates/tapiti-render" }
 tapiti-schema = { path = "../../crates/tapiti-schema" }
 serde_json = "1"
+rfd = "=0.18.0"
