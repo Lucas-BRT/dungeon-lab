@@ -4,14 +4,39 @@
 
 # Tapiti
 
-Tapiti digs floors from a seed, in Rust and WebAssembly: rooms of many shapes (rect, disc, octagon, L, truncated star), continuous doors,
-octilinear corridors (I, L, Z/U, T, X), leaf chambers, a validator (V1 to V5) and the graph's measures (β, δ, bridges, Menger routes, λ₂), with a
-desktop app and a page to generate any floor and edit every parameter of Λ.
+Floors for games and experiments, dug from a seed: rooms, doors and corridors
+that always connect.
+
+[![CI](https://github.com/Lucas-BRT/tapiti/actions/workflows/ci.yml/badge.svg)](https://github.com/Lucas-BRT/tapiti/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/tag/Lucas-BRT/tapiti?filter=v*&label=release&sort=semver)](https://github.com/Lucas-BRT/tapiti/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Rust 1.99](https://img.shields.io/badge/rust-1.99-orange?logo=rust)](rust-toolchain.toml)
+[![Platforms](https://img.shields.io/badge/platform-linux%20%7C%20windows%20%7C%20macos-lightgrey)](docs/getting-started.md#install)
 
 </div>
 
-The same seed and Λ always draw the same stage (the rng is Mulberry32). Every optimization below was checked against that: `cargo run --release -p tapiti-core --example dump`
-hashes 150 stages (the four sizes × 30 seeds, then 30 grown floors) and the hashes did not move, single-threaded or parallel.
+Tapiti digs a floor from a seed: rooms of many shapes joined by doors and
+corridors, with a validator that checks the result and measures that tell how
+the floor plays. Pick a seed, a size and a layout, change any parameter, and
+the floor is dug again in a moment. It runs as a desktop app and in the
+browser.
+
+## Features
+
+- **Same seed, same floor.** A seed and its parameters draw the same floor on
+  every machine and in the browser, so a floor can be shared as a number.
+- **Rooms of many shapes.** Rectangles, discs, octagons, L shapes and stars,
+  with doors, corridors at right angles and diagonals, junctions and side
+  chambers.
+- **Two layouts.** One room per grid block, or rooms that grow one from
+  another, for a floor that does not look like a grid.
+- **Always valid.** Every floor is checked: rooms keep their distance,
+  corridors stay clear of the rooms they do not join, every room can be
+  reached and, when asked for, there is an entrance and a distant exit.
+- **Understand the floor.** Loops, dead ends, bridges, alternative routes to
+  the exit and how connected the floor is, in charts with plain explanations.
+- **Every parameter is yours.** Edit them in the app or in the browser, copy
+  them as JSON, and copy the floor as an SVG image.
 
 ## Install
 
@@ -19,98 +44,20 @@ hashes 150 stages (the four sizes × 30 seeds, then 30 grown floors) and the has
 curl -fsSL https://raw.githubusercontent.com/Lucas-BRT/tapiti/main/install.sh | bash
 ```
 
-For Linux on x86_64, without `sudo`. Each [release](https://github.com/Lucas-BRT/tapiti/releases/latest) also has a `.deb`, an `.rpm` and a Windows `.exe`: see [getting started](docs/getting-started.md#install).
+For Linux on x86_64, without `sudo`. Each [release](https://github.com/Lucas-BRT/tapiti/releases/latest)
+also has a `.deb`, an `.rpm`, a Windows `.exe` and a macOS app: see
+[getting started](docs/getting-started.md#install).
 
-## Speed
+## Usage
 
-Generation cost depends on Λ: the current model evaluates corridor candidates,
-βmax with junction actions, topology constraints and leaf chambers.
-Do not compare it with measurements from the earlier, smaller model.
+Open the app, choose a layout and a size at the top, type a seed and press
+Generate. The side panel has the parameters and the analysis of the floor; the
+File menu opens and saves a set of parameters and copies the floor as SVG.
+More in [getting started](docs/getting-started.md).
 
-Recent native release measurements on the development machine (14 Rayon threads)
-show level 5 generation around 22–28 ms and generation plus validation around
-24–27 ms. The `scale` benchmark measured:
+## Documentation
 
-| workload | 1 thread | 14 threads |
-|---|---:|---:|
-| 10×8 grid, about 54 rooms | 448 ms/map | 396 ms/map |
-| 16×12 grid, about 130 rooms | 4,668 ms/map | 966 ms/map |
-| batch of 200 level-5 maps | 12,958 ms | 2,114 ms |
-
-The small default map has limited independent work, so its speedup is modest.
-Large maps and batches expose enough work to benefit from the Rayon pool. Use
-Criterion for comparable single-map measurements and `scale` for throughput:
-
-```bash
-cargo bench --release -p tapiti-core --bench generator
-cargo test --release -p tapiti-core scale -- --nocapture
-cargo test --release -p tapiti-core --no-default-features scale -- --nocapture
-```
-
-Profile first: one distance query with a limit (instead of testing every segment pair) gave the 10×. SIMD and WebAssembly threads were measured and did not pay.
-
-So the parallelism is: rayon natively (`parallel` feature, on by default; also used by the tests), and in the browser a **pool of Web Workers,
-each with its own single-threaded instance** (`apps/site/assets/lab/lab.js`): no shared memory, no special headers, each worker with its own allocator.
-
-## Run
-
-```bash
-cargo run                           # opens the native desktop app (egui) (workspace default; fast dev build)
-cargo run --release                 # optimized desktop build
-scripts/build-wasm.sh && topcoat dev -p tapiti-site     # the website (landing, docs, lab) on http://127.0.0.1:3000/, rebuilt on every change (`cargo install topcoat-cli`)
-docker compose -f compose.local.yml up --build   # the same site as a container on http://localhost:8090/
-node scripts/lab-smoke.mjs                   # smoke test of the lab in headless Firefox (site running)
-node scripts/site-smoke.mjs                  # the landing page's 3D walk, the 404, reduced motion (site running; AXE_JS=… adds axe-core)
-node scripts/site-shots.mjs shots            # screenshots of the pages at desktop and phone width
-node scripts/og-card.mjs                     # remakes the social card from the 3D scene
-scripts/build-wasm.sh                          # only the module: cargo build --release --target wasm32-unknown-unknown + wasm-bindgen → apps/site/pkg
-cargo test --release -p tapiti-core   # validity of the 5 levels, determinism, density; add `profile`, `scale`, `bench -- --nocapture` for timings
-cargo test --release -p tapiti-core --no-default-features   # the same, single-threaded
-cargo bench --release -p tapiti-core --bench generator  # Criterion benchmarks
-cargo run --release -p tapiti-core --example dump  # a hash per stage, to compare two builds
-scripts/build-wasm.sh simd && node scripts/bench-wasm.mjs 5 100      # SIMD vs not, in Node
-```
-
-The code is split into workspace packages so frontend changes do not require rebuilding the generator, WASM bindings, web server, and desktop app together.
-Cargo keeps one shared `target/` cache: `cargo run` builds only the default desktop app and its core dependency; `scripts/build-wasm.sh` builds the WASM package and core; the site is compiled only when selected. The desktop (egui/eframe, glow renderer) enables only the Wayland and X11 backends. For everyday UI work, use the incremental development profile with plain `cargo run`; release builds retain optimization and thin LTO for performance measurements.
-
-The root virtual workspace sets only `apps/desktop` as its default member, so plain `cargo run` still opens the desktop app. To build a package directly, use `cargo build -p tapiti-core`, `cargo build -p tapiti-wasm --target wasm32-unknown-unknown`, or `cargo build -p tapiti-site`. Cargo compiles the selected package and its dependency graph, rather than every workspace member. Development builds omit debug symbols and optimize only the generator core; release builds use thin LTO and multiple codegen units to shorten link times while retaining native optimization.
-
-The website is a [Topcoat](https://github.com/tokio-rs/topcoat) app (`apps/site`): server-rendered pages in English, with the browser lab at `/lab` (a Topcoat page; its script, `apps/site/assets/lab/`, drives the WebAssembly module served from `/lab/pkg/`). `HOST` and `PORT` set the address; `TAPITI_SCENE=off` turns off the 3D scene behind the landing page (the dimmed map stays); `compose.yml` is the Dokploy deployment.
-
-Needs the `wasm32-unknown-unknown` target and the `wasm-bindgen` CLI at the version in `crates/tapiti-wasm/Cargo.toml` (`=0.2.130`).
-
-The native egui frontend is the workspace's default application. It calls the shared Rust generator directly with Rayon enabled and renders the map
-without WebAssembly. The map fills the window; the top bar holds the layout, the size presets, the seed and Generate, and a menu bar has File (open and save a Λ, copy the JSON or the floor as SVG), Edit, View (theme), Tools (guided experiments, JSON editor) and Help (shortcuts); a right-hand panel has two tabs: the parameters (a collapsible group each) and the analysis (charts and plain explanations). Controls: Λ parameters with per-field reset and a search, guided experiments, JSON editing and copying, a Cancel button for a long generation, five map overlays and a legend,
-pan/zoom/hover inspection, validation, and metrics. Edits regenerate the map after a short pause. Each interactive request generates one floor;
-a slow generation shows rooms and corridor connections as the generator creates them. A separate benchmark compares single-thread and
-multi-thread throughput over many independent maps. Shortcuts: Alt+1–4 size, Alt+R random seed, Alt+left/right seed.
-Building needs the usual eframe system libraries on Linux (xkbcommon, Wayland and/or X11, OpenGL). On Windows nothing extra is needed to build, and running needs a graphics driver with OpenGL 2 (a virtual machine or remote desktop without a GPU may not have one); the releases carry a Windows `.zip` with `tapiti-desktop.exe`.
-
-The desktop's single-map latency and progressive-rendering design is documented in [docs/desktop-generation-rendering.md](docs/desktop-generation-rendering.md).
-
-## Layout
-
-| file | what |
-|---|---|
-| `crates/tapiti-core/src/geom.rs` | directions Θ₈, shapes, distances (exact and with a limit), corridor bands and joints |
-| `crates/tapiti-core/src/params.rs` | Λ (serde, camelCase JSON) and the five levels |
-| `crates/tapiti-core/src/generate.rs` | the generator, valid by construction: scaffold, shapes, doors, candidates, tree, cycles with T/X, leaf chambers; per-phase times |
-| `crates/tapiti-core/src/validate.rs` | V1 to V5 from the stage alone |
-| `crates/tapiti-core/src/metrics.rs` | β, δ, bridges, articulation rooms, Menger routes, diameter, λ₂ |
-| `crates/tapiti-core/src/stage.rs` | a valid stage: redraws from a derived seed when the validator objects |
-| `crates/tapiti-core/src/par.rs` | the one place that decides parallel or sequential (rayon, or plain loops) |
-| `crates/tapiti-core/src/clock.rs` | `performance.now()` in the browser, the system clock natively |
-| `apps/desktop/` | native desktop application (egui); selected by bare `cargo run` |
-| `apps/site/` | the website: landing page, docs and the lab (Topcoat; `topcoat dev -p tapiti-site`) |
-| `crates/tapiti-render/` | SVG rendering of floors for the site, docs and social images |
-| `crates/tapiti-schema/` | the parameters of Λ as data (groups, ranges, help), shared by the desktop app and the docs |
-| `docs/` | the documentation (Markdown, math as `$…$`), rendered by the site and readable on GitHub |
-| `crates/tapiti-wasm/` | the WASM API: `default_params(size)`, `rich_params(size)`, `stage_json(seed, params)`, `bench(size, from, count)`, `threads()` |
-| `crates/tapiti-core/tests/`, `benches/`, `examples/` | model tests, Criterion benchmarks, profiling and deterministic dumps |
-
-Floats: only `+ − × ÷`, `sqrt` and the libm inside the module, so every browser rounds the same.
-
-## License
-
-[MIT](LICENSE).
+Every page is in [docs/](docs/): [getting started](docs/getting-started.md),
+the [model](docs/model.md) behind the floors, the [desktop app](docs/desktop-generation-rendering.md),
+[performance](docs/performance-memory-review.md), [development](docs/development.md)
+and the [roadmap](docs/roadmap.md).
