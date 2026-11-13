@@ -5,7 +5,7 @@ Tapiti is a Rust workspace: the generator (`crates/tapiti-core`), its WebAssembl
 ## Rules
 
 - **English only.** Everything the project ships (UI, docs, comments, commit messages, issue text) is written in English: the website, the lab, the desktop app and the docs. The site has no `/{locale}` prefix; its Fluent `en.ftl` files are checked by `topcoat l10n check -p tapiti-site` (unused or missing messages). `/en/*` and `/pt-BR/*` redirect permanently to the flat URLs.
-- Rust is pinned: `rust-toolchain.toml` names the version, and CI and the Docker image use the same one. A new Clippy or rustc finds new lints in old code, so move the version on purpose, in a commit of its own, not with `stable`.
+- Everything is pinned, never `stable`, `latest` or a range: the Rust toolchain (`rust-toolchain.toml`, the same in CI and the Docker image), tools installed by hand (`cargo install --version`, `axe-core@x.y.z`), base image tags, Topcoat and wasm-bindgen (exact), and the lockfile. Pinned is not forgotten: Dependabot (crates, actions, image) and the weekly `Pins` workflow (`scripts/check-pins.sh` for the toolchain, Topcoat, wasm-bindgen, cargo-chef and axe-core and for pins that disagree between files, plus `cargo audit` on the lockfile) open an issue when something is behind or has an advisory. Bump on purpose, in a commit of its own with the reason, and move the versions kept in several places together.
 - Unsafe code is not allowed in new crates (`unsafe_code = "forbid"`).
 - Determinism is a feature: a seed and a Λ must draw the same stage on every platform. Changes to `tapiti-core` must keep
   `cargo run --release -p tapiti-core --example dump` hashes unchanged, unless the change is meant to alter the output (say so in the commit).
