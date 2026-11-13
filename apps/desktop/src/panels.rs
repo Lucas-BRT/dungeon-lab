@@ -36,7 +36,7 @@ fn primary(ui: &Ui, text: &str) -> Button<'static> {
             .strong()
             .color(Color32::WHITE),
     )
-    .fill(theme::of(ui).border_focused)
+    .fill(theme::of(ui).primary)
 }
 
 pub fn menu_bar(app: &mut App, ui: &mut Ui) {

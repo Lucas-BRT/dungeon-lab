@@ -3,7 +3,8 @@
 //! (`typography.rs`: 12, 14 and 16 px for text, 18 px for a headline), a tab bar 32 px high with 1 px borders (`tab.rs`, `tab_bar.rs`),
 //! buttons 28 px (medium) and 22 px (default) high with 8 px or 4 px of padding (`button_like.rs`), and surfaces that rise from the
 //! window background to the panel, the element and the editor (`elevation.rs`). The radius of a button (`rounded_sm`) was not in the
-//! files that were read; 4 px is a guess.
+//! files that were read; 4 px is a guess. The light accent and the main button are a blue of our own (Zed's light accent is a lavender, white on it is
+//! 3:1), so both themes read as blue.
 
 use eframe::egui::{self, Color32, CornerRadius, Margin, Stroke, Theme};
 
@@ -36,6 +37,8 @@ pub struct Colors {
     pub text: Color32,
     pub text_muted: Color32,
     pub accent: Color32,
+    /// The fill of the main button, dark enough for white text.
+    pub primary: Color32,
     pub success: Color32,
     pub error: Color32,
 }
@@ -55,6 +58,7 @@ pub fn colors(dark: bool) -> Colors {
             text: rgb(0xdce0e5),
             text_muted: rgb(0xa9afbc),
             accent: rgb(0x74ade8),
+            primary: rgb(0x47679e),
             success: rgb(0xa1c181),
             error: rgb(0xd07277),
         }
@@ -68,10 +72,11 @@ pub fn colors(dark: bool) -> Colors {
             element_active: rgb(0xcacaca),
             border: rgb(0xc9c9ca),
             border_variant: rgb(0xdfdfe0),
-            border_focused: rgb(0x7d82e8),
+            border_focused: rgb(0x6a97e0),
             text: rgb(0x242529),
             text_muted: rgb(0x58585a),
-            accent: rgb(0x5c78e2),
+            accent: rgb(0x2f6bd1),
+            primary: rgb(0x2f6bd1),
             success: rgb(0x669f59),
             error: rgb(0xd36151),
         }
