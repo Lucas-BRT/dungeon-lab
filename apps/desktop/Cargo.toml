@@ -13,3 +13,32 @@ tapiti-render = { path = "../../crates/tapiti-render" }
 tapiti-schema = { path = "../../crates/tapiti-schema" }
 serde_json = "1"
 rfd = "=0.18.0"
+
+# `cargo deb` and `cargo generate-rpm` (pinned in release.yml) package the release build as `tapiti`. The same files go in the tar.gz,
+# which install.sh unpacks without sudo (scripts/package-linux.sh).
+[package.metadata.deb]
+name = "tapiti"
+section = "graphics"
+priority = "optional"
+maintainer = "Lucas-BRT <Lucas-BRT@users.noreply.github.com>"
+extended-description = "Tapiti digs floors from a seed: rooms of many shapes, continuous doors, corridors, leaf chambers, a validator and the measures of the room graph. The same seed and parameters always draw the same floor."
+depends = "$auto"
+# The windowing and GL libraries are loaded at run time, so the linker does not list them.
+recommends = "libgl1, libxkbcommon0, libwayland-client0 | libx11-6"
+assets = [
+    ["target/release/tapiti-desktop", "usr/bin/tapiti", "755"],
+    ["packaging/tapiti.desktop", "usr/share/applications/tapiti.desktop", "644"],
+    ["assets/icon.png", "usr/share/icons/hicolor/256x256/apps/tapiti.png", "644"],
+    ["../../README.md", "usr/share/doc/tapiti/README.md", "644"],
+]
+
+[package.metadata.generate-rpm]
+name = "tapiti"
+summary = "Dig floors from a seed and inspect them"
+assets = [
+    { source = "../../target/release/tapiti-desktop", dest = "/usr/bin/tapiti", mode = "755" },
+    { source = "packaging/tapiti.desktop", dest = "/usr/share/applications/tapiti.desktop", mode = "644" },
+    { source = "assets/icon.png", dest = "/usr/share/icons/hicolor/256x256/apps/tapiti.png", mode = "644" },
+    { source = "../../README.md", dest = "/usr/share/doc/tapiti/README.md", mode = "644", doc = true },
+    { source = "../../LICENSE", dest = "/usr/share/licenses/tapiti/LICENSE", mode = "644", license = true },
+]
