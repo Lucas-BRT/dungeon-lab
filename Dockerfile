@@ -5,7 +5,7 @@
 #   * cargo-chef cooks the dependencies from a recipe of the manifests, so editing source code never recompiles them;
 #   * the site (native) and the lab's WebAssembly module build in parallel stages.
 
-FROM rust:1-bookworm AS base
+FROM rust:1.99.1-bookworm AS base
 RUN rustup target add wasm32-unknown-unknown
 WORKDIR /app
 
