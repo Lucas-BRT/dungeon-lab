@@ -4,6 +4,8 @@
 //! `parallel` feature enabled. Generation runs on a background OS thread so the
 //! window remains responsive while Rayon handles the generator's parallel phases.
 
+mod analysis;
+mod charts;
 mod map;
 mod panels;
 mod params_ui;
@@ -84,7 +86,10 @@ pub enum BenchmarkKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tab {
     Floor,
-    Parameters,
+    /// One group of parameters (`App::group`): Grid and size, Room shapes…
+    Settings,
+    /// The JSON, the guided experiments and the reset.
+    Advanced,
     Analysis,
 }
 
@@ -113,6 +118,8 @@ pub struct App {
     tx: Sender<(u64, Event)>,
     rx: Receiver<(u64, Event)>,
     pub tab: Tab,
+    /// The group of parameters the Settings tab shows (an id of `tapiti_schema::groups`).
+    pub group: String,
     pub size: Size,
     pub seed: u32,
     pub seed_draft: String,
@@ -141,6 +148,16 @@ pub struct App {
     pub generated: Option<GeneratedMap>,
     pub building: BuildingMap,
     pub groups: Vec<ParamGroup>,
+    /// `TAPITI_SCREENSHOT=file.ppm`: writes the window once the first floor is drawn and quits (for the pictures of the docs and for checks).
+    shot: Option<Shot>,
+    /// `TAPITI_SCROLL`: where the side panel starts, for a screenshot of the part below the fold.
+    pub scroll_to: Option<f32>,
+}
+
+struct Shot {
+    path: String,
+    frames: u32,
+    requested: bool,
 }
 
 impl App {
@@ -152,6 +169,7 @@ impl App {
             tx,
             rx,
             tab: Tab::Floor,
+            group: "scaffold".into(),
             size: Size::Small,
             seed: 1,
             seed_draft: "1".into(),
@@ -185,10 +203,75 @@ impl App {
             generated: None,
             building: BuildingMap::default(),
             groups: params_ui::groups(),
+            scroll_to: std::env::var("TAPITI_SCROLL")
+                .ok()
+                .and_then(|v| v.parse().ok()),
+            shot: std::env::var("TAPITI_SCREENSHOT").ok().map(|path| Shot {
+                path,
+                frames: 0,
+                requested: false,
+            }),
         };
+        app.pick_from_env();
         app.sync_json();
         app.launch_generate();
         app
+    }
+
+    /// `TAPITI_LAYOUT`, `TAPITI_SIZE` (1 to 4) and `TAPITI_TAB` (floor, analysis, advanced or the id of a group) choose what a screenshot shows.
+    fn pick_from_env(&mut self) {
+        if self.shot.is_none() {
+            return;
+        }
+        if let Ok(size) = std::env::var("TAPITI_SIZE") {
+            if let Ok(n) = size.parse::<usize>() {
+                self.size = Size::of_index(n);
+                self.params = params_of_size(self.size);
+                self.defaults = serde_json::to_value(&self.params).unwrap_or(Value::Null);
+            }
+        }
+        if std::env::var("TAPITI_LAYOUT").is_ok_and(|v| v == "growth") {
+            self.params.layout = tapiti_core::params::Layout::Growth;
+        }
+        if let Some(zoom) = std::env::var("TAPITI_ZOOM")
+            .ok()
+            .and_then(|z| z.parse::<f32>().ok())
+        {
+            self.ctx.set_zoom_factor(zoom);
+        }
+        if let Ok(tab) = std::env::var("TAPITI_TAB") {
+            match tab.as_str() {
+                "floor" => self.tab = Tab::Floor,
+                "analysis" => self.tab = Tab::Analysis,
+                "advanced" => self.tab = Tab::Advanced,
+                id => {
+                    self.tab = Tab::Settings;
+                    self.group = id.to_string();
+                }
+            }
+        }
+        self.refresh_changed();
+    }
+
+    /// Asks the window for a picture once the first floor is on it, writes it as a PPM and quits.
+    fn take_screenshot(&mut self, ctx: &egui::Context) {
+        let ready = !self.busy && self.generated.is_some();
+        let Some(shot) = &mut self.shot else { return };
+        ctx.request_repaint();
+        shot.frames += 1;
+        if ready && shot.frames > 20 && !shot.requested {
+            shot.requested = true;
+            let path = shot.path.clone();
+            ctx.request_screenshot(move |image| {
+                let [w, h] = image.size;
+                let mut out = format!("P6\n{w} {h}\n255\n").into_bytes();
+                for pixel in &image.pixels {
+                    out.extend_from_slice(&[pixel.r(), pixel.g(), pixel.b()]);
+                }
+                let _ = std::fs::write(&path, out);
+                std::process::exit(0);
+            });
+        }
     }
 
     // ---- generation -------------------------------------------------------------------------
@@ -473,7 +556,8 @@ impl App {
             return;
         };
         let mut value = serde_json::to_value(&self.params).unwrap_or(Value::Null);
-        for field in &group.fields {
+        // The layout has its own strip: a tab's reset does not switch it back.
+        for field in group.fields.iter().filter(|f| f.path != "layout") {
             if let Some(default) = get_path(&self.defaults, &field.path).cloned() {
                 set_path(&mut value, &field.path, default);
             }
@@ -605,9 +689,11 @@ impl eframe::App for App {
         self.shortcuts(&ctx);
         self.apply_due(&ctx);
         panels::top_bar(self, ui);
+        panels::layout_bar(self, ui);
         panels::bottom_bar(self, ui);
         panels::side_panel(self, ui);
         panels::central(self, ui);
+        self.take_screenshot(&ctx);
     }
 }
 

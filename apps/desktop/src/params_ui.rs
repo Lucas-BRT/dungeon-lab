@@ -19,6 +19,26 @@ pub fn field_row(
         label
     };
     ui.label(label).on_hover_text(field.help.as_str());
+    let next = control(ui, field, current);
+    let mut next = next;
+    if differs {
+        if ui
+            .small_button("default")
+            .on_hover_text("Reset to the size default")
+            .clicked()
+        {
+            next = default.cloned();
+        }
+    } else {
+        ui.label("");
+    }
+    ui.end_row();
+    next
+}
+
+/// Just the control of a parameter (no label, no reset), in whatever layout the caller is in: a drag value, a check box or a
+/// drop-down, with the parameter's help on hover. Returns the new value when the user changed it.
+pub fn control(ui: &mut Ui, field: &ParamField, current: &Value) -> Option<Value> {
     let mut next = None;
     match &field.kind {
         FieldKind::Number { min, max, integer } => {
@@ -80,17 +100,5 @@ pub fn field_row(
                 });
         }
     }
-    if differs {
-        if ui
-            .small_button("default")
-            .on_hover_text("Reset to the size default")
-            .clicked()
-        {
-            next = default.cloned();
-        }
-    } else {
-        ui.label("");
-    }
-    ui.end_row();
     next
 }

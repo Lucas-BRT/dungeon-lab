@@ -6,6 +6,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- Desktop app: a strip under the top bar with the layout, the size presets, the grid, the leaf chambers and, for growth, where it starts and how many rooms; one side tab for each group of parameters the layout uses (Grid and size, Room shapes, Corridors and junctions…, Growth with the growth layout), with the JSON, the experiments and the reset in an Advanced tab and a search across all of them; an Analysis tab of charts (rooms by shape, doors per room, loops, the walk from the entrance to the exit, where the time went) with plain explanations and the numbers below; and a Cancel button (also Esc) that stops a generation.
+- `tapiti_core::cancel::Cancel`, `generate_cancellable` and `stage_cancellable`: a generation that can be stopped from another thread; the output of one that is not stopped is unchanged.
 - Site redesign: a torchlit stone floor (dark only: wet-stone base, bone text, one carrot accent; Grenze, Alegreya Sans and JetBrains Mono), docs as a calm document with copy buttons and a live table of contents, and a canonical link on every page.
 - A social card made from the 3D scene, and browser checks in CI (the landing walk, the lab, the 404, axe-core) with screenshots kept as an artifact.
 - The Tapiti website: landing page, documentation (with math as MathML, a generated parameter reference and search), the browser lab, sitemap and robots.txt.

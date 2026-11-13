@@ -1,11 +1,12 @@
 //! The window's layout: top bar, bottom bar, the tabbed side panel and the map.
 
+use crate::analysis::analysis_tab;
 use crate::map::{self, Palette, Xf};
-use crate::params_ui::field_row;
+use crate::params_ui::{control, field_row, FieldKind, ParamField};
 use crate::pick::map_object_at;
 use crate::{
-    class_label, format_number, get_path, set_path, size_description, size_label, summary,
-    translate_log, translate_violation, App, BenchmarkKind, Experiment, GeneratedMap, Tab,
+    format_number, get_path, set_path, size_description, size_label, translate_violation, App,
+    Experiment, GeneratedMap, Tab,
 };
 use eframe::egui::{
     self, Align, Button, Color32, CursorIcon, Frame, Grid, Layout, Panel, RichText, ScrollArea,
@@ -15,13 +16,13 @@ use serde_json::{json, Value};
 use tapiti_core::par;
 use tapiti_core::params::Size;
 
-fn muted(ui: &Ui, text: impl Into<String>) -> RichText {
+pub(crate) fn muted(ui: &Ui, text: impl Into<String>) -> RichText {
     RichText::new(text)
         .small()
         .color(ui.visuals().weak_text_color())
 }
 
-fn card(ui: &mut Ui, title: &str, body: impl FnOnce(&mut Ui)) {
+pub(crate) fn card(ui: &mut Ui, title: &str, body: impl FnOnce(&mut Ui)) {
     Frame::group(ui.style()).inner_margin(12.0).show(ui, |ui| {
         ui.set_width(ui.available_width());
         ui.label(RichText::new(title).strong().size(15.0));
@@ -45,18 +46,6 @@ pub fn top_bar(app: &mut App, ui: &mut Ui) {
         ui.add_space(4.0);
         ui.horizontal(|ui| {
             ui.heading("Tapiti");
-            ui.separator();
-            ui.label("Size");
-            for (n, size) in Size::ALL.into_iter().enumerate() {
-                let hint = format!("{}\nAlt+{}", size_description(size), n + 1);
-                if ui
-                    .selectable_label(app.size == size, size_label(size))
-                    .on_hover_text(hint)
-                    .clicked()
-                {
-                    app.set_size(size);
-                }
-            }
             ui.separator();
             ui.label("Seed");
             if ui
@@ -144,36 +133,197 @@ pub fn bottom_bar(app: &mut App, ui: &mut Ui) {
     });
 }
 
+/// The layout of the floor and the settings a person reaches for first, in one strip under the top bar: the layout, the size, the
+/// grid, the leaf chambers, and for the grown layout where it starts and how many rooms.
+pub fn layout_bar(app: &mut App, ui: &mut Ui) {
+    Panel::top("layout").show(ui, |ui| {
+        ui.add_space(4.0);
+        let mut edit: Option<(String, Value)> = None;
+        let mut size = None;
+        ui.horizontal_wrapped(|ui| {
+            ui.label(RichText::new("Layout").strong());
+            if let Some(field) = app
+                .groups
+                .iter()
+                .flat_map(|g| &g.fields)
+                .find(|f| f.path == "layout")
+            {
+                if let FieldKind::Choice(options) = &field.kind {
+                    let current = get_path(
+                        &serde_json::to_value(&app.params).unwrap_or(Value::Null),
+                        "layout",
+                    )
+                    .and_then(Value::as_str)
+                    .unwrap_or("grid")
+                    .to_string();
+                    for (value, name) in options {
+                        if ui
+                            .selectable_label(*value == current, name.as_str())
+                            .on_hover_text(field.help.as_str())
+                            .clicked()
+                            && *value != current
+                        {
+                            edit = Some(("layout".into(), Value::String(value.clone())));
+                        }
+                    }
+                }
+            }
+            ui.separator();
+            ui.label(RichText::new("Size").strong());
+            for (n, s) in Size::ALL.into_iter().enumerate() {
+                let hint = format!("{}\nAlt+{}", size_description(s), n + 1);
+                if ui
+                    .selectable_label(app.size == s, size_label(s))
+                    .on_hover_text(hint)
+                    .clicked()
+                {
+                    size = Some(s);
+                }
+            }
+            ui.separator();
+            let grown = app.params.layout == tapiti_core::params::Layout::Growth;
+            let mut quick: Vec<(&str, &str)> = vec![
+                ("cols", "Columns"),
+                ("rows", "Rows"),
+                ("leaves", "Leaf chambers"),
+            ];
+            if grown {
+                quick.extend([("growth.start", "First room"), ("growth.rooms", "Rooms")]);
+            }
+            let current = serde_json::to_value(&app.params).unwrap_or(Value::Null);
+            for (path, label) in quick {
+                let Some(field) = app
+                    .groups
+                    .iter()
+                    .flat_map(|g| &g.fields)
+                    .find(|f| f.path == path)
+                else {
+                    continue;
+                };
+                ui.label(muted(ui, label));
+                let value = get_path(&current, path).cloned().unwrap_or(Value::Null);
+                if let Some(next) = control(ui, field, &value) {
+                    edit = Some((path.to_string(), next));
+                }
+            }
+        });
+        ui.label(muted(
+            ui,
+            format!(
+                "{layout} {size}",
+                layout = if app.params.layout == tapiti_core::params::Layout::Growth {
+                    "Rooms grow one from another off a door, in free space."
+                } else {
+                    "One room per block of the grid."
+                },
+                size = size_description(app.size)
+            ),
+        ));
+        ui.add_space(4.0);
+        if let Some(s) = size {
+            app.set_size(s);
+        } else if let Some((path, value)) = edit {
+            app.change_param(&path, value);
+        }
+    });
+}
+
+/// Whether a group of parameters applies to the layout: the growth settings only to the grown layout.
+fn group_applies(id: &str, layout: tapiti_core::params::Layout) -> bool {
+    id != "growth" || layout == tapiti_core::params::Layout::Growth
+}
+
 pub fn side_panel(app: &mut App, ui: &mut Ui) {
     Panel::right("side")
-        .default_size(380.0)
-        .size_range(320.0..=560.0)
+        .default_size(400.0)
+        .size_range(340.0..=600.0)
         .show(ui, |ui| {
             ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                let params = if app.changed.is_empty() {
-                    "Parameters".to_string()
-                } else {
-                    format!("Parameters ({n})", n = app.changed.len())
-                };
-                for (tab, name) in [
-                    (Tab::Floor, "Floor".to_string()),
-                    (Tab::Parameters, params),
-                    (Tab::Analysis, "Analysis".into()),
-                ] {
-                    if ui.selectable_label(app.tab == tab, name).clicked() {
-                        app.tab = tab;
+            // One tab for the floor, one for each group of parameters the layout uses, then the advanced tools and the analysis.
+            let layout = app.params.layout;
+            let tabs: Vec<(String, String)> = app
+                .groups
+                .iter()
+                .filter(|g| group_applies(&g.id, layout))
+                .map(|g| {
+                    let changed = g
+                        .fields
+                        .iter()
+                        .filter(|f| f.path != "layout" && app.changed.contains(&f.path))
+                        .count();
+                    let title = if changed > 0 {
+                        format!("{} · {changed}", g.title.as_str())
+                    } else {
+                        g.title.as_str().to_string()
+                    };
+                    (g.id.clone(), title)
+                })
+                .collect();
+            if !tabs.iter().any(|(id, _)| *id == app.group) {
+                if let Some((id, _)) = tabs.first() {
+                    app.group = id.clone();
+                }
+            }
+            ui.horizontal_wrapped(|ui| {
+                if ui
+                    .selectable_label(app.tab == Tab::Floor, "Floor")
+                    .clicked()
+                {
+                    app.tab = Tab::Floor;
+                }
+                if ui
+                    .selectable_label(app.tab == Tab::Analysis, "Analysis")
+                    .clicked()
+                {
+                    app.tab = Tab::Analysis;
+                }
+                ui.separator();
+                for (id, title) in &tabs {
+                    if ui
+                        .selectable_label(app.tab == Tab::Settings && app.group == *id, title)
+                        .clicked()
+                    {
+                        app.tab = Tab::Settings;
+                        app.group = id.clone();
                     }
+                }
+                if ui
+                    .selectable_label(app.tab == Tab::Advanced, "Advanced")
+                    .clicked()
+                {
+                    app.tab = Tab::Advanced;
+                }
+            });
+            ui.horizontal(|ui| {
+                let search = ui.add(
+                    TextEdit::singleline(&mut app.filter)
+                        .hint_text("Search every parameter…")
+                        .desired_width(ui.available_width() - 34.0),
+                );
+                if search.changed() && !app.filter.trim().is_empty() {
+                    app.tab = Tab::Settings;
+                }
+                if ui
+                    .add_enabled(!app.filter.is_empty(), Button::new("×"))
+                    .on_hover_text("Clear the search")
+                    .clicked()
+                {
+                    app.filter.clear();
                 }
             });
             ui.separator();
-            ScrollArea::vertical()
-                .auto_shrink(false)
-                .show(ui, |ui| match app.tab {
-                    Tab::Floor => floor_tab(app, ui),
-                    Tab::Parameters => parameters_tab(app, ui),
-                    Tab::Analysis => analysis_tab(app, ui),
-                });
+            let mut area = ScrollArea::vertical().auto_shrink(false);
+            if app.generated.is_some() {
+                if let Some(offset) = app.scroll_to.take() {
+                    area = area.vertical_scroll_offset(offset);
+                }
+            }
+            area.show(ui, |ui| match app.tab {
+                Tab::Floor => floor_tab(app, ui),
+                Tab::Settings => settings_tab(app, ui),
+                Tab::Advanced => advanced_tab(app, ui),
+                Tab::Analysis => analysis_tab(app, ui),
+            });
         });
 }
 
@@ -257,67 +407,6 @@ fn floor_tab(app: &mut App, ui: &mut Ui) {
         }
     });
 
-    card(ui, "Layout", |ui| {
-        let current = serde_json::to_value(&app.params).unwrap_or(Value::Null);
-        let mut edit = None;
-        Grid::new("layout")
-            .num_columns(3)
-            .spacing([10.0, 6.0])
-            .show(ui, |ui| {
-                if let Some(field) = app
-                    .groups
-                    .iter()
-                    .flat_map(|g| &g.fields)
-                    .find(|f| f.path == "layout")
-                {
-                    let value = get_path(&current, "layout").cloned().unwrap_or(Value::Null);
-                    if let Some(next) =
-                        field_row(ui, field, &value, get_path(&app.defaults, "layout"))
-                    {
-                        edit = Some((field.path.clone(), next));
-                    }
-                }
-            });
-        if let Some((path, value)) = edit {
-            app.change_param(&path, value);
-        }
-        if app.params.layout == tapiti_core::params::Layout::Growth {
-            let mut edit = None;
-            Grid::new("growth")
-                .num_columns(3)
-                .spacing([10.0, 6.0])
-                .show(ui, |ui| {
-                    for field in app.groups.iter().flat_map(|g| &g.fields).filter(|f| {
-                        [
-                            "growth.start",
-                            "growth.rooms",
-                            "growth.islands",
-                            "growth.branch",
-                            "growth.depth",
-                            "growth.cluster",
-                            "growth.reach",
-                        ]
-                        .contains(&f.path.as_str())
-                    }) {
-                        let value = get_path(&current, &field.path)
-                            .cloned()
-                            .unwrap_or(Value::Null);
-                        if let Some(next) =
-                            field_row(ui, field, &value, get_path(&app.defaults, &field.path))
-                        {
-                            edit = Some((field.path.clone(), next));
-                        }
-                    }
-                });
-            if let Some((path, value)) = edit {
-                app.change_param(&path, value);
-            }
-        } else {
-            ui.label(muted(ui, "One room per grid block."));
-        }
-        ui.label(muted(ui, size_description(app.size)));
-    });
-
     card(ui, "Shortcuts", |ui| {
         for line in [
             "Alt+1–4 switches the size · Alt+R random seed",
@@ -330,28 +419,92 @@ fn floor_tab(app: &mut App, ui: &mut Ui) {
     });
 }
 
-// ---- Parâmetros ----------------------------------------------------------------------------------
+// ---- Settings: one tab for each group of parameters -----------------------------------------------
 
-fn parameters_tab(app: &mut App, ui: &mut Ui) {
+/// The parameters of the selected group as rows, or, with a search, the ones that match in every group the layout uses.
+fn settings_tab(app: &mut App, ui: &mut Ui) {
+    let groups = std::mem::take(&mut app.groups);
+    let current = serde_json::to_value(&app.params).unwrap_or(Value::Null);
+    let needle = app.filter.trim().to_lowercase();
+    let layout = app.params.layout;
+    let mut edits: Vec<(String, Value)> = Vec::new();
+    let mut reset = None;
+    let mut shown = 0;
+    for group in groups.iter().filter(|g| group_applies(&g.id, layout)) {
+        if needle.is_empty() && group.id != app.group {
+            continue;
+        }
+        // The layout has its own strip under the top bar.
+        let fields: Vec<&ParamField> = group
+            .fields
+            .iter()
+            .filter(|f| f.path != "layout")
+            .filter(|f| {
+                needle.is_empty()
+                    || f.label.as_str().to_lowercase().contains(&needle)
+                    || f.path.to_lowercase().contains(&needle)
+            })
+            .collect();
+        if fields.is_empty() {
+            continue;
+        }
+        shown += 1;
+        let changed = group
+            .fields
+            .iter()
+            .filter(|f| f.path != "layout" && app.changed.contains(&f.path))
+            .count();
+        ui.label(RichText::new(group.title.as_str()).strong().size(16.0));
+        ui.label(muted(ui, group.intro.as_str()));
+        ui.add_space(4.0);
+        Grid::new(&group.id)
+            .num_columns(3)
+            .spacing([10.0, 6.0])
+            .show(ui, |ui| {
+                for field in fields {
+                    let value = get_path(&current, &field.path)
+                        .cloned()
+                        .unwrap_or(Value::Null);
+                    if let Some(next) =
+                        field_row(ui, field, &value, get_path(&app.defaults, &field.path))
+                    {
+                        edits.push((field.path.clone(), next));
+                    }
+                }
+            });
+        if changed > 0 && ui.small_button("Reset this tab").clicked() {
+            reset = Some(group.id.clone());
+        }
+        ui.add_space(10.0);
+    }
+    app.groups = groups;
+    if shown == 0 {
+        ui.label(muted(ui, "No parameter matches the search."));
+    }
+    if let Some(id) = reset {
+        app.reset_group(&id);
+    } else if !edits.is_empty() {
+        let mut value = current;
+        for (path, next) in edits {
+            set_path(&mut value, &path, next);
+        }
+        match serde_json::from_value(value) {
+            Ok(params) => {
+                app.params = params;
+                app.params_edited();
+            }
+            Err(error) => app.status = format!("Invalid parameter: {error}", error = error),
+        }
+    }
+}
+
+/// The tools that are not one group of parameters: copying the Λ, going back to the size, the guided experiments and the JSON.
+fn advanced_tab(app: &mut App, ui: &mut Ui) {
     ui.label(muted(
         ui,
-        "Every change regenerates the map after a short pause. Hover a name to see what it does.",
+        "Every change regenerates the floor after a short pause. Hover a name to see what it does.",
     ));
     ui.add_space(4.0);
-    ui.horizontal(|ui| {
-        ui.add(
-            TextEdit::singleline(&mut app.filter)
-                .hint_text("Filter parameters…")
-                .desired_width(ui.available_width() - 34.0),
-        );
-        if ui
-            .add_enabled(!app.filter.is_empty(), Button::new("×"))
-            .on_hover_text("Clear filter")
-            .clicked()
-        {
-            app.filter.clear();
-        }
-    });
     ui.horizontal_wrapped(|ui| {
         if ui
             .button("Copy JSON")
@@ -379,8 +532,12 @@ fn parameters_tab(app: &mut App, ui: &mut Ui) {
         ));
     });
 
-    ui.add_space(4.0);
+    ui.add_space(6.0);
     ui.label(RichText::new("Guided experiments").strong());
+    ui.label(muted(
+        ui,
+        "One click changes a few parameters to show what they do.",
+    ));
     ui.horizontal_wrapped(|ui| {
         for (preset, name) in [
             (Experiment::Shapes, "Shapes and diagonals"),
@@ -393,91 +550,6 @@ fn parameters_tab(app: &mut App, ui: &mut Ui) {
             }
         }
     });
-    ui.add_space(6.0);
-
-    let groups = std::mem::take(&mut app.groups);
-    let current = serde_json::to_value(&app.params).unwrap_or(Value::Null);
-    let needle = app.filter.trim().to_lowercase();
-    let mut edits: Vec<(String, Value)> = Vec::new();
-    let mut reset = None;
-    let mut shown = 0;
-    for group in &groups {
-        let fields: Vec<_> = group
-            .fields
-            .iter()
-            .filter(|f| {
-                needle.is_empty()
-                    || f.label.as_str().to_lowercase().contains(&needle)
-                    || f.path.to_lowercase().contains(&needle)
-            })
-            .collect();
-        if fields.is_empty() {
-            continue;
-        }
-        shown += 1;
-        let changed = group
-            .fields
-            .iter()
-            .filter(|f| app.changed.contains(&f.path))
-            .count();
-        let title = if changed > 0 {
-            format!(
-                "{title} · {n} changed",
-                title = group.title.as_str(),
-                n = changed
-            )
-        } else {
-            group.title.as_str().to_string()
-        };
-        let header = egui::CollapsingHeader::new(RichText::new(title).strong())
-            .id_salt(&group.id)
-            .default_open(group.open_by_default);
-        let header = if needle.is_empty() {
-            header
-        } else {
-            header.open(Some(true))
-        };
-        header.show(ui, |ui| {
-            ui.label(muted(ui, group.intro.as_str()));
-            Grid::new(&group.id)
-                .num_columns(3)
-                .spacing([10.0, 6.0])
-                .show(ui, |ui| {
-                    for field in fields {
-                        let value = get_path(&current, &field.path)
-                            .cloned()
-                            .unwrap_or(Value::Null);
-                        if let Some(next) =
-                            field_row(ui, field, &value, get_path(&app.defaults, &field.path))
-                        {
-                            edits.push((field.path.clone(), next));
-                        }
-                    }
-                });
-            if changed > 0 && ui.small_button("Reset this group").clicked() {
-                reset = Some(group.id.clone());
-            }
-        });
-    }
-    app.groups = groups;
-    if shown == 0 {
-        ui.label(muted(ui, "No parameter matches the filter."));
-    }
-    if let Some(id) = reset {
-        app.reset_group(&id);
-    } else if !edits.is_empty() {
-        let mut value = current;
-        for (path, next) in edits {
-            set_path(&mut value, &path, next);
-        }
-        match serde_json::from_value(value) {
-            Ok(params) => {
-                app.params = params;
-                app.params_edited();
-            }
-            Err(error) => app.status = format!("Invalid parameter: {error}", error = error),
-        }
-    }
 
     ui.add_space(8.0);
     ui.label(muted(
@@ -492,7 +564,7 @@ fn parameters_tab(app: &mut App, ui: &mut Ui) {
         ),
     ));
     ui.add_space(4.0);
-    egui::CollapsingHeader::new(RichText::new("Advanced JSON editor").strong())
+    egui::CollapsingHeader::new(RichText::new("JSON editor").strong())
         .id_salt("json")
         .show(ui, |ui| {
             let editor = ui.add(
@@ -515,231 +587,6 @@ fn parameters_tab(app: &mut App, ui: &mut Ui) {
                 _ => {}
             }
         });
-}
-
-// ---- Analysis -------------------------------------------------------------------------------------
-
-fn analysis_tab(app: &mut App, ui: &mut Ui) {
-    card(ui, "Performance", |ui| {
-        ui.label(muted(
-            ui,
-            "Benchmarks use the selected size's default parameters.",
-        ));
-        ui.horizontal_wrapped(|ui| {
-            if ui
-                .add_enabled(!app.busy, Button::new("Measure 40 maps"))
-                .clicked()
-            {
-                app.start_benchmark(BenchmarkKind::Forty);
-            }
-            if ui
-                .add_enabled(!app.busy, Button::new("Compare batch of 800"))
-                .clicked()
-            {
-                app.start_benchmark(BenchmarkKind::Batch);
-            }
-        });
-        if let Some(text) = &app.performance_status {
-            ui.label(text);
-        }
-    });
-
-    let Some(map) = &app.generated else {
-        ui.label(muted(ui, "Metrics and validation appear here."));
-        return;
-    };
-    card(ui, "Floor reading", |ui| {
-        ui.label(muted(
-            ui,
-            format!(
-                "{size} size · seed {seed}",
-                size = size_label(app.size),
-                seed = app.seed
-            ),
-        ));
-        verdict(ui, map);
-        if !map.violations.is_empty() {
-            ui.label(muted(
-                ui,
-                format!(
-                    "After {n} attempt(s), the map still does not meet every rule.",
-                    n = map.draws
-                ),
-            ));
-            for violation in map.violations.iter().take(30) {
-                ui.label(muted(ui, translate_violation(violation)));
-            }
-        }
-        ui.label(muted(
-            ui,
-            format!(
-                "{draws} attempt(s) · generation {ms:.1} ms",
-                draws = map.draws,
-                ms = map.elapsed_ms
-            ),
-        ));
-        ui.label(muted(ui, summary(map)));
-    });
-    for (title, rows) in metric_sections(map) {
-        card(ui, title, |ui| {
-            Grid::new(title)
-                .num_columns(2)
-                .striped(true)
-                .min_col_width(ui.available_width() / 2.0 - 12.0)
-                .spacing([16.0, 4.0])
-                .show(ui, |ui| {
-                    for (label, value, help) in rows {
-                        ui.label(label).on_hover_text(help);
-                        ui.label(RichText::new(value).strong());
-                        ui.end_row();
-                    }
-                });
-        });
-    }
-    card(ui, "Shapes on the map", |ui| {
-        for (class, count) in &map.metrics.by_class {
-            ui.label(format!("{}: {count}", class_label(class)));
-        }
-    });
-    if !map.floor.log.is_empty() {
-        card(ui, "What the generator did", |ui| {
-            for line in &map.floor.log {
-                ui.label(muted(ui, translate_log(line)));
-            }
-        });
-    }
-}
-
-type Row = (&'static str, String, &'static str);
-
-fn metric_sections(map: &GeneratedMap) -> Vec<(&'static str, Vec<Row>)> {
-    let m = &map.metrics;
-    let opt = |v: Option<f64>| v.map(|v| format!("{v:.0}")).unwrap_or_else(|| "—".into());
-    vec![
-        (
-            "Map size",
-            vec![
-                (
-                    "Main rooms",
-                    m.rooms.to_string(),
-                    "Active rooms, not counting leaf chambers.",
-                ),
-                (
-                    "Leaf chambers",
-                    m.leaf_chambers.to_string(),
-                    "Extra rooms linked by a single corridor.",
-                ),
-                (
-                    "T/X junctions",
-                    m.junctions.to_string(),
-                    "Points where three or four arms meet.",
-                ),
-                (
-                    "Corridor segments",
-                    m.edges.to_string(),
-                    "Graph edges; each junction arm counts as a segment.",
-                ),
-            ],
-        ),
-        (
-            "Cycles and density",
-            vec![
-                (
-                    "Current cycles β",
-                    m.beta.to_string(),
-                    "Number of independent cycles; a tree has zero.",
-                ),
-                (
-                    "Cycle target",
-                    m.beta_target.to_string(),
-                    "Target computed from the density and the generator's reference.",
-                ),
-                (
-                    "Reference βmax",
-                    m.beta_max.to_string(),
-                    "Greedy estimate of the cycles that fit, including junctions.",
-                ),
-                (
-                    "Density δ",
-                    format!("{:.2}", m.delta),
-                    "Ratio between current cycles and the βmax reference.",
-                ),
-            ],
-        ),
-        (
-            "Paths and connectivity",
-            vec![
-                (
-                    "Doors used per room",
-                    format!("{:.2}", m.mean_degree),
-                    "Average number of corridors linked to each room.",
-                ),
-                (
-                    "Single-door rooms",
-                    m.leaves.to_string(),
-                    "Rooms with only one connection; includes dead ends, the entrance and the exit.",
-                ),
-                (
-                    "Bridges",
-                    format!("{} · {:.0}%", m.bridges, m.bridge_share * 100.0),
-                    "Segments whose removal would disconnect part of the map.",
-                ),
-                (
-                    "Articulation rooms",
-                    m.articulations.to_string(),
-                    "Rooms whose removal would split the graph.",
-                ),
-                (
-                    "Steps to the exit",
-                    opt(m.hops_to_exit),
-                    "Number of rooms on the shortest path from the entrance to the exit.",
-                ),
-                (
-                    "Diameter",
-                    format!("{:.0}", m.diameter),
-                    "Largest minimum distance between two rooms, in steps.",
-                ),
-                (
-                    "Independent routes to the exit",
-                    m.routes_to_exit.map_or("—".into(), |n| n.to_string()),
-                    "Paths between the entrance and the exit that share no corridors.",
-                ),
-                (
-                    "Shortest cycle",
-                    m.cycle_girth
-                        .map(|v| v.to_string())
-                        .unwrap_or_else(|| "—".into()),
-                    "Number of segments in the map's shortest cycle.",
-                ),
-                (
-                    "Side branches",
-                    m.side_branches.to_string(),
-                    "Optional components attached to the main path by a single passage.",
-                ),
-                (
-                    "Branch depth",
-                    m.deepest_branch.to_string(),
-                    "Largest number of rooms in a side branch.",
-                ),
-                (
-                    "Highest degree",
-                    m.max_node_degree.to_string(),
-                    "Largest number of arms joined at one point.",
-                ),
-                (
-                    "Geometric path",
-                    m.geometric_path_to_exit
-                        .map_or("—".into(), |l| format!("{l:.0} px")),
-                    "Physical length of the shortest path to the exit.",
-                ),
-                (
-                    "Connectivity λ₂",
-                    format!("{:.3}", m.lambda2),
-                    "Larger values tend to indicate less dependence on bottlenecks.",
-                ),
-            ],
-        ),
-    ]
 }
 
 // ---- Map ----------------------------------------------------------------------------------------
