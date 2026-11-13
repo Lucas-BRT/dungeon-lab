@@ -42,6 +42,22 @@ jobs:
       - run: cargo clippy -p tapiti-core -p tapiti-site -p tapiti-render -p tapiti-schema -p tapiti-desktop --no-deps -- -D warnings
       - run: cargo test --release -p tapiti-core -p tapiti-render -p tapiti-schema -p tapiti-site -p tapiti-desktop
 
+  # The desktop app on Windows, which the releases ship: it must build and pass its lints and tests there.
+  windows:
+    name: Desktop on Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: windows
+      - run: cargo clippy -p tapiti-desktop --no-deps -- -D warnings
+      - run: cargo test --release -p tapiti-desktop
+
   # Topcoat's own formatter and the translation check (no unused or missing message).
   site:
     name: Site checks

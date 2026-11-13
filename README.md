@@ -71,7 +71,7 @@ without WebAssembly. The map fills the window; the top bar holds the layout, the
 pan/zoom/hover inspection, validation, and metrics. Edits regenerate the map after a short pause. Each interactive request generates one floor;
 a slow generation shows rooms and corridor connections as the generator creates them. A separate benchmark compares single-thread and
 multi-thread throughput over many independent maps. Shortcuts: Alt+1–4 size, Alt+R random seed, Alt+left/right seed.
-Building needs the usual eframe system libraries on Linux (xkbcommon, Wayland and/or X11, OpenGL).
+Building needs the usual eframe system libraries on Linux (xkbcommon, Wayland and/or X11, OpenGL). On Windows nothing extra is needed to build, and running needs a graphics driver with OpenGL 2 (a virtual machine or remote desktop without a GPU may not have one); the releases carry a Windows `.zip` with `tapiti-desktop.exe`.
 
 The desktop's single-map latency and progressive-rendering design is documented in [docs/desktop-generation-rendering.md](docs/desktop-generation-rendering.md).
 

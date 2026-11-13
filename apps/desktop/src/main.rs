@@ -4,6 +4,9 @@
 //! `parallel` feature enabled. Generation runs on a background OS thread so the
 //! window remains responsive while Rayon handles the generator's parallel phases.
 
+// A release build on Windows is a GUI program: without this it opens a console window next to the app.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod analysis;
 mod charts;
 mod map;
