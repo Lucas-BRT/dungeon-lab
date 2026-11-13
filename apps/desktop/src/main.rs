@@ -376,10 +376,9 @@ impl App {
                     match result {
                         Ok(map) => {
                             self.status = format!(
-                                "Floor generated in {ms:.1} ms · {draws} attempt(s) · {threads} threads available.",
+                                "Floor generated in {ms:.1} ms · {draws} attempt(s).",
                                 ms = map.elapsed_ms,
-                                draws = map.draws,
-                                threads = par::threads()
+                                draws = map.draws
                             );
                             self.generated = Some(map);
                         }

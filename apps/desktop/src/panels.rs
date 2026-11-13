@@ -114,13 +114,7 @@ pub fn bottom_bar(app: &mut App, ui: &mut Ui) {
             ui.horizontal(|ui| {
                 ui.label(muted(ui, &app.status));
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    ui.label(muted(
-                        ui,
-                        format!(
-                            "Rust engine · Rayon · {threads} threads",
-                            threads = par::threads()
-                        ),
-                    ));
+                    ui.label(muted(ui, format!("{} threads", par::threads())));
                     ui.separator();
                     let mut theme = ui.options(|o| o.theme_preference);
                     for (value, name) in [
@@ -214,18 +208,6 @@ pub fn layout_bar(app: &mut App, ui: &mut Ui) {
                     }
                 }
             });
-            ui.label(muted(
-                ui,
-                format!(
-                    "{layout} {size}",
-                    layout = if app.params.layout == tapiti_core::params::Layout::Growth {
-                        "Rooms grow one from another off a door, in free space."
-                    } else {
-                        "One room per block of the grid."
-                    },
-                    size = size_description(app.size)
-                ),
-            ));
             ui.add_space(4.0);
             if let Some(s) = size {
                 app.set_size(s);
@@ -381,7 +363,7 @@ fn floor_tab(app: &mut App, ui: &mut Ui) {
                 .spacing([16.0, 4.0])
                 .show(ui, |ui| {
                     for (label, value) in [
-                        ("Rooms", m.rooms.to_string()),
+                        ("Rooms", (m.rooms + m.leaf_chambers).to_string()),
                         ("Corridors", m.edges.to_string()),
                         (
                             "Cycles β",
