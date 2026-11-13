@@ -2,7 +2,7 @@
 
 use crate::analysis::analysis_tab;
 use crate::map::{self, Palette, Xf};
-use crate::params_ui::{control, field_row, FieldKind, ParamField};
+use crate::params_ui::{field_row, FieldKind, ParamField};
 use crate::pick::map_object_at;
 use crate::theme;
 use crate::{
@@ -94,6 +94,8 @@ pub fn top_bar(app: &mut App, ui: &mut Ui) {
             ui.horizontal(|ui| {
                 ui.heading("Tapiti");
                 ui.separator();
+                layout_and_size(app, ui);
+                ui.separator();
                 ui.label("Seed");
                 if ui
                     .button("<")
@@ -164,89 +166,55 @@ pub fn bottom_bar(app: &mut App, ui: &mut Ui) {
         });
 }
 
-/// The layout of the floor and the settings a person reaches for first, in one strip under the top bar: the layout, the size, the
-/// grid, the leaf chambers, and for the grown layout where it starts and how many rooms.
-pub fn layout_bar(app: &mut App, ui: &mut Ui) {
-    Panel::top("layout")
-        .frame(theme::panel_frame(ui))
-        .show(ui, |ui| {
-            ui.add_space(4.0);
-            let mut edit: Option<(String, Value)> = None;
-            let mut size = None;
-            ui.horizontal_wrapped(|ui| {
-                ui.label(RichText::new("Layout").strong());
-                if let Some(field) = app
-                    .groups
-                    .iter()
-                    .flat_map(|g| &g.fields)
-                    .find(|f| f.path == "layout")
+/// The layout and the size, side by side in the top bar: the choices that decide what the rest of the settings mean. Columns, rows,
+/// leaf chambers and the growth settings live in their group of the side panel.
+fn layout_and_size(app: &mut App, ui: &mut Ui) {
+    let mut layout = None;
+    let mut size = None;
+    ui.label(RichText::new("Layout").strong());
+    if let Some(field) = app
+        .groups
+        .iter()
+        .flat_map(|g| &g.fields)
+        .find(|f| f.path == "layout")
+    {
+        if let FieldKind::Choice(options) = &field.kind {
+            let current = get_path(
+                &serde_json::to_value(&app.params).unwrap_or(Value::Null),
+                "layout",
+            )
+            .and_then(Value::as_str)
+            .unwrap_or("grid")
+            .to_string();
+            for (value, name) in options {
+                if ui
+                    .selectable_label(*value == current, name.as_str())
+                    .on_hover_text(field.help.as_str())
+                    .clicked()
+                    && *value != current
                 {
-                    if let FieldKind::Choice(options) = &field.kind {
-                        let current = get_path(
-                            &serde_json::to_value(&app.params).unwrap_or(Value::Null),
-                            "layout",
-                        )
-                        .and_then(Value::as_str)
-                        .unwrap_or("grid")
-                        .to_string();
-                        for (value, name) in options {
-                            if ui
-                                .selectable_label(*value == current, name.as_str())
-                                .on_hover_text(field.help.as_str())
-                                .clicked()
-                                && *value != current
-                            {
-                                edit = Some(("layout".into(), Value::String(value.clone())));
-                            }
-                        }
-                    }
+                    layout = Some(Value::String(value.clone()));
                 }
-                ui.separator();
-                ui.label(RichText::new("Size").strong());
-                for (n, s) in Size::ALL.into_iter().enumerate() {
-                    let hint = format!("{}\nAlt+{}", size_description(s), n + 1);
-                    if ui
-                        .selectable_label(app.size == s, size_label(s))
-                        .on_hover_text(hint)
-                        .clicked()
-                    {
-                        size = Some(s);
-                    }
-                }
-                ui.separator();
-                let grown = app.params.layout == tapiti_core::params::Layout::Growth;
-                let mut quick: Vec<(&str, &str)> = vec![
-                    ("cols", "Columns"),
-                    ("rows", "Rows"),
-                    ("leaves", "Leaf chambers"),
-                ];
-                if grown {
-                    quick.extend([("growth.start", "First room"), ("growth.rooms", "Rooms")]);
-                }
-                let current = serde_json::to_value(&app.params).unwrap_or(Value::Null);
-                for (path, label) in quick {
-                    let Some(field) = app
-                        .groups
-                        .iter()
-                        .flat_map(|g| &g.fields)
-                        .find(|f| f.path == path)
-                    else {
-                        continue;
-                    };
-                    ui.label(muted(ui, label));
-                    let value = get_path(&current, path).cloned().unwrap_or(Value::Null);
-                    if let Some(next) = control(ui, field, &value) {
-                        edit = Some((path.to_string(), next));
-                    }
-                }
-            });
-            ui.add_space(4.0);
-            if let Some(s) = size {
-                app.set_size(s);
-            } else if let Some((path, value)) = edit {
-                app.change_param(&path, value);
             }
-        });
+        }
+    }
+    ui.separator();
+    ui.label(RichText::new("Size").strong());
+    for (n, s) in Size::ALL.into_iter().enumerate() {
+        let hint = format!("{}\nAlt+{}", size_description(s), n + 1);
+        if ui
+            .selectable_label(app.size == s, size_label(s))
+            .on_hover_text(hint)
+            .clicked()
+        {
+            size = Some(s);
+        }
+    }
+    if let Some(s) = size {
+        app.set_size(s);
+    } else if let Some(value) = layout {
+        app.change_param("layout", value);
+    }
 }
 
 /// Whether a group of parameters applies to the layout: the growth settings only to the grown layout.

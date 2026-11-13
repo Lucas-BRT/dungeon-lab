@@ -695,7 +695,6 @@ impl eframe::App for App {
         self.apply_due(&ctx);
         panels::menu_bar(self, ui);
         panels::top_bar(self, ui);
-        panels::layout_bar(self, ui);
         panels::bottom_bar(self, ui);
         panels::side_panel(self, ui);
         panels::central(self, ui);
