@@ -38,7 +38,7 @@ pub fn validate(d: &Floor) -> Vec<String> {
         adj[e.u].push(e.v);
         adj[e.v].push(e.u);
     }
-    let s0 = room_node[&d.start];
+    let s0 = room_node[&d.origin()];
     let mut seen: HashSet<usize> = HashSet::from([s0]);
     let mut todo = vec![s0];
     let mut i = 0;
@@ -214,7 +214,7 @@ pub fn validate(d: &Floor) -> Vec<String> {
                         e.id, r.id
                     ));
                 }
-            } else if region_shape_dist(&e.region, &r.shape, r.bounds) < p.clear - eps {
+            } else if region_shape_within(&e.region, &r.shape, r.bounds, p.clear - eps) {
                 out.push(format!(
                     "V2 corridor {} closer than σ to room {}",
                     e.id, r.id
@@ -264,7 +264,7 @@ pub fn validate(d: &Floor) -> Vec<String> {
             } else {
                 (a.region.clone(), b.region.clone())
             };
-            if region_dist(&ra, &rb) < p.clear - eps {
+            if region_within(&ra, &rb, p.clear - eps) {
                 out.push(format!("V2 corridors {} and {} closer than σ", a.id, b.id));
             }
         }
@@ -343,30 +343,39 @@ pub fn validate(d: &Floor) -> Vec<String> {
         }
     }
 
-    // V5 roles.
-    let (start, stairs) = (d.rooms.get(d.start), d.rooms.get(d.stairs));
-    match (start, stairs) {
-        (Some(s), Some(t)) if s.alive && t.alive && d.start != d.stairs => {
-            if t.used.len() > p.stairs_doors as usize {
-                out.push(format!(
-                    "V5 the stairs have {} doors (most {})",
-                    t.used.len(),
-                    p.stairs_doors
-                ));
-            }
-            let h = room_hops(&d.nodes, &d.edges, room_node[&d.start]);
-            let hops = h[room_node[&d.stairs]];
-            if hops < p.min_hops as f64 {
-                out.push(format!(
-                    "V5 the stairs are {} hops from the start (least {})",
-                    hops, p.min_hops
-                ));
+    // V5 the entrance and the exit, when the Λ asks for them.
+    if p.entrance {
+        let entrance = d.entrance.and_then(|i| d.rooms.get(i)).filter(|r| r.alive);
+        if entrance.is_none() {
+            out.push("V5 the stage has no entrance room".to_string());
+        } else if p.exit_room {
+            let exit = d.exit.and_then(|i| d.rooms.get(i)).filter(|r| r.alive);
+            match (d.entrance, d.exit, exit) {
+                (Some(e), Some(x), Some(t)) if e != x => {
+                    if t.used.len() > p.exit_doors as usize {
+                        out.push(format!(
+                            "V5 the exit has {} doors (most {})",
+                            t.used.len(),
+                            p.exit_doors
+                        ));
+                    }
+                    let h = room_hops(&d.nodes, &d.edges, room_node[&e]);
+                    let hops = h[room_node[&x]];
+                    if hops < p.exit_min_hops as f64 {
+                        out.push(format!(
+                            "V5 the exit is {} hops from the entrance (least {})",
+                            hops, p.exit_min_hops
+                        ));
+                    }
+                }
+                _ => out.push(
+                    "V5 the entrance and the exit must be two rooms of the stage".to_string(),
+                ),
             }
         }
-        _ => out.push("V5 start and stairs must be two rooms of the stage".to_string()),
     }
 
-    let req = p.topology.requirements();
+    let req = p.topology_requirements();
     if req.min_branches > 0 || req.min_branch_depth > 0 {
         let (branches, branch_depth) =
             crate::topology::side_branch_stats(&d.nodes, &d.edges, &d.main_path);
@@ -387,13 +396,13 @@ pub fn validate(d: &Floor) -> Vec<String> {
         let routes = crate::topology::edge_connectivity_frontiers(
             d.nodes.len(),
             &d.edges,
-            room_node[&d.start],
-            room_node[&d.stairs],
+            room_node[&d.entrance.unwrap_or(0)],
+            room_node[&d.exit.unwrap_or(0)],
         )
         .0;
         if routes < req.min_exit_routes {
             out.push(format!(
-                "T3 profile requires {} independent routes to stairs; found {}",
+                "T3 profile requires {} independent routes to the exit; found {}",
                 req.min_exit_routes, routes
             ));
         }
@@ -417,29 +426,5 @@ pub fn validate(d: &Floor) -> Vec<String> {
         }
     }
 
-    let required_keys = d.edges.iter().fold(0u8, |mask, e| mask | e.requires_keys);
-    let required_switches = d
-        .edges
-        .iter()
-        .fold(0u8, |mask, e| mask | e.requires_switches);
-    if required_keys != 0 || required_switches != 0 {
-        let (reached_stairs, reachable_keys, reachable_switches) =
-            crate::topology::progression_reachable(
-                &d.nodes,
-                &d.edges,
-                &d.rooms,
-                room_node[&d.start],
-                d.stairs,
-            );
-        if !reached_stairs {
-            out.push("P1 stairs are unreachable with the generated keys and switches".to_string());
-        }
-        if required_keys & reachable_keys != required_keys {
-            out.push("P2 a required key is unreachable before its gate".to_string());
-        }
-        if required_switches & reachable_switches != required_switches {
-            out.push("P3 a required switch is unreachable before its gate".to_string());
-        }
-    }
     out
 }

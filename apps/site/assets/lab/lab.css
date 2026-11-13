@@ -1,8 +1,7 @@
 /* The lab: Operate mode. Controls on the left, the map in the middle, the reading of the floor on the right. Colours come from the site's
    tokens. Below 1280px the reading becomes a drawer; below 1000px the map comes first and the two panels become tabs. */
 .lab {
-  --role-start: #62d99a; --role-stairs: #dc78dc; --role-ambush: #fb7777; --role-boss: #ff827d; --role-rest: #6fc8e8;
-  --role-key: #ffca58; --role-switch: #7bb9ff; --role-trap: #f26c6c; --role-prize: #f3c45d; --role-empty: #a7b1c0;
+  --role-entrance: #62d99a; --role-exit: #dc78dc; --role-plain: #a7b1c0;
   --lab-top: var(--header-h);
   position: relative;
   display: grid;
@@ -32,7 +31,7 @@
 .panel-meta { margin: 2px 0 0; color: var(--ash); font-size: .92rem; font-variant-numeric: tabular-nums; }
 .intro-copy { margin: 0 0 20px; color: var(--ash); font-size: .98rem; }
 .section-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 28px 0 10px; padding-top: 20px; border-top: 1px solid var(--stone-600); }
-.level-section .section-title { margin-top: 0; }
+.size-section .section-title { margin-top: 0; }
 
 .lab button, .lab input, .lab select { color: inherit; font: inherit; }
 .lab button { cursor: pointer; }
@@ -41,16 +40,16 @@
   transition: border-color .15s, background-color .15s;
 }
 .secondary-button:hover, .icon-button:hover, .experiment-button:hover, .map-tool-button:hover { border-color: var(--ash); background: var(--stone-700); }
-.secondary-button:active, .icon-button:active, .map-tool-button:active, .level-button:active { transform: translateY(1px); }
+.secondary-button:active, .icon-button:active, .map-tool-button:active, .size-button:active { transform: translateY(1px); }
 
-/* Levels: one segmented control. */
-.level-list { display: flex; }
-.level-button { flex: 1; min-height: 40px; margin-left: -1px; padding: 4px 2px; border: 1px solid var(--stone-500); background: var(--stone-800); color: var(--ash); font-size: .82rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.level-button:first-child { margin-left: 0; border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
-.level-button:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
-.level-button:hover { color: var(--bone); border-color: var(--ash); z-index: 1; position: relative; }
-.level-button.selected { background: var(--bone); border-color: var(--bone); color: var(--abyss); position: relative; z-index: 1; box-shadow: inset 0 -3px 0 var(--carrot); }
-.level-description { min-height: 2.8em; margin: 10px 0 0; color: var(--ash); font-size: .92rem; }
+/* Sizes: one segmented control. */
+.size-list { display: flex; }
+.size-button { flex: 1; min-height: 40px; margin-left: -1px; padding: 4px 2px; border: 1px solid var(--stone-500); background: var(--stone-800); color: var(--ash); font-size: .82rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.size-button:first-child { margin-left: 0; border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.size-button:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.size-button:hover { color: var(--bone); border-color: var(--ash); z-index: 1; position: relative; }
+.size-button.selected { background: var(--bone); border-color: var(--bone); color: var(--abyss); position: relative; z-index: 1; box-shadow: inset 0 -3px 0 var(--carrot); }
+.size-description { min-height: 2.8em; margin: 10px 0 0; color: var(--ash); font-size: .92rem; }
 
 .seed-card { margin-top: 20px; }
 .seed-card label { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-weight: 700; }

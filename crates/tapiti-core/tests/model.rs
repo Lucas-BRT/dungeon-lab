@@ -1,57 +1,60 @@
 use tapiti_core::generate::generate;
 use tapiti_core::metrics::metrics_of;
-use tapiti_core::params::params_of_level;
+use tapiti_core::params::{params_of_size, rich_of_size, Size};
 use tapiti_core::stage::stage;
 use tapiti_core::validate::validate;
 
-/// The model's promise (`docs/model.md` §9): every level's stages pass the validator.
+/// The model's promise (`docs/model.md` §9): every size's stages pass the validator, with the defaults and with every option on.
 #[test]
-fn every_level_gives_only_valid_stages() {
-    for level in 1..=5 {
-        let p = params_of_level(level);
-        for seed in [101u32, 202, 303, 404, 505] {
-            let s = stage(seed, &p, 8);
-            assert!(
-                s.violations.is_empty(),
-                "level {level} seed {seed}: {:?}",
-                s.violations
-            );
+fn every_size_gives_only_valid_stages() {
+    for size in Size::ALL {
+        for p in [params_of_size(size), rich_of_size(size)] {
+            for seed in [101u32, 202, 303, 404, 505] {
+                let s = stage(seed, &p, 8);
+                assert!(
+                    s.violations.is_empty(),
+                    "{} seed {seed}: {:?}",
+                    size.name(),
+                    s.violations
+                );
+            }
         }
     }
 }
 
 /// The stage, without the clock readings of `phases` (the only thing that differs between two runs).
-fn without_clock(seed: u32, level: usize) -> serde_json::Value {
-    let mut v = serde_json::to_value(generate(seed, &params_of_level(level))).unwrap();
+fn without_clock(seed: u32, size: Size) -> serde_json::Value {
+    let mut v = serde_json::to_value(generate(seed, &rich_of_size(size))).unwrap();
     v.as_object_mut().unwrap().remove("phases");
     v
 }
 
 #[test]
 fn the_same_seed_and_lambda_give_the_same_stage() {
-    for level in [3, 5] {
-        assert_eq!(without_clock(7, level), without_clock(7, level));
+    for size in [Size::Small, Size::Medium] {
+        assert_eq!(without_clock(7, size), without_clock(7, size));
     }
 }
 
 #[test]
 fn density_follows_delta() {
-    let mut beta = [0.0f64; 5];
-    for level in 1..=5 {
-        let p = params_of_level(level);
+    let mut beta = [0.0f64; 2];
+    for (i, delta) in [0.15, 0.55].into_iter().enumerate() {
+        let mut p = rich_of_size(Size::Medium);
+        p.delta = delta;
         for seed in 1..=15u32 {
-            beta[level - 1] += metrics_of(&stage(seed, &p, 8).d).beta as f64 / 15.0;
+            beta[i] += metrics_of(&stage(seed, &p, 8).d).beta as f64 / 15.0;
         }
     }
     assert!(
-        beta[4] > beta[0] + 2.0,
-        "level 5 should have more cycles than level 1: {beta:?}"
+        beta[1] > beta[0] + 2.0,
+        "delta 0.55 should have more cycles than delta 0.15: {beta:?}"
     );
 }
 
 #[test]
 fn the_raw_generator_is_valid_most_of_the_time() {
-    let p = params_of_level(3);
+    let p = rich_of_size(Size::Medium);
     let bad = (1..=20u32)
         .filter(|s| !validate(&generate(*s, &p)).is_empty())
         .count();
@@ -61,8 +64,8 @@ fn the_raw_generator_is_valid_most_of_the_time() {
 /// A timing of the generator (run with `cargo test --release -p tapiti-core bench -- --nocapture`).
 #[test]
 fn bench() {
-    for level in 1..=5 {
-        let p = params_of_level(level);
+    for size in Size::ALL {
+        let p = rich_of_size(size);
         let n = 25u32;
         let t0 = std::time::Instant::now();
         let mut bad = 0;
@@ -78,7 +81,8 @@ fn bench() {
             leaf += m.leaf_chambers as f64;
         }
         println!(
-            "L{level}: invalid {bad}/{n} β {:.2} junc {:.2} leafCh {:.2} ms/stage {:.1}",
+            "{}: invalid {bad}/{n} β {:.2} junc {:.2} leafCh {:.2} ms/stage {:.1}",
+            size.name(),
             beta / n as f64,
             junc / n as f64,
             leaf / n as f64,
@@ -90,7 +94,7 @@ fn bench() {
 /// Seed 0xA030 on a 10×8 grid picks a start room no corridor can leave; the generator used to panic, now the stage redraws.
 #[test]
 fn an_isolated_start_room_is_redrawn_not_a_panic() {
-    let mut p = params_of_level(5);
+    let mut p = rich_of_size(Size::Medium);
     p.cols = 10;
     p.rows = 8;
     p.layout_jitter = 0.15;
@@ -103,7 +107,7 @@ fn an_isolated_start_room_is_redrawn_not_a_panic() {
 #[test]
 fn zero_weight_classes_never_appear_when_caps_are_exceeded() {
     use tapiti_core::params::{ByClass, ShapeClass};
-    let mut p = params_of_level(1);
+    let mut p = params_of_size(Size::Small);
     p.cols = 30;
     p.rows = 30;
     p.max_of = ByClass {
@@ -117,10 +121,10 @@ fn zero_weight_classes_never_appear_when_caps_are_exceeded() {
     assert!(f.rooms.iter().all(|r| r.cls == ShapeClass::Rect));
 }
 
-/// With the default quotas a big grid is not capped: level 1 stays all rectangles on 30x30 with no cap warning.
+/// With the default quotas a big grid is not capped: the small size stays all rectangles on 30x30 with no cap warning.
 #[test]
 fn default_quotas_do_not_bind_on_a_big_grid() {
-    let mut p = params_of_level(1);
+    let mut p = params_of_size(Size::Small);
     p.cols = 30;
     p.rows = 30;
     let f = generate(146343314, &p);
@@ -131,7 +135,7 @@ fn default_quotas_do_not_bind_on_a_big_grid() {
 #[test]
 fn the_layout_field_picks_the_room_layout() {
     use tapiti_core::params::{Layout, Params};
-    let mut value = serde_json::to_value(params_of_level(1)).unwrap();
+    let mut value = serde_json::to_value(params_of_size(Size::Small)).unwrap();
     value.as_object_mut().unwrap().remove("layout");
     let p: Params = serde_json::from_value(value.clone()).unwrap();
     assert_eq!(p.layout, Layout::Grid);
@@ -146,4 +150,44 @@ fn the_layout_field_picks_the_room_layout() {
         serde_json::to_string(&f.rooms).unwrap(),
         serde_json::to_string(&generate(7, &p).rooms).unwrap()
     );
+}
+
+/// The entrance and the exit are optional, in both layouts: without them a stage has no such room, no main path, and is still valid.
+#[test]
+fn the_entrance_and_the_exit_can_be_left_out() {
+    use tapiti_core::generate::Role;
+    use tapiti_core::params::Layout;
+    for layout in [Layout::Grid, Layout::Growth] {
+        for (entrance, exit_room) in [(true, true), (true, false), (false, true), (false, false)] {
+            let mut p = rich_of_size(Size::Medium);
+            p.layout = layout;
+            p.entrance = entrance;
+            p.exit_room = exit_room;
+            for seed in [1u32, 2, 3, 4] {
+                let s = stage(seed, &p, 8);
+                let tag = format!("{layout:?} entrance {entrance} exit {exit_room} seed {seed}");
+                assert!(s.violations.is_empty(), "{tag}: {:?}", s.violations);
+                let has = |role: Role| s.d.rooms.iter().any(|r| r.role == role);
+                assert_eq!(s.d.entrance.is_some(), entrance, "{tag}");
+                assert_eq!(s.d.exit.is_some(), entrance && exit_room, "{tag}");
+                assert_eq!(has(Role::Entrance), entrance, "{tag}");
+                assert_eq!(has(Role::Exit), entrance && exit_room, "{tag}");
+                assert_eq!(s.d.main_path.is_empty(), !(entrance && exit_room), "{tag}");
+                let m = metrics_of(&s.d);
+                assert_eq!(m.routes_to_exit.is_some(), entrance && exit_room, "{tag}");
+            }
+        }
+    }
+}
+
+/// Seed 31770 with the redundant-exit profile on the grid leaves the exit on the entrance (no corridor leaves it); counting the routes
+/// between a room and itself used to loop forever, in the cycles phase, the validator and the metrics.
+#[test]
+fn an_exit_on_the_entrance_does_not_hang_the_route_count() {
+    use tapiti_core::params::TopologyProfile;
+    let mut p = rich_of_size(Size::Medium);
+    p.topology.profile = TopologyProfile::RedundantExit;
+    let d = generate(31770, &p);
+    let _ = validate(&d);
+    let _ = metrics_of(&d);
 }

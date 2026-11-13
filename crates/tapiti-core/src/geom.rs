@@ -345,7 +345,17 @@ pub fn region_shape_dist(region: &[Bounded], shape: &Shape, bounds: Bounds) -> f
 }
 
 pub fn region_shape_within(region: &[Bounded], shape: &Shape, bounds: Bounds, limit: f64) -> bool {
-    region_shape_dist(region, shape, bounds) < limit
+    // Same answer as `region_shape_dist(..) < limit`: a part whose box is `limit` away is skipped, the first closer part ends it.
+    region.iter().any(|part| {
+        box_gap_bounds(
+            Bounds {
+                lo: part.lo,
+                hi: part.hi,
+            },
+            bounds,
+        ) < limit
+            && shape_within(&part.shape, shape, limit)
+    })
 }
 
 /// The rectangle of width `w` along the segment a-b (no caps).

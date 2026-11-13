@@ -7,7 +7,7 @@ use tapiti_core::{generate, params, validate};
 fn main() {
     for (cols, rows) in [(10, 8), (16, 12), (30, 30)] {
         for seed in [0xD06E_2026, 0xD06E_2027, 0xD06E_2028] {
-            let mut p = params::params_of_level(5);
+            let mut p = params::rich_of_size(params::Size::Medium);
             p.cols = cols;
             p.rows = rows;
             println!("starting {cols}x{rows}, seed={seed:#x}");

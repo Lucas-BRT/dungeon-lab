@@ -24,7 +24,6 @@ const remember = (key, value) => {
     return null
   }
 }
-const popcount = (bits) => bits.toString(2).replaceAll('0', '').length
 
 await init()
 
@@ -42,7 +41,7 @@ const createPool = (size = Math.max(1, Math.min(navigator.hardwareConcurrency ||
       pending.delete(data.id)
     }
   }
-  const batch = async (level, from, count, use = size) => {
+  const batch = async (preset, from, count, use = size) => {
     const t0 = performance.now()
     const n = Math.max(1, Math.min(use, size, count))
     const slices = Array.from({ length: n }, (_, i) => [from + Math.floor((count * i) / n), Math.floor((count * (i + 1)) / n) - Math.floor((count * i) / n)])
@@ -50,7 +49,7 @@ const createPool = (size = Math.max(1, Math.min(navigator.hardwareConcurrency ||
       slices.map(([f, c], i) => new Promise((resolve) => {
         const id = next++
         pending.set(id, resolve)
-        workers[i].postMessage({ id, level, from: f, count: c })
+        workers[i].postMessage({ id, size: preset, from: f, count: c })
       })),
     )
     return { invalid: answers.reduce((a, r) => a + r.invalid, 0), ms: performance.now() - t0, workers: n }
@@ -62,12 +61,13 @@ let pool = null
 /* ---------------- Constants ---------------- */
 
 const CLASSES = ['rect', 'disc', 'oct', 'L', 'star']
-const ROLES = ['start', 'stairs', 'ambush', 'boss', 'rest', 'key', 'switch', 'trap', 'prize', 'empty']
+const SIZE_NAMES = ['small', 'medium', 'large', 'huge']
+const ROLES = ['entrance', 'exit']
 const className = (name) => dict[`lab_class_${name}`] ?? name
 const roleName = (name) => dict[`lab_role_${name}`] ?? name
 const DIRS = [[1, 0], [Math.SQRT1_2, Math.SQRT1_2], [0, 1], [-Math.SQRT1_2, Math.SQRT1_2], [-1, 0], [-Math.SQRT1_2, -Math.SQRT1_2], [0, -1], [Math.SQRT1_2, -Math.SQRT1_2]]
 
-const state = { level: 1, seed: 1, P: JSON.parse(default_params(1)), defaults: JSON.parse(default_params(1)) }
+const state = { size: 1, seed: 1, P: JSON.parse(default_params(1)), defaults: JSON.parse(default_params(1)) }
 const overlays = { cells: true, labels: true, ports: false, pairs: false, candidates: false }
 const view = { zoom: 1, x: 0, y: 0 }
 let current = null
@@ -125,10 +125,10 @@ const showToast = (message) => {
 
 const form = $('parameter-groups')
 const fields = [...form.querySelectorAll('[name]')]
-const levelDescription = $('level-description')
+const sizeDescription = $('size-description')
 const changedStatus = $('changed-status')
 const seedInput = $('seed-input')
-const levelButtons = [...root.querySelectorAll('.level-button')]
+const sizeButtons = [...root.querySelectorAll('.size-button')]
 
 const syncForm = () => {
   for (const el of fields) {
@@ -148,13 +148,13 @@ const updateChanged = () => {
   changedStatus.classList.toggle('changed', n > 0)
 }
 
-const updateLevelButtons = () => {
-  levelButtons.forEach((button, index) => {
-    const selected = index + 1 === state.level
+const updateSizeButtons = () => {
+  sizeButtons.forEach((button, index) => {
+    const selected = index + 1 === state.size
     button.classList.toggle('selected', selected)
     button.setAttribute('aria-pressed', String(selected))
   })
-  levelDescription.textContent = tr(`lab_level_${state.level}`)
+  sizeDescription.textContent = tr(`lab_size_${state.size}`)
 }
 
 const changed = () => {
@@ -193,17 +193,17 @@ form.addEventListener('click', (event) => {
   changed()
 })
 
-function setLevel(level) {
-  state.level = level
-  state.P = JSON.parse(default_params(level))
+function setSize(size) {
+  state.size = size
+  state.P = JSON.parse(default_params(size))
   state.defaults = clone(state.P)
   syncForm()
-  updateLevelButtons()
+  updateSizeButtons()
   changed()
 }
 
-for (const button of levelButtons) button.addEventListener('click', () => setLevel(Number(button.dataset.level)))
-$('reset-level').addEventListener('click', () => setLevel(state.level))
+for (const button of sizeButtons) button.addEventListener('click', () => setSize(Number(button.dataset.size)))
+$('reset-size').addEventListener('click', () => setSize(state.size))
 
 /* ---------------- Seed, copy, overlays, experiments ---------------- */
 
@@ -234,7 +234,7 @@ seedInput.addEventListener('change', () => {
 
 $('copy-params').addEventListener('click', async () => {
   try {
-    await navigator.clipboard.writeText(JSON.stringify({ level: state.level, seed: state.seed, params: state.P }, null, 2))
+    await navigator.clipboard.writeText(JSON.stringify({ size: SIZE_NAMES[state.size - 1], seed: state.seed, params: state.P }, null, 2))
     showToast(tr('lab_copied'))
   } catch {
     showToast(tr('lab_no_clipboard'))
@@ -266,15 +266,15 @@ for (const button of root.querySelectorAll('[data-experiment]')) {
 
 const benchStatus = $('bench-status')
 $('bench-40').addEventListener('click', () => {
-  const result = JSON.parse(bench(state.level, 1, 40))
+  const result = JSON.parse(bench(state.size, 1, 40))
   benchStatus.textContent = tr('lab_perf_40_result', { ms: formatNumber(result.ms / 40, 2), invalid: result.invalid })
 })
 $('bench-800').addEventListener('click', async () => {
   benchStatus.textContent = tr('lab_perf_800_run')
   try {
     pool ??= createPool()
-    const one = await pool.batch(state.level, 1, 800, 1)
-    const all = await pool.batch(state.level, 1, 800)
+    const one = await pool.batch(state.size, 1, 800, 1)
+    const all = await pool.batch(state.size, 1, 800)
     benchStatus.textContent = tr('lab_perf_800_result', { one: formatNumber(one.ms, 0), workers: all.workers, many: formatNumber(all.ms, 0), invalid: all.invalid })
   } catch (error) {
     benchStatus.textContent = tr('lab_perf_800_fail', { error })
@@ -334,7 +334,6 @@ const draw = () => {
   const ink = css('--bone')
   const accent = css('--carrot')
   const corridor = css('--map-corridor')
-  const gate = css('--gate')
   const surface = css('--stone-800')
   const colorOf = (cls) => css(`--map-${cls}`) || '#59677a'
   const roleColor = (role) => css(`--role-${role}`)
@@ -382,32 +381,6 @@ const draw = () => {
   ctx.lineJoin = 'round'
   for (const edge of d.edges) strokePolyline(edge.pts)
   ctx.globalAlpha = 1
-  for (const edge of d.edges) {
-    if (!edge.requiresKeys && !edge.requiresSwitches) continue
-    const lengths = edge.pts.slice(1).map((point, i) => Math.hypot(point[0] - edge.pts[i][0], point[1] - edge.pts[i][1]))
-    let remaining = lengths.reduce((sum, length) => sum + length, 0) / 2
-    let at = edge.pts[0]
-    for (let i = 0; i < lengths.length; i++) {
-      if (remaining <= lengths[i]) {
-        const t = lengths[i] ? remaining / lengths[i] : 0
-        at = [edge.pts[i][0] + (edge.pts[i + 1][0] - edge.pts[i][0]) * t, edge.pts[i][1] + (edge.pts[i + 1][1] - edge.pts[i][1]) * t]
-        break
-      }
-      remaining -= lengths[i]
-    }
-    ctx.beginPath()
-    ctx.arc(at[0], at[1], 8 * px, 0, Math.PI * 2)
-    ctx.fillStyle = surface
-    ctx.fill()
-    ctx.strokeStyle = gate
-    ctx.lineWidth = 2 * px
-    ctx.stroke()
-    ctx.font = `bold ${9 * px}px system-ui, sans-serif`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillStyle = gate
-    ctx.fillText(edge.requiresKeys ? 'K' : 'S', at[0], at[1] + 0.5 * px)
-  }
   for (const room of d.rooms) {
     if (!room.alive) continue
     pathOf(room.shape)
@@ -459,8 +432,7 @@ const draw = () => {
     const halo = css('--abyss')
     for (const room of d.rooms) {
       if (!room.alive) continue
-      const inventory = [room.keys ? `K${popcount(room.keys)}` : '', room.switches ? `S${popcount(room.switches)}` : ''].filter(Boolean).join(' ')
-      const label = `#${room.id} ${className(room.cls)}${room.role !== 'plain' ? ` · ${roleName(room.role)}` : ''}${inventory ? ` · ${inventory}` : ''}`
+      const label = `#${room.id} ${className(room.cls)}${room.role !== 'plain' ? ` · ${roleName(room.role)}` : ''}`
       ctx.lineWidth = 2.2 * px
       ctx.strokeStyle = halo
       ctx.strokeText(label, room.center[0], room.center[1] + 4 * px)
@@ -499,16 +471,12 @@ const nodeLabel = (floor, nodeId) => {
   return room ? tr('lab_node_room', { id: room.id }) : tr('lab_node_point')
 }
 
-const gateText = (bits, one, many) => tr(popcount(bits) > 1 ? many : one, { bits: bits.toString(2) })
-
 const mapObjectAt = (point, scale) => {
   const d = current.floor
   for (const room of [...d.rooms].reverse()) {
     if (!room.alive || !containsPoint(room.shape, point)) continue
-    const role = room.leaf ? tr('lab_leaf_role', { role: roleName(room.role) || roleName('empty') }) : roleName(room.role)
-    const items = [room.keys ? tr('lab_bits_keys', { n: popcount(room.keys) }) : '', room.switches ? tr('lab_bits_switches', { n: popcount(room.switches) }) : ''].filter(Boolean)
+    const role = room.leaf ? tr('lab_leaf_chamber') : roleName(room.role)
     const lines = [tr('lab_tip_room', { role, id: room.id, class: className(room.cls), area: formatNumber(room.area, 0), used: room.used.length, possible: room.ports.length })]
-    if (items.length) lines.push(tr('lab_tip_items', { list: items.join(' · ') }))
     return lines.join('\n')
   }
   const junction = d.nodes.find((node) => node.kind === 'junction' && Math.hypot(node.p[0] - point[0], node.p[1] - point[1]) <= Math.max(6, 8 / scale))
@@ -522,12 +490,7 @@ const mapObjectAt = (point, scale) => {
     for (let i = 1; i < edge.pts.length; i++) {
       if (distanceToSegment(point, edge.pts[i - 1], edge.pts[i]) > threshold) continue
       const length = edge.pts.slice(1).reduce((sum, p, j) => sum + Math.hypot(p[0] - edge.pts[j][0], p[1] - edge.pts[j][1]), 0)
-      const gates = [
-        edge.requiresKeys ? gateText(edge.requiresKeys, 'lab_gate_key', 'lab_gate_keys') : '',
-        edge.requiresSwitches ? gateText(edge.requiresSwitches, 'lab_gate_switch', 'lab_gate_switches') : '',
-      ].filter(Boolean)
       const lines = [tr('lab_tip_corridor', { id: edge.id, from: nodeLabel(d, edge.u), to: nodeLabel(d, edge.v), n: edge.pts.length - 1, length: formatNumber(length, 0) })]
-      if (gates.length) lines.push(tr('lab_tip_locked', { list: gates.join(` ${tr('lab_tip_and')} `) }))
       return lines.join('\n')
     }
   }
@@ -584,29 +547,27 @@ const VIOLATIONS = [
   [/^V4 corridor (\d+): a (\d+)° turn$/, 'lab_v_v4_turn'],
   [/^V4 corridor (\d+): a segment of (.+) px$/, 'lab_v_v4_segment'],
   [/^V4 corridor (\d+): leaves a door at an angle$/, 'lab_v_v4_angle'],
-  [/^V5 the stairs have (\d+) doors \(most (\d+)\)$/, 'lab_v_v5_doors'],
-  [/^V5 the stairs are (.+) hops from the start \(least (\d+)\)$/, 'lab_v_v5_hops'],
-  ['V5 start and stairs must be two rooms of the stage', 'lab_v_v5_distinct'],
+  [/^V5 the exit has (\d+) doors \(most (\d+)\)$/, 'lab_v_v5_doors'],
+  [/^V5 the exit is (.+) hops from the entrance \(least (\d+)\)$/, 'lab_v_v5_hops'],
+  ['V5 the entrance and the exit must be two rooms of the stage', 'lab_v_v5_distinct'],
+  ['V5 the stage has no entrance room', 'lab_v_v5_no_entrance'],
   [/^T1 profile requires (\d+) side branches; found (\d+)$/, 'lab_v_t1'],
   [/^T2 profile requires branch depth (\d+); found (\d+)$/, 'lab_v_t2'],
-  [/^T3 profile requires (\d+) independent routes to stairs; found (\d+)$/, 'lab_v_t3'],
+  [/^T3 profile requires (\d+) independent routes to the exit; found (\d+)$/, 'lab_v_t3'],
   [/^T4 profile requires a hub degree of (\d+); found (\d+)$/, 'lab_v_t4'],
   [/^T5 profile requires a cycle of at least (\d+) branches; found (\d+)$/, 'lab_v_t5'],
-  ['P1 stairs are unreachable with the generated keys and switches', 'lab_v_p1'],
-  ['P2 a required key is unreachable before its gate', 'lab_v_p2'],
-  ['P3 a required switch is unreachable before its gate', 'lab_v_p3'],
 ]
 const LOGS = [
   [/^tree stuck: candidates from (.+)$/i, 'lab_l_stuck_candidates'],
   [/^tree stuck: near (.+) px$/i, 'lab_l_stuck_near'],
   [/^(.+) room\(s\) left out: no valid corridor reaches them$/, 'lab_l_left_out'],
-  [/^stairs only (.+) hops from the start \(wanted (.+)\)$/, 'lab_l_stairs'],
+  [/^exit only (.+) hops from the entrance \(wanted (.+)\)$/, 'lab_l_exit'],
+  ['topology profile: side branches and independent routes need an entrance and an exit, so they are left out', 'lab_l_anchors'],
+  ['topology profile: independent routes to the exit are not supported with several islands, so they are left out', 'lab_l_islands'],
   [/^β\* = (.+) not reached: nothing more fits \(β = (.+)\)$/, 'lab_l_beta'],
   [/^block (\d+): (.+) does not fit, rect instead$/, 'lab_l_block'],
   [/^(.+) of (.+) leaf chambers fit$/, 'lab_l_leaves'],
-  [/^progression: only (\d+) of (\d+) requested locks fit on the main path$/, 'lab_l_locks'],
-  ['progression: each lock type is limited to eight bits', 'lab_l_lock_bits'],
-  [/^topology profile: could not reach (\d+) independent routes to stairs \(λ = (\d+)\)$/, 'lab_l_routes'],
+  [/^topology profile: could not reach (\d+) independent routes to the exit \(λ = (\d+)\)$/, 'lab_l_routes'],
   [/^topology profile: no valid junction can reach degree (\d+)$/, 'lab_l_hub'],
   [/^topology profile: no valid cycle of at least (\d+) branches fits$/, 'lab_l_cycle'],
   [/^topology profile: added (\d+) of (\d+) required side branches$/, 'lab_l_branches'],
@@ -624,10 +585,10 @@ const METRIC_ROWS = (m) => ({
   lab_g_paths: [
     ['mean_degree', formatNumber(m.meanDegree, 2)], ['leaves', `${m.leaves}`],
     ['bridges', `${m.bridges} · ${formatNumber(m.bridgeShare * 100, 0)}%`], ['articulations', `${m.articulations}`],
-    ['hops', m.hopsToStairs == null ? '—' : formatNumber(m.hopsToStairs, 0)], ['diameter', formatNumber(m.diameter, 0)],
-    ['routes', `${m.routesToStairs}`], ['girth', m.cycleGirth == null ? '—' : `${m.cycleGirth}`],
+    ['hops', m.hopsToExit == null ? '—' : formatNumber(m.hopsToExit, 0)], ['diameter', formatNumber(m.diameter, 0)],
+    ['routes', m.routesToExit == null ? '—' : `${m.routesToExit}`], ['girth', m.cycleGirth == null ? '—' : `${m.cycleGirth}`],
     ['side_branches', `${m.sideBranches}`], ['branch_depth', `${m.deepestBranch}`], ['max_degree', `${m.maxNodeDegree}`],
-    ['geo_path', `${formatNumber(m.geometricPathToStairs, 0)} px`], ['lambda2', formatNumber(m.lambda2, 3)],
+    ['geo_path', m.geometricPathToExit == null ? '—' : `${formatNumber(m.geometricPathToExit, 0)} px`], ['lambda2', formatNumber(m.lambda2, 3)],
   ],
 })
 
@@ -643,7 +604,7 @@ const renderResults = () => {
       el('p', {}, ok ? tr('lab_valid_detail', { draws, ms: formatNumber(ms, 1) }) : tr('lab_invalid_detail', { draws })),
       ...(ok ? [] : [el('ul', { class: 'violation-list' }, ...violations.slice(0, 8).map((line) => el('li', {}, translate(line, VIOLATIONS))))]),
     ))
-  results.append(el('div', { class: 'panel-header' }, el('h2', {}, tr('lab_panel_title')), el('p', { class: 'panel-meta' }, tr('lab_panel_meta', { level: state.level, seed: state.seed }))), status)
+  results.append(el('div', { class: 'panel-header' }, el('h2', {}, tr('lab_panel_title')), el('p', { class: 'panel-meta' }, tr('lab_panel_meta', { size: SIZE_NAMES[state.size - 1], seed: state.seed }))), status)
 
   const groups = METRIC_ROWS(m)
   Object.entries(groups).forEach(([title, rows], index) => {
@@ -687,7 +648,7 @@ const regenerate = () => {
 }
 function scheduleRegenerate() {
   clearTimeout(regenTimer)
-  updateLevelButtons()
+  updateSizeButtons()
   regenTimer = setTimeout(regenerate, 80)
 }
 
@@ -756,7 +717,7 @@ window.addEventListener('keydown', (event) => {
   // The 3D view uses the arrow keys itself, to move.
   if (event.target === canvas3d) return
   if (event.altKey || event.ctrlKey || event.metaKey) return
-  if (event.key >= '1' && event.key <= '5') setLevel(Number(event.key))
+  if (event.key >= '1' && event.key <= '4') setSize(Number(event.key))
   else if (event.key === 'r' || event.key === 'R') newSeed()
   else if (event.key === 'ArrowLeft') seedStep(-1)
   else if (event.key === 'ArrowRight') seedStep(1)
@@ -841,6 +802,6 @@ $('view-3d').addEventListener('click', () => { if (view3d.active) return; setVie
 $('view-plan').addEventListener('click', () => { if (view3d.active) leave3d() })
 
 syncForm()
-updateLevelButtons()
+updateSizeButtons()
 updateChanged()
 regenerate()

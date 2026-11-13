@@ -1,15 +1,16 @@
-//! Prints a hash of every stage for levels 1 to 5 and seeds 1 to 30 (without the clock readings), to compare two builds:
+//! Prints a hash of every stage for the four sizes (all options on) and seeds 1 to 30 (without the clock readings), to compare two builds:
 //! `cargo run --release -p tapiti-core --example dump > a.txt`.
 use tapiti_core::generate::generate;
-use tapiti_core::params::{params_of_level, Layout};
+use tapiti_core::params::{rich_of_size, Layout, Size};
 
 fn main() {
-    // The first 150 lines are the grid; the growth lines come after, so `head -150` compares the grid alone.
-    for (level, layout, seeds) in (1..=5)
-        .map(|l| (l, Layout::Grid, 30u32))
-        .chain([1, 3, 5].map(|l| (l, Layout::Growth, 10u32)))
+    // The first 120 lines are the grid; the growth lines come after, so `head -120` compares the grid alone.
+    for (size, layout, seeds) in Size::ALL
+        .map(|s| (s, Layout::Grid, 30u32))
+        .into_iter()
+        .chain([Size::Small, Size::Medium, Size::Large].map(|s| (s, Layout::Growth, 10u32)))
     {
-        let mut p = params_of_level(level);
+        let mut p = rich_of_size(size);
         p.layout = layout;
         for seed in 1..=seeds {
             let mut v = serde_json::to_value(generate(seed, &p)).unwrap();
@@ -26,7 +27,8 @@ fn main() {
                 ""
             };
             println!(
-                "L{level}{tag} seed {seed}: {:016x} ({} bytes)",
+                "{}{tag} seed {seed}: {:016x} ({} bytes)",
+                size.name(),
                 h,
                 text.len()
             );

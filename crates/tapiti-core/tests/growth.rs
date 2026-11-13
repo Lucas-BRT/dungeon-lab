@@ -1,0 +1,186 @@
+//! The grown layout (`layout: "growth"`): determinism, validity, how many of the grid's rooms it reaches, leaf chambers and the
+//! topology profiles. The thresholds are floors under what the generator reaches today (measured over many seeds); they are raised
+//! on purpose when the layout improves, and a test failing means the layout got worse.
+
+use tapiti_core::generate::generate;
+use tapiti_core::params::{params_of_size, rich_of_size, Layout, Params, Size, TopologyProfile};
+use tapiti_core::stage::stage;
+
+/// Every option on, with the exit distance of the size (as the apps start from).
+fn grown(size: Size) -> Params {
+    let mut p = rich_of_size(size);
+    p.exit_min_hops = params_of_size(size).exit_min_hops;
+    p.layout = Layout::Growth;
+    p
+}
+
+fn without_clock(seed: u32, p: &Params) -> serde_json::Value {
+    let mut v = serde_json::to_value(generate(seed, p)).unwrap();
+    v.as_object_mut().unwrap().remove("phases");
+    v
+}
+
+#[test]
+fn a_seed_and_a_lambda_draw_the_same_grown_floor() {
+    let mut islands = grown(Size::Medium);
+    islands.growth.islands = 3;
+    for p in [grown(Size::Small), grown(Size::Medium), islands] {
+        assert_eq!(without_clock(7, &p), without_clock(7, &p));
+    }
+}
+
+/// How many of `seeds` give a valid floor on the first draw, and with eight draws.
+fn valid_counts(p: &Params, seeds: u32) -> (u32, u32) {
+    let first = (1..=seeds)
+        .filter(|s| stage(*s, p, 1).violations.is_empty())
+        .count() as u32;
+    let eight = (1..=seeds)
+        .filter(|s| stage(*s, p, 8).violations.is_empty())
+        .count() as u32;
+    (first, eight)
+}
+
+#[test]
+fn grown_floors_are_valid_within_eight_draws() {
+    for size in [Size::Medium, Size::Large] {
+        let (first, eight) = valid_counts(&grown(size), 20);
+        println!(
+            "{}: first draw {first}/20, eight draws {eight}/20",
+            size.name()
+        );
+        assert_eq!(eight, 20, "{}", size.name());
+    }
+}
+
+#[test]
+fn grown_floors_are_often_valid_on_the_first_draw() {
+    for size in [Size::Small, Size::Medium, Size::Large] {
+        let (first, _) = valid_counts(&grown(size), 20);
+        assert!(
+            first >= 18,
+            "{}: {first}/20 valid on the first draw",
+            size.name()
+        );
+    }
+}
+
+/// Rooms that are not leaf chambers, as a share of the grid layout's, over `seeds` seeds.
+fn room_share(size: Size, seeds: u32) -> f64 {
+    let count = |p: &Params, seed: u32| {
+        generate(seed, p)
+            .rooms
+            .iter()
+            .filter(|r| r.alive && !r.leaf)
+            .count() as f64
+    };
+    let g = grown(size);
+    let mut plain = g.clone();
+    plain.layout = Layout::Grid;
+    let (a, b) = (1..=seeds).fold((0.0, 0.0), |(a, b), s| {
+        (a + count(&g, s), b + count(&plain, s))
+    });
+    a / b
+}
+
+#[test]
+fn the_grown_layout_reaches_most_of_the_grids_rooms() {
+    for (size, floor) in [(Size::Medium, 0.7), (Size::Large, 0.7), (Size::Huge, 0.7)] {
+        let share = room_share(size, 10);
+        println!("{}: {share:.2} of the grid's rooms", size.name());
+        assert!(share >= floor, "{}: {share:.2} < {floor}", size.name());
+    }
+}
+
+#[test]
+fn the_grown_layout_makes_some_leaf_chambers() {
+    let p = grown(Size::Huge);
+    let (made, wanted) = (1..=8u32).fold((0usize, 0usize), |(m, w), s| {
+        let d = generate(s, &p);
+        (
+            m + d.rooms.iter().filter(|r| r.leaf).count(),
+            w + p.leaves as usize,
+        )
+    });
+    println!("huge: {made} leaf chambers of {wanted} wanted");
+    assert!(made * 100 >= wanted * 35, "{made} of {wanted}");
+}
+
+#[test]
+fn the_profiles_that_do_not_depend_on_a_path_hold_on_grown_floors() {
+    for profile in [TopologyProfile::Classic, TopologyProfile::Hub] {
+        let mut p = grown(Size::Medium);
+        p.topology.profile = profile;
+        let (_, eight) = valid_counts(&p, 20);
+        assert_eq!(eight, 20, "{profile:?}");
+    }
+}
+
+#[test]
+fn the_long_loop_profile_holds_in_both_layouts() {
+    for layout in [Layout::Grid, Layout::Growth] {
+        let mut p = rich_of_size(Size::Medium);
+        p.layout = layout;
+        p.topology.profile = TopologyProfile::LongLoop;
+        let (_, eight) = valid_counts(&p, 20);
+        assert_eq!(eight, 20, "{layout:?}");
+    }
+}
+
+/// `growth.start` puts the first room, the entrance, against the border it names (north is the top, `y` grows downward).
+#[test]
+fn the_first_room_stands_where_growth_start_says() {
+    use tapiti_core::params::GrowthStart;
+    for start in [
+        GrowthStart::North,
+        GrowthStart::South,
+        GrowthStart::East,
+        GrowthStart::West,
+    ] {
+        let mut p = grown(Size::Medium);
+        p.growth.start = start;
+        for seed in 1..=10u32 {
+            let d = generate(seed, &p);
+            let c = d.rooms[d.entrance.unwrap()].center;
+            let (x0, x1) = (d.grid_x[0], *d.grid_x.last().unwrap());
+            let (y0, y1) = (d.grid_y[0], *d.grid_y.last().unwrap());
+            let (mx, my) = ((x0 + x1) / 2.0, (y0 + y1) / 2.0);
+            let ok = match start {
+                GrowthStart::North => c[1] < my,
+                GrowthStart::South => c[1] > my,
+                GrowthStart::West => c[0] < mx,
+                GrowthStart::East => c[0] > mx,
+                GrowthStart::Center => true,
+            };
+            assert!(ok, "{start:?} seed {seed}: entrance at {c:?}");
+        }
+    }
+}
+
+/// With several islands the bridges are single corridors, so independent routes to the exit cannot hold: the requirement is left
+/// out and the log says so, instead of every draw failing T3.
+#[test]
+fn independent_routes_are_left_out_with_several_islands() {
+    let mut p = grown(Size::Large);
+    p.topology.profile = TopologyProfile::RedundantExit;
+    p.growth.islands = 3;
+    let (_, eight) = valid_counts(&p, 10);
+    assert_eq!(eight, 10);
+    assert!(generate(1, &p)
+        .log
+        .iter()
+        .any(|m| m.contains("not supported with several islands")));
+}
+
+#[test]
+fn the_redundant_exit_profile_usually_holds_in_both_layouts() {
+    for layout in [Layout::Grid, Layout::Growth] {
+        let mut p = rich_of_size(Size::Medium);
+        p.layout = layout;
+        p.topology.profile = TopologyProfile::RedundantExit;
+        let (_, eight) = valid_counts(&p, 20);
+        assert!(
+            eight >= 16,
+            "{layout:?}: {eight}/20 valid within eight draws"
+        );
+    }
+}

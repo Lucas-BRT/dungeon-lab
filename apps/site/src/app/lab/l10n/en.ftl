@@ -1,17 +1,26 @@
 ## The lab: the page itself
 lab_title = The lab
-lab_intro = Pick a level and a seed, change any rule, and the floor is dug again on the spot, in your browser.
+lab_intro = Pick a size and a seed, change any rule, and the floor is dug again on the spot, in your browser.
 lab_loading = Loading the generator…
 lab_needs_js = The lab runs the generator in your browser, with WebAssembly, so it needs JavaScript.
-lab_levels_title = Choose a level
-lab_levels_help = Each level is a starting set of parameters. You can edit any value afterwards.
-lab_level_button = Level { $n }
-lab_level_aria = Use the level { $n } configuration
-lab_level_1 = Introduction: rectangular rooms and few extra connections.
-lab_level_2 = Adds L-shaped rooms and the first junctions.
-lab_level_3 = Enlarges the map and unlocks diagonal paths and circular rooms.
-lab_level_4 = Combines more shapes, junctions and stairs doors.
-lab_level_5 = Richest setup: more rooms, shapes and connection alternatives.
+lab_sizes_title = Choose a size
+lab_sizes_help = Each size is a starting grid with the large blocks and leaf chambers that go with it. You can edit any value afterwards.
+lab_size_button = { $n ->
+    [1] Small
+    [2] Medium
+    [3] Large
+   *[4] Huge
+  }
+lab_size_aria = { $n ->
+    [1] Start from the small size
+    [2] Start from the medium size
+    [3] Start from the large size
+   *[4] Start from the huge size
+  }
+lab_size_1 = Small: a compact grid with a few rooms.
+lab_size_2 = Medium: a floor of a few dozen rooms.
+lab_size_3 = Large: a big grid with many rooms and leaf chambers.
+lab_size_4 = Huge: the largest grid, with the most rooms.
 lab_seed = Map seed
 lab_seed_help = The same seed and parameters generate the same map. Change the seed to explore another random configuration.
 lab_seed_aria = Random seed
@@ -22,11 +31,11 @@ lab_seed_error = The seed must be an integer between 0 and 4,294,967,295.
 lab_copy = Copy parameters (JSON)
 lab_copied = Parameters copied as JSON.
 lab_no_clipboard = The clipboard is not available in this browser.
-lab_reset_level = Reset to level default
+lab_reset_size = Reset to size default
 lab_changed_none = Default configuration
 lab_changed_some = { $n } parameter(s) changed
 lab_howto_title = How to explore this map
-lab_howto_text = Drag the map to move it. Use the mouse wheel or the zoom buttons. Hover a room, junction or corridor to see details. Keys: 1 to 5 pick a level, R a random seed, the arrows the previous or next seed.
+lab_howto_text = Drag the map to move it. Use the mouse wheel or the zoom buttons. Hover a room, junction or corridor to see details. Keys: 1 to 4 pick a size, R a random seed, the arrows the previous or next seed.
 lab_overlays_title = What to show
 lab_overlays_help = Layers help you understand how the generator built the map. Turn them on one at a time to compare without hiding the rooms.
 lab_overlay_cells = Grid
@@ -62,8 +71,8 @@ lab_junction_text = The conductance of a junction is a parameter of the referenc
 lab_junction_current = Current value
 lab_junction_inf = ∞ (arms joined)
 lab_perf_title = Performance
-lab_perf_intro = Benchmarks use the level default configuration, not the values changed in the form.
-lab_perf_idle = Benchmarks use the default parameters of the selected level.
+lab_perf_intro = Benchmarks use the size default configuration, not the values changed in the form.
+lab_perf_idle = Benchmarks use the default parameters of the selected size.
 lab_perf_40 = Measure 40 maps
 lab_perf_800 = Measure batch of 800
 lab_perf_40_result = Average: { $ms } ms per map · { $invalid } invalid of 40.
@@ -94,7 +103,7 @@ lab_valid_detail = { $draws } attempt(s) · { $ms } ms to generate
 lab_invalid = { $n } problem(s) found
 lab_invalid_detail = After { $draws } attempt(s), the map still does not meet every rule.
 lab_panel_title = Floor reading
-lab_panel_meta = Level { $level }, seed { $seed }
+lab_panel_meta = { $size } size, seed { $seed }
 lab_g_size = Map size
 lab_g_cycles = Cycles and density
 lab_g_paths = Paths and connectivity
@@ -117,17 +126,17 @@ lab_m_delta_help = Ratio between current cycles and the βmax reference. A large
 lab_m_mean_degree = Doors used per room
 lab_m_mean_degree_help = Average number of corridor doors used per room.
 lab_m_leaves = Single-door rooms
-lab_m_leaves_help = Rooms with only one door. Usually dead ends, the entrance or the stairs.
+lab_m_leaves_help = Rooms with only one door. Usually dead ends, the entrance or the exit.
 lab_m_bridges = Bridges (share)
 lab_m_bridges_help = Stretches whose removal would split off part of the map. Many of them indicate bottlenecks.
 lab_m_articulations = Articulation rooms
 lab_m_articulations_help = Rooms whose removal would split the map into disconnected parts.
-lab_m_hops = Steps to the stairs
-lab_m_hops_help = Number of rooms crossed on the shortest path from the entrance to the stairs.
+lab_m_hops = Steps to the exit
+lab_m_hops_help = Number of rooms crossed on the shortest path from the entrance to the exit.
 lab_m_diameter = Map diameter
 lab_m_diameter_help = Largest minimum distance, in steps, between two rooms of the map.
-lab_m_routes = Independent routes to the stairs
-lab_m_routes_help = Number of paths between the entrance and the stairs that share no corridor stretch.
+lab_m_routes = Independent routes to the exit
+lab_m_routes_help = Number of paths between the entrance and the exit that share no corridor stretch.
 lab_m_girth = Shortest cycle (stretches)
 lab_m_girth_help = Length, in stretches, of the shortest cycle of the map. “—” means the graph has no cycles.
 lab_m_side_branches = Side branches
@@ -136,8 +145,8 @@ lab_m_branch_depth = Branch depth
 lab_m_branch_depth_help = Largest number of rooms in a side branch, counting the room joined to the main path.
 lab_m_max_degree = Highest degree of a point
 lab_m_max_degree_help = Largest number of corridor arms joined at one point or room.
-lab_m_geo_path = Geometric path to the stairs
-lab_m_geo_path_help = Total length in pixels of the path with the fewest stretches between the entrance and the stairs.
+lab_m_geo_path = Geometric path to the exit
+lab_m_geo_path_help = Total length in pixels of the path with the fewest stretches between the entrance and the exit.
 lab_m_lambda2 = Connectivity λ₂
 lab_m_lambda2_help = Connectivity measure: larger values tend to indicate a map less dependent on bottlenecks.
 lab_shapes_title = Shapes on the map
@@ -150,29 +159,18 @@ lab_class_disc = circular
 lab_class_oct = octagonal
 lab_class_L = L-shaped
 lab_class_star = truncated star
-lab_role_start = entrance
-lab_role_stairs = stairs
-lab_role_ambush = ambush
-lab_role_boss = boss
-lab_role_rest = rest
-lab_role_key = key
-lab_role_switch = switch
-lab_role_trap = trap
-lab_role_prize = prize
-lab_role_empty = empty
+lab_role_entrance = entrance
+lab_role_exit = exit
 lab_role_plain = plain room
-lab_leaf_role = leaf chamber · { $role }
+lab_leaf_chamber = leaf chamber
 lab_node_junction = junction
 lab_node_room = room #{ $id }
 lab_node_point = point
-lab_bits_keys = keys: { $n }
-lab_bits_switches = switches: { $n }
 lab_tip_room =
     { $role }
     Room #{ $id } · { $class }
     Area: { $area } px²
     Doors used: { $used } · possible doors: { $possible }
-lab_tip_items = Items: { $list }
 lab_tip_junction =
     Corridor junction
     { $degree } arms connected
@@ -181,12 +179,6 @@ lab_tip_corridor =
     Corridor segment #{ $id }
     { $from } → { $to }
     { $n } segment(s) · { $length } px
-lab_tip_locked = Locked: requires { $list }
-lab_tip_and = and
-lab_gate_key = key { $bits }
-lab_gate_keys = keys { $bits }
-lab_gate_switch = switch { $bits }
-lab_gate_switches = switches { $bits }
 lab_v_v1 = Room #{ $a } cannot be reached from the entrance.
 lab_v_v2_rooms = Rooms #{ $a } and #{ $b } are too close together.
 lab_v_v4_reach = Corridor { $a } reaches only { $b } room(s); every corridor must join rooms.
@@ -203,27 +195,25 @@ lab_v_v4_alphabet = Corridor #{ $a } uses a direction that is not allowed.
 lab_v_v4_turn = Corridor #{ $a } has a { $b }° bend, which is not allowed.
 lab_v_v4_segment = A segment of corridor #{ $a } is too short ({ $b } px).
 lab_v_v4_angle = Corridor #{ $a } leaves a door in the wrong direction.
-lab_v_v5_doors = The stairs have { $a } doors; the configured maximum is { $b }.
-lab_v_v5_hops = The stairs are { $a } steps from the entrance; the minimum is { $b }.
-lab_v_v5_distinct = The entrance and the stairs must be two distinct rooms of the floor.
+lab_v_v5_doors = The exit has { $a } doors; the configured maximum is { $b }.
+lab_v_v5_hops = The exit is { $a } steps from the entrance; the minimum is { $b }.
+lab_v_v5_distinct = The entrance and the exit must be two distinct rooms of the floor.
+lab_v_v5_no_entrance = The floor has no entrance room.
 lab_v_t1 = The profile requires { $a } side branches; { $b } were generated.
 lab_v_t2 = The profile requires a branch depth of { $a }; { $b } was generated.
-lab_v_t3 = The profile requires { $a } independent routes to the stairs; { $b } were generated.
+lab_v_t3 = The profile requires { $a } independent routes to the exit; { $b } were generated.
 lab_v_t4 = The profile requires a point with at least { $a } arms; the largest has { $b }.
 lab_v_t5 = The profile requires a cycle of at least { $a } stretches; the shortest has { $b }.
-lab_v_p1 = The stairs cannot be reached with the available keys and switches.
-lab_v_p2 = A required key cannot be collected before its gate.
-lab_v_p3 = A required switch cannot be activated before its gate.
 lab_l_stuck_candidates = Few connections available; widening the search ({ $a }).
 lab_l_stuck_near = Widening the search radius to { $a } px.
 lab_l_left_out = { $a } room(s) were left isolated because no valid link was found.
-lab_l_stairs = The stairs ended up { $a } steps from the entrance; the target was { $b }.
+lab_l_exit = The exit ended up { $a } steps from the entrance; the target was { $b }.
+lab_l_anchors = Side branches and independent routes need an entrance and an exit, so the profile left them out.
+lab_l_islands = Independent routes to the exit are not supported with several islands, so the profile left them out.
 lab_l_beta = The target of { $a } cycles was not reached; the map ended with { $b }.
 lab_l_block = The { $b } shape did not fit in block { $a }; a rectangular room was used.
 lab_l_leaves = { $a } of { $b } leaf chambers fit.
-lab_l_locks = Only { $a } of the { $b } requested locks fit on the main path.
-lab_l_lock_bits = Each lock type accepts at most eight items.
-lab_l_routes = The profile reached { $b } of { $a } independent routes to the stairs.
+lab_l_routes = The profile reached { $b } of { $a } independent routes to the exit.
 lab_l_hub = No junction of degree { $a } fit.
 lab_l_cycle = No cycle of at least { $a } stretches fit.
 lab_l_branches = Added { $a } of the { $b } required side branches.

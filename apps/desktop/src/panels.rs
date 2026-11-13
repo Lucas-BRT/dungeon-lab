@@ -4,8 +4,8 @@ use crate::map::{self, Palette, Xf};
 use crate::params_ui::field_row;
 use crate::pick::map_object_at;
 use crate::{
-    class_label, format_number, get_path, level_description, set_path, summary, translate_log,
-    translate_violation, App, BenchmarkKind, Experiment, GeneratedMap, Tab,
+    class_label, format_number, get_path, set_path, size_description, size_label, summary,
+    translate_log, translate_violation, App, BenchmarkKind, Experiment, GeneratedMap, Tab,
 };
 use eframe::egui::{
     self, Align, Button, Color32, CursorIcon, Frame, Grid, Layout, Panel, RichText, ScrollArea,
@@ -13,6 +13,7 @@ use eframe::egui::{
 };
 use serde_json::{json, Value};
 use tapiti_core::par;
+use tapiti_core::params::Size;
 
 fn muted(ui: &Ui, text: impl Into<String>) -> RichText {
     RichText::new(text)
@@ -45,15 +46,15 @@ pub fn top_bar(app: &mut App, ui: &mut Ui) {
         ui.horizontal(|ui| {
             ui.heading("Tapiti");
             ui.separator();
-            ui.label("Level");
-            for level in 1..=5 {
-                let hint = format!("{}\nAlt+{level}", level_description(level));
+            ui.label("Size");
+            for (n, size) in Size::ALL.into_iter().enumerate() {
+                let hint = format!("{}\nAlt+{}", size_description(size), n + 1);
                 if ui
-                    .selectable_label(app.level == level, level.to_string())
+                    .selectable_label(app.size == size, size_label(size))
                     .on_hover_text(hint)
                     .clicked()
                 {
-                    app.set_level(level);
+                    app.set_size(size);
                 }
             }
             ui.separator();
@@ -218,7 +219,10 @@ fn floor_tab(app: &mut App, ui: &mut Ui) {
                                 target = m.beta_target
                             ),
                         ),
-                        ("Routes to the stairs", m.routes_to_stairs.to_string()),
+                        (
+                            "Routes to the exit",
+                            m.routes_to_exit.map_or("—".into(), |n| n.to_string()),
+                        ),
                         ("Attempts", map.draws.to_string()),
                         ("Generation", format!("{:.1} ms", map.elapsed_ms)),
                     ] {
@@ -274,6 +278,7 @@ fn floor_tab(app: &mut App, ui: &mut Ui) {
                 .show(ui, |ui| {
                     for field in app.groups.iter().flat_map(|g| &g.fields).filter(|f| {
                         [
+                            "growth.start",
                             "growth.rooms",
                             "growth.islands",
                             "growth.branch",
@@ -299,12 +304,12 @@ fn floor_tab(app: &mut App, ui: &mut Ui) {
         } else {
             ui.label(muted(ui, "One room per grid block."));
         }
-        ui.label(muted(ui, level_description(app.level)));
+        ui.label(muted(ui, size_description(app.size)));
     });
 
     card(ui, "Shortcuts", |ui| {
         for line in [
-            "Alt+1–5 switches the level · Alt+R random seed",
+            "Alt+1–4 switches the size · Alt+R random seed",
             "Alt+Left / Right: previous / next seed",
             "Drag moves the map · wheel zooms at the cursor",
             "Double-click fits the map to the window",
@@ -339,24 +344,24 @@ fn parameters_tab(app: &mut App, ui: &mut Ui) {
     ui.horizontal_wrapped(|ui| {
         if ui
             .button("Copy JSON")
-            .on_hover_text("Level, seed and the full Λ")
+            .on_hover_text("Size, seed and the full Λ")
             .clicked()
         {
-            let export = json!({ "level": app.level, "seed": app.seed, "params": app.params });
+            let export = json!({ "size": size_label(app.size).to_lowercase(), "seed": app.seed, "params": app.params });
             ui.ctx()
                 .copy_text(serde_json::to_string_pretty(&export).unwrap_or_default());
             app.status = "Parameters copied as JSON.".into();
         }
         if ui
-            .add_enabled(!app.changed.is_empty(), Button::new("Reset level"))
+            .add_enabled(!app.changed.is_empty(), Button::new("Reset to size"))
             .clicked()
         {
-            app.set_level(app.level);
+            app.set_size(app.size);
         }
         ui.label(muted(
             ui,
             if app.changed.is_empty() {
-                "level default".to_string()
+                "size default".to_string()
             } else {
                 format!("{n} changed", n = app.changed.len())
             },
@@ -507,7 +512,7 @@ fn analysis_tab(app: &mut App, ui: &mut Ui) {
     card(ui, "Performance", |ui| {
         ui.label(muted(
             ui,
-            "Benchmarks use the selected level's default profile.",
+            "Benchmarks use the selected size's default parameters.",
         ));
         ui.horizontal_wrapped(|ui| {
             if ui
@@ -536,8 +541,8 @@ fn analysis_tab(app: &mut App, ui: &mut Ui) {
         ui.label(muted(
             ui,
             format!(
-                "Level {level} · seed {seed}",
-                level = app.level,
+                "{size} size · seed {seed}",
+                size = size_label(app.size),
                 seed = app.seed
             ),
         ));
@@ -661,7 +666,7 @@ fn metric_sections(map: &GeneratedMap) -> Vec<(&'static str, Vec<Row>)> {
                 (
                     "Single-door rooms",
                     m.leaves.to_string(),
-                    "Rooms with only one connection; includes dead ends, entrance and stairs.",
+                    "Rooms with only one connection; includes dead ends, the entrance and the exit.",
                 ),
                 (
                     "Bridges",
@@ -674,9 +679,9 @@ fn metric_sections(map: &GeneratedMap) -> Vec<(&'static str, Vec<Row>)> {
                     "Rooms whose removal would split the graph.",
                 ),
                 (
-                    "Steps to the stairs",
-                    opt(m.hops_to_stairs),
-                    "Number of rooms on the shortest path from the entrance to the stairs.",
+                    "Steps to the exit",
+                    opt(m.hops_to_exit),
+                    "Number of rooms on the shortest path from the entrance to the exit.",
                 ),
                 (
                     "Diameter",
@@ -684,9 +689,9 @@ fn metric_sections(map: &GeneratedMap) -> Vec<(&'static str, Vec<Row>)> {
                     "Largest minimum distance between two rooms, in steps.",
                 ),
                 (
-                    "Independent routes to the stairs",
-                    m.routes_to_stairs.to_string(),
-                    "Paths between the entrance and the stairs that share no corridors.",
+                    "Independent routes to the exit",
+                    m.routes_to_exit.map_or("—".into(), |n| n.to_string()),
+                    "Paths between the entrance and the exit that share no corridors.",
                 ),
                 (
                     "Shortest cycle",
@@ -712,8 +717,9 @@ fn metric_sections(map: &GeneratedMap) -> Vec<(&'static str, Vec<Row>)> {
                 ),
                 (
                     "Geometric path",
-                    format!("{:.0} px", m.geometric_path_to_stairs),
-                    "Physical length of the shortest path to the stairs.",
+                    m.geometric_path_to_exit
+                        .map_or("—".into(), |l| format!("{l:.0} px")),
+                    "Physical length of the shortest path to the exit.",
                 ),
                 (
                     "Connectivity λ₂",

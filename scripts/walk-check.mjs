@@ -1,6 +1,6 @@
 // Checks the pure geometry of the landing page's walk (apps/site/assets/walk/build.js) against the real generator, without a browser.
 //   scripts/build-wasm.sh && node scripts/walk-check.mjs
-// The seed, the level and the stations must match apps/site/src/floor.rs (`WALK_SEED`, `WALK_LEVEL`, `stations()`); that file's tests pin
+// The seed, the size and the stations must match apps/site/src/floor.rs (`WALK_SEED`, `WALK_SIZE_INDEX`, `stations()`); that file's tests pin
 // the Rust side, the numbers below pin this side. If the generator changes the floor of the walk, both fail and say so.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url'
 import { resolve } from 'node:path'
 
 const WALK_SEED = 279
-const WALK_LEVEL = 5
+const WALK_SIZE_INDEX = 2
 const STATION_ROOMS = [6, 7, 1, 14, 11, 12, 0] // floor.rs: stations()[i].room
 
 const root = resolve(import.meta.dirname, '..')
@@ -16,7 +16,7 @@ const wasm = await import(pathToFileURL(resolve(root, 'apps/site/pkg/tapiti.js')
 wasm.initSync({ module: readFileSync(resolve(root, 'apps/site/pkg/tapiti_bg.wasm')) })
 const { build, WALL_HEIGHT } = await import(pathToFileURL(resolve(root, 'apps/site/assets/walk/build.js')).href)
 
-const answer = JSON.parse(wasm.stage_json(WALK_SEED, wasm.default_params(WALK_LEVEL)))
+const answer = JSON.parse(wasm.stage_json(WALK_SEED, wasm.rich_params(WALK_SIZE_INDEX)))
 assert.deepEqual(answer.violations, [], 'the walk floor must be valid')
 const floor = answer.floor
 
@@ -29,8 +29,8 @@ assert.deepEqual(scene.stations.map((s) => s.room), STATION_ROOMS)
 for (let i = 1; i < scene.stations.length; i++) assert.ok(scene.stations[i].u > scene.stations[i - 1].u, 'stations follow the path')
 assert.equal(scene.stations[0].u, 0)
 assert.ok(Math.abs(scene.stations.at(-1).u - 1) < 1e-6, 'the last station is the end of the path')
-assert.equal(floor.rooms[scene.stations[0].room].role, 'start')
-assert.equal(floor.rooms[scene.stations.at(-1).room].role, 'stairs')
+assert.equal(floor.rooms[scene.stations[0].room].role, 'entrance')
+assert.equal(floor.rooms[scene.stations.at(-1).room].role, 'exit')
 
 // The path is continuous: no hop longer than a room's width.
 const p = scene.path.points
@@ -60,4 +60,4 @@ const same = (a, b) => Buffer.compare(Buffer.from(a.buffer, a.byteOffset, a.byte
 assert.ok(same(scene.walls.positions, again.walls.positions) && same(scene.walls.indices, again.walls.indices), 'walls differ between builds')
 assert.ok(same(scene.torches, again.torches) && same(scene.path.points, again.path.points), 'torches or path differ between builds')
 
-console.log(`walk ok: seed ${WALK_SEED} level ${WALK_LEVEL}, ${scene.contours} contours, ${triangles} wall triangles, ${torches} torches, ${(scene.path.total).toFixed(0)} units of path, built in ${ms.toFixed(1)} ms`)
+console.log(`walk ok: seed ${WALK_SEED} size ${WALK_SIZE_INDEX}, ${scene.contours} contours, ${triangles} wall triangles, ${torches} torches, ${(scene.path.total).toFixed(0)} units of path, built in ${ms.toFixed(1)} ms`)

@@ -17,10 +17,10 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tapiti_core::generate::{Floor, GenerationEvent, Role};
-use tapiti_core::geom::{dist, Shape};
+use tapiti_core::geom::Shape;
 use tapiti_core::metrics::{metrics_of, Metrics};
 use tapiti_core::par;
-use tapiti_core::params::{params_of_level, Params};
+use tapiti_core::params::{params_of_size, Params, Size};
 use tapiti_core::stage;
 
 const APP_ID: &str = "dev.lucasbrt.Tapiti";
@@ -36,7 +36,7 @@ pub struct GeneratedMap {
     pub violations: Vec<String>,
     pub draws: u32,
     pub elapsed_ms: f64,
-    pub level: usize,
+    pub size: Size,
     pub seed: u32,
     pub phases: String,
 }
@@ -110,12 +110,12 @@ pub struct App {
     tx: Sender<(u64, Event)>,
     rx: Receiver<(u64, Event)>,
     pub tab: Tab,
-    pub level: usize,
+    pub size: Size,
     pub seed: u32,
     pub seed_draft: String,
     pub params: Params,
     pub defaults: Value,
-    /// Paths of the parameters that differ from the level default.
+    /// Paths of the parameters that differ from the size default.
     pub changed: HashSet<String>,
     pub json_text: String,
     pub json_dirty: bool,
@@ -141,13 +141,13 @@ pub struct App {
 impl App {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let (tx, rx) = channel();
-        let params = params_of_level(1);
+        let params = params_of_size(Size::Small);
         let mut app = Self {
             ctx: cc.egui_ctx.clone(),
             tx,
             rx,
             tab: Tab::Floor,
-            level: 1,
+            size: Size::Small,
             seed: 1,
             seed_draft: "1".into(),
             defaults: serde_json::to_value(&params).unwrap_or(Value::Null),
@@ -204,8 +204,8 @@ impl App {
         self.show_building = false;
         self.building = BuildingMap::default();
         self.status = "Generating the map…".into();
-        let (work_id, level, seed, params) =
-            (self.work_id, self.level, self.seed, self.params.clone());
+        let (work_id, size, seed, params) =
+            (self.work_id, self.size, self.seed, self.params.clone());
         let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
         std::thread::spawn(move || {
             // One message per frame keeps generation fast and avoids waking the UI for every room and corridor.
@@ -220,7 +220,7 @@ impl App {
                     last_flush = Instant::now();
                 }
             };
-            let result = generate_map(level, seed, params, &mut progress);
+            let result = generate_map(size, seed, params, &mut progress);
             drop(progress);
             if !events.is_empty() {
                 let _ = tx.send((work_id, Event::Progress(events)));
@@ -237,10 +237,10 @@ impl App {
         self.busy = true;
         self.work_id = self.work_id.wrapping_add(1);
         self.performance_status = Some("Measuring on the native Rust engine…".into());
-        let (work_id, level) = (self.work_id, self.level);
+        let (work_id, size) = (self.work_id, self.size);
         let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
         std::thread::spawn(move || {
-            let _ = tx.send((work_id, Event::Benchmark(run_benchmark(level, kind))));
+            let _ = tx.send((work_id, Event::Benchmark(run_benchmark(size, kind))));
             ctx.request_repaint();
         });
     }
@@ -360,9 +360,9 @@ impl App {
         self.apply_at = Some(Instant::now() + APPLY_DELAY);
     }
 
-    pub fn set_level(&mut self, level: usize) {
-        self.level = level.clamp(1, 5);
-        self.params = params_of_level(self.level);
+    pub fn set_size(&mut self, size: Size) {
+        self.size = size;
+        self.params = params_of_size(self.size);
         self.defaults = serde_json::to_value(&self.params).unwrap_or(Value::Null);
         self.refresh_changed();
         self.sync_json();
@@ -503,12 +503,12 @@ impl App {
 
     fn shortcuts(&mut self, ctx: &egui::Context) {
         let alt = |ctx: &egui::Context, key| ctx.input_mut(|i| i.consume_key(Modifiers::ALT, key));
-        for (index, key) in [Key::Num1, Key::Num2, Key::Num3, Key::Num4, Key::Num5]
+        for (index, key) in [Key::Num1, Key::Num2, Key::Num3, Key::Num4]
             .into_iter()
             .enumerate()
         {
             if alt(ctx, key) {
-                self.set_level(index + 1);
+                self.set_size(Size::ALL[index]);
             }
         }
         if alt(ctx, Key::R) {
@@ -622,9 +622,8 @@ pub fn translate_violation(message: &str) -> String {
             "V2" => "distance and collisions",
             "V3" => "doors",
             "V4" => "corridor geometry",
-            "V5" => "entrance and stairs",
+            "V5" => "entrance and exit",
             "T1" | "T2" | "T3" | "T4" | "T5" => "topology requirement",
-            "P1" | "P2" | "P3" => "progression",
             _ => "model rule",
         };
         format!("{meaning}: {detail}")
@@ -708,8 +707,8 @@ fn view_box(min: [f64; 2], max: [f64; 2], zoom: f64, pan: [f64; 2]) -> (f64, f64
     )
 }
 
-fn run_benchmark(level: usize, kind: BenchmarkKind) -> String {
-    let params = params_of_level(level);
+fn run_benchmark(size: Size, kind: BenchmarkKind) -> String {
+    let params = params_of_size(size);
     match kind {
         BenchmarkKind::Forty => {
             let started = Instant::now();
@@ -766,8 +765,8 @@ pub fn summary(map: &GeneratedMap) -> String {
         format!("\nWarnings: {}", map.violations.join("; "))
     };
     format!(
-        "Level {level} · seed {seed} · {validity} · one floor generated in {ms:.1} ms · {draws} attempt(s)\n{rooms} rooms · {edges} corridors · β={beta} · δ={delta:.2} · {routes} routes to the exit\n{phases}{warnings}",
-        level = map.level,
+        "{size} size · seed {seed} · {validity} · one floor generated in {ms:.1} ms · {draws} attempt(s)\n{rooms} rooms · {edges} corridors · β={beta} · δ={delta:.2} · {routes} routes to the exit\n{phases}{warnings}",
+        size = size_label(map.size),
         seed = map.seed,
         validity = validity,
         ms = map.elapsed_ms,
@@ -776,14 +775,14 @@ pub fn summary(map: &GeneratedMap) -> String {
         edges = m.edges,
         beta = m.beta,
         delta = m.delta,
-        routes = m.routes_to_stairs,
+        routes = m.routes_to_exit.map_or("no".to_string(), |n| n.to_string()),
         phases = map.phases,
         warnings = warnings
     )
 }
 
 fn generate_map(
-    level: usize,
+    size: Size,
     seed: u32,
     params: Params,
     mut progress: impl FnMut(GenerationEvent),
@@ -803,7 +802,7 @@ fn generate_map(
     Ok(GeneratedMap {
         floor: Arc::new(stage.d),
         metrics: measures,
-        level,
+        size,
         seed: chosen_seed,
         phases,
         violations: stage.violations,
@@ -952,78 +951,39 @@ fn validate_params(p: &Params) -> Result<(), String> {
         0.0,
         1000.0,
     )?;
-    for (name, value) in [
-        ("leafRoles.trap", p.leaf_roles.trap),
-        ("leafRoles.prize", p.leaf_roles.prize),
-        ("leafRoles.empty", p.leaf_roles.empty),
-    ] {
-        float(name, value, 0.0, 1000.0)?;
-    }
     for (name, value) in &p.mix {
         float(&format!("mix.{name}"), *value, 0.0, 1.0)?;
     }
     if let Some(value) = p.junction {
         float("junction", value, 0.0, 10000.0)?;
     }
-    int("stairsDoors", p.stairs_doors, 1, 1000)?;
-    int("minHops", p.min_hops, 1, 1000)?;
-    int("ambush", p.ambush, 0, 1000)?;
+    int("exitDoors", p.exit_doors, 1, 1000)?;
+    int("exitMinHops", p.exit_min_hops, 1, 1000)?;
     int("leaves", p.leaves, 0, 1000)?;
     count("topology.minBranches", p.topology.min_branches, 1000)?;
     count("topology.minBranchDepth", p.topology.min_branch_depth, 1000)?;
     count("topology.minExitRoutes", p.topology.min_exit_routes, 1000)?;
     count("topology.minCycleLength", p.topology.min_cycle_length, 1000)?;
     count("topology.minHubDegree", p.topology.min_hub_degree, 1000)?;
-    count("progression.keyLocks", p.progression.key_locks, 8)?;
-    count("progression.switchLocks", p.progression.switch_locks, 8)?;
     Ok(())
-}
-
-fn point_along(points: &[[f64; 2]], fraction: f64) -> [f64; 2] {
-    let lengths = points
-        .windows(2)
-        .map(|pair| dist(pair[0], pair[1]))
-        .collect::<Vec<_>>();
-    let mut remaining = lengths.iter().sum::<f64>() * fraction;
-    for (index, length) in lengths.iter().enumerate() {
-        if remaining <= *length {
-            let t = if *length > 0.0 {
-                remaining / length
-            } else {
-                0.0
-            };
-            return [
-                points[index][0] + (points[index + 1][0] - points[index][0]) * t,
-                points[index][1] + (points[index + 1][1] - points[index][1]) * t,
-            ];
-        }
-        remaining -= length;
-    }
-    points.last().copied().unwrap_or([0.0, 0.0])
 }
 
 fn role_label(role: Role) -> &'static str {
     match role {
-        Role::Start => "entrance",
-        Role::Stairs => "stairs",
-        Role::Ambush => "ambush",
-        Role::Boss => "boss",
-        Role::Rest => "rest",
-        Role::Key => "key",
-        Role::Switch => "switch",
+        Role::Entrance => "entrance",
+        Role::Exit => "exit",
         Role::Plain => "plain",
-        Role::Trap => "trap",
-        Role::Prize => "prize",
-        Role::Empty => "empty",
     }
 }
 
-fn level_description(level: usize) -> &'static str {
-    match level {
-        1 => "Introduction: rectangular rooms and few extra connections.",
-        2 => "Adds L-shaped rooms and the first junctions.",
-        3 => "Enlarges the map and unlocks diagonals and circular rooms.",
-        4 => "Combines more shapes, junctions and stairs doors.",
-        _ => "Richest setup: more rooms, shapes and connection alternatives.",
-    }
+fn size_label(size: Size) -> &'static str {
+    ["Small", "Medium", "Large", "Huge"][size as usize]
+}
+
+fn size_description(size: Size) -> String {
+    let (cols, rows) = size.grid();
+    format!(
+        "{} grid of {cols} × {rows} blocks. Every other parameter keeps its default.",
+        size_label(size)
+    )
 }

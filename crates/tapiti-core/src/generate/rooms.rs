@@ -141,8 +141,6 @@ pub(super) fn build_rooms(
             leaf: false,
             alive: true,
             role: Role::Plain,
-            keys: 0,
-            switches: 0,
         });
         report_progress(progress, || {
             GenerationEvent::RoomAdded(g.rooms[id].shape.clone())
@@ -156,7 +154,8 @@ pub(super) fn build_rooms(
         let target = if p.growth.rooms > 0 {
             p.growth.rooms as usize
         } else {
-            live.len()
+            // The leaf chambers asked for are left room for, so the main rooms are fewer.
+            live.len().saturating_sub(p.leaves.max(0) as usize).max(1)
         };
         // The grown rooms are as large as the grid's blocks: their sizes (in cells) are the pool the growth draws from.
         let sizes: Vec<(i32, i32)> = live.iter().map(|&i| (blocks[i].w, blocks[i].h)).collect();

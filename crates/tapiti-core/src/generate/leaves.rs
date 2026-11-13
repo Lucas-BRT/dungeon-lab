@@ -14,7 +14,7 @@ pub(super) fn add_leaf_chambers(
     progress: &mut Option<&mut dyn FnMut(GenerationEvent)>,
 ) {
     let p = g.p;
-    let topology_req = p.topology.requirements();
+    let topology_req = p.topology_requirements();
     let (cell_w, cell_h, gap) = (p.cell_w, p.cell_h, p.gap);
     let leaf_weights: Vec<f64> = CLASSES
         .iter()
@@ -82,9 +82,7 @@ pub(super) fn add_leaf_chambers(
             used: Vec::new(),
             leaf: true,
             alive: true,
-            role: Role::Empty,
-            keys: 0,
-            switches: 0,
+            role: Role::Plain,
         };
         let center = room.center;
         g.rooms.push(room);
@@ -143,16 +141,6 @@ pub(super) fn add_leaf_chambers(
         report_progress(progress, || {
             GenerationEvent::RoomAdded(g.rooms[id].shape.clone())
         });
-        let rw = p.leaf_roles;
-        let weights = if p.pacing.enabled
-            && (create_branch || p.topology.profile == TopologyProfile::Backbone)
-        {
-            [rw.trap * 0.5, rw.prize * 1.5, rw.empty]
-        } else {
-            [rw.trap, rw.prize, rw.empty]
-        };
-        let k = g.pick_class(&weights);
-        g.rooms[id].role = [Role::Trap, Role::Prize, Role::Empty][k];
         made_leaves += 1;
         if create_branch {
             branches_added += 1;

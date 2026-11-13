@@ -1,4 +1,4 @@
-# Mathematical model of level generation
+# Mathematical model of floor generation
 
 This document organizes the mathematics of the Tapiti generator around one simple question: **how do we build a map that is spatially valid, connected and interesting to explore?**
 
@@ -8,7 +8,7 @@ This is the mathematical specification behind Tapiti's generator. Since the Rust
 
 ## 1. The problem in one sentence
 
-A level is a network of rooms and passages, placed in space, that must respect geometric constraints and offer an exploration experience with a desired structure.
+A floor is a network of rooms and passages, placed in space, that must respect geometric constraints and have a desired structure.
 
 We use the following representation:
 
@@ -18,14 +18,14 @@ $$
 
 - $H=(V,E)$ is the **navigable graph**: vertices are rooms or junctions; edges are corridor stretches between those points.
 - $\varphi$ is the **geometric realization**: it says where the rooms are and where the corridors run.
-- $\alpha$ assigns roles to parts of the level, such as start, stairs, prize or ambush.
+- $\alpha$ marks parts of the floor, such as the entrance and the exit.
 - $\Lambda$ gathers the generator's parameters, such as dimensions, clearances, shape weights and density.
 
 The current generator builds a connected 2D floor. The representation separates topology — what connects to what — from geometry — how those connections fit in the plane. This separation allows specifying the shape of a network without requiring it to already have coordinates.
 
 ### Vocabulary and status
 
-In this text, **reference model** identifies concepts preserved from the original mathematical specification; **current crate** indicates what exists in this Rust implementation; **proposal** identifies an extension not yet implemented. Topology profiles, keys, switches and exploration pacing are now part of the crate; multi-floor campaigns and mission objectives remain proposals.
+In this text, **reference model** identifies concepts preserved from the original mathematical specification; **current crate** indicates what exists in this Rust implementation; **proposal** identifies an extension not yet implemented. Topology profiles are part of the crate; the global scoring of profiles and multi-floor campaigns remain proposals.
 
 ## 2. Basic notation
 
@@ -197,7 +197,7 @@ where $M$ is the compatibility between the room classes and $p_{type(k)}$ is the
 
 ### 6.1 The representation used for topology
 
-The refined graph of the level is
+The refined graph of the floor is
 
 $$
 H=(V,E),\qquad V=R\cup J,
@@ -211,7 +211,7 @@ We use $H$ as the main representation for connectivity, cycles and independent r
 
 ### 6.2 Connectivity
 
-A connected level has a path between any pair of rooms. If $c(H)$ is the number of connected components, the general condition is $c(H)=1$ for a floor that contains a single playable region.
+A connected floor has a path between any pair of rooms. If $c(H)$ is the number of connected components, the general condition is $c(H)=1$ for a floor that contains a single playable region.
 
 A **bridge** is an edge whose removal disconnects the graph. An **articulation vertex** is a vertex whose removal disconnects it. These two structures identify bottlenecks: places exploration has to pass through.
 
@@ -231,7 +231,7 @@ If $H$ is planar and connected, Euler's formula gives $|V|-|E|+|F|=2$. Hence $\b
 
 ### 6.4 Cycles do not guarantee alternative routes to the exit
 
-The number of cycles describes the whole network, but not where the cycles are. To measure independent routes between start $s$ and stairs $t$, we use
+The number of cycles describes the whole network, but not where the cycles are. To measure independent routes between the entrance $s$ and the exit $t$, we use
 
 $$
 \lambda_H(s,t)=\text{maximum number of paths from }s\text{ to }t
@@ -240,33 +240,32 @@ $$
 
 By Menger's theorem, this number is also the minimum size of a set of edges whose removal separates $s$ from $t$.
 
-So $\beta(H)>0$ does **not** imply $\lambda_H(s,t)>1$. For example, consider the path $s-a-t$ and a wing in a cycle $a-b-c-a$. The graph has 5 vertices and 5 edges, so $\beta=5-5+1=1$, but every route from $s$ to $t$ still uses the edge $a-t$: $\lambda_H(s,t)=1$. By contrast, two routes $s-a-t$ and $s-b-t$ have $\beta=1$ and $\lambda_H(s,t)=2$. The level profile must specify "how many cycles exist" and "how many routes reach the exit" separately.
+So $\beta(H)>0$ does **not** imply $\lambda_H(s,t)>1$. For example, consider the path $s-a-t$ and a wing in a cycle $a-b-c-a$. The graph has 5 vertices and 5 edges, so $\beta=5-5+1=1$, but every route from $s$ to $t$ still uses the edge $a-t$: $\lambda_H(s,t)=1$. By contrast, two routes $s-a-t$ and $s-b-t$ have $\beta=1$ and $\lambda_H(s,t)=2$. The profile of a floor must specify "how many cycles exist" and "how many routes reach the exit" separately.
 
 Other useful measures include:
 
 | Measure | Definition | What it describes |
 |---|---|---|
 | Room distance $d_{room}(s,t)$ | shortest path counting each arrival at a room as 1 and passing through a junction as 0 | length of the main route in rooms crossed |
-| Geometric distance $d_{geom}(s,t)$ | smallest sum of corridor lengths between start and exit | minimum physical walk |
+| Geometric distance $d_{geom}(s,t)$ | smallest sum of corridor lengths between entrance and exit | minimum physical walk |
 | Diameter | largest minimum distance between pairs of rooms | perceived global size |
 | Girth $g(H)$ | size of the smallest cycle (defined as $+\infty$ if there is no cycle) | presence of short cycles |
 | Degree $d(v)$ | number of edges incident to $v$ | local number of options |
 | Articulations and bridges | vertices/edges whose removal disconnects $H$ | structural bottlenecks |
-| $\lambda_H(s,t)$ | edge-disjoint routes between start and exit | redundancy of the final route |
+| $\lambda_H(s,t)$ | edge-disjoint routes between entrance and exit | redundancy of the final route |
 | $\lambda_2$ | second smallest eigenvalue of the Laplacian $L=D-A$ | global connectivity, in aggregate |
 
-### 6.5 When a level is valid
+### 6.5 When a floor is valid
 
-The constraints below separate different problems. **Connectivity** is about the network; **clearance** is about geometry; **accessibility** is about the game rules.
+The constraints below separate different problems. **Connectivity** is about the network; **clearance** is about geometry.
 
 - **V1 — Connectivity.** All relevant navigable vertices belong to the same component of $H$.
 - **V2 — Clearances.** Rooms keep the minimum distance $2g$; a corridor stays at least $\sigma$ from the rooms it does not connect to; two separate corridors keep the clearance, except at a valid junction. Between linked rooms, the direct distance $\ell_{min}$ is also required, so that rooms close to each other diagonally do not become nearly adjacent despite a long path.
 - **V3 — Doors.** Each used door is admissible for its room, and the exit strips of the doors of the same room are separated by at least $\sigma$.
 - **V4 — Corridors.** Directions, bends and lengths respect $\Theta_m$, $\ell_s$, $\ell_{seg}$ and the bend limit.
-- **V5 — Start and exit.** There is a start room and a distinct stairs room; the stairs respect the door limit and are at least `minHops` room hops from the start.
-- **V6 — Furniture.** In the original specification, stones and crystals must also stay out of the exit strips and keep their distance from each other. This step belongs to the game's furniture and is not implemented by this crate's geometric generator.
+- **V5 — Entrance and exit.** When the Λ asks for them (`entrance`, `exitRoom`), there is an entrance room and a distinct exit room; the exit respects the door limit and is at least `exitMinHops` room hops from the entrance.
 
-A level must satisfy all the constraints that apply to its scope. A lower aesthetic cost cannot compensate for a violation of V1–V5.
+A floor must satisfy all the constraints that apply to its scope. A lower aesthetic cost cannot compensate for a violation of V1–V5.
 
 ## 7. Cycle density
 
@@ -303,7 +302,7 @@ The process can be understood as six steps. The original specification describes
 3. **Candidates.** Choose pairs of rooms to consider; for each pair, look for feasible doors and routes.
 4. **Conflicts.** Mark pairs of candidates that cannot coexist because of geometric collision or doors that are too close.
 5. **Tree and cycles.** First connect the rooms with a spanning tree. Then add links between already connected points until approaching the $\beta$ target.
-6. **Leaf rooms and roles.** Use dropped cells for degree-1 rooms and assign roles such as start, stairs, prize or trap.
+6. **Leaf rooms, entrance and exit.** Use dropped cells for degree-1 rooms, and mark the entrance and the exit.
 
 A tree guarantees connectivity without cycles. The second phase adds alternatives without removing existing connections.
 
@@ -334,26 +333,26 @@ These filters control which pairs enter the search. They do not by themselves gu
 
 Let $\mathcal C$ be the set of candidate links. We build a conflict graph $X=(\mathcal C,F_X)$, in which two candidates are joined in $F_X$ when they cannot be chosen together.
 
-A conflict-free selection is an **independent set** of $X$. To form a connected level, we also require the selection to build a connected navigable graph. This formulation separates two questions:
+A conflict-free selection is an **independent set** of $X$. To form a connected floor, we also require the selection to build a connected navigable graph. This formulation separates two questions:
 
 1. is each link valid on its own?
 2. can the chosen links coexist?
 
 ### 8.4 Tree, cycles and leaf rooms
 
-The crate chooses a start room and grows a spanning tree. At each step, a candidate link must connect an already reached room to a new room. The choice is weighted by the candidates' weights. If the current list does not allow progress, the generator widens the set of proximity pairs and tries to continue.
+The crate chooses a first room and grows a spanning tree. At each step, a candidate link must connect an already reached room to a new room. The choice is weighted by the candidates' weights. If the current list does not allow progress, the generator widens the set of proximity pairs and tries to continue.
 
 After connecting the rooms, the generator builds a `betaMax` reference by filling a copy of the graph with the highest-weight valid actions. This search considers direct links and T/X junction actions. The reference is greedy: it depends on earlier choices and does not prove the global maximum.
 
 In the real cycles phase, the target is $\beta^*=\operatorname{round}(\delta_{target}\beta_{ref})$, where `delta` is the crate's parameter. Valid actions are drawn until the target is reached or exceeded, or until no actions remain. A direct or T link adds one independent cycle; an X crossing can add two, since it closes a new path and splits the crossed corridor into two branches. So $\beta^*$ is a target, not a guarantee of exact equality.
 
-Leaf chambers are added afterwards: each is a room linked by a single corridor. In the graph, the operation adds one vertex and one edge, so $\Delta\beta=0$. It raises the number of dead ends without raising the number of cycles. The roles of start, stairs, boss, rest, ambush, trap, prize and empty room describe content. Keys, switches and locks are progression data, separate from the labels.
+Leaf chambers are added afterwards: each is a room linked by a single corridor. In the graph, the operation adds one vertex and one edge, so $\Delta\beta=0$. It raises the number of dead ends without raising the number of cycles.
 
-In the crate, the start is chosen among the live rooms. After the tree, the stairs are chosen among the leaves farthest from the start; if the minimum distance `minHops` is not reached, `stage` may try another seed up to the attempt limit.
+The entrance and the exit are optional (`entrance`, `exitRoom`, in both layouts). The entrance is the first room of the tree; after the tree, the exit is chosen among the leaves farthest from it. If the minimum distance `exitMinHops` is not reached, `stage` may try another seed up to the attempt limit. Without an entrance there is no exit and no main path.
 
 ## 9. Topology profiles
 
-The `topology` parameter lets you ask explicitly for a **topological intent**. The crate implements mandatory requirements for branches, depth, independent routes to the exit, hub degree and minimum cycle length. If the geometry does not allow a requirement to be met, the generator records the limitation and the validator points out the violation.
+The `topology` parameter lets you ask explicitly for a **topological intent**. The crate implements mandatory requirements for branches, depth, independent routes to the exit, hub degree and minimum cycle length. Branches, depth and independent routes are measured from the path between the entrance and the exit, so they apply only when both exist; otherwise the generator leaves them out and says so in its log. If the geometry does not allow a requirement to be met, the generator records the limitation and the validator points out the violation.
 
 We represent a profile as
 
@@ -375,13 +374,13 @@ $$
 \text{bridges},\text{articulations},\text{degrees},\text{branches}).
 $$
 
-The feasible set contains only levels that satisfy geometric validity and the coded mandatory conditions. The crate does not yet search for the best level according to a global scoring function. The expression below formalizes a possible extension to compare metrics with targets:
+The feasible set contains only floors that satisfy geometric validity and the coded mandatory conditions. The crate does not yet search for the best floor according to a global scoring function. The expression below formalizes a possible extension to compare metrics with targets:
 
 $$
 J_{\Pi}(H)=\sum_i w_i\,\rho_i(\Phi_i(H),t_i),
 $$
 
-where $\rho_i$ penalizes the distance from the target. The mandatory constraints filter the levels; the function $J_\Pi$ would rank the remaining options. This global optimization remains outside the current crate.
+where $\rho_i$ penalizes the distance from the target. The mandatory constraints filter the floors; the function $J_\Pi$ would rank the remaining options. This global optimization remains outside the current crate.
 
 ### 9.1 Example profiles
 
@@ -393,33 +392,19 @@ $$
 
 If $|\partial_P C|=1$, $C$ is a simple side branch: a single edge links the component to the spine. If $|\partial_P C|\geq2$, $C$ offers a detour that returns to the spine — a shortcut or cycle, not a simple branch. We count edges, not just contact vertices: two parallel passages to the same vertex of $P$ already form a second link and must not be classified as a simple branch.
 
-**Two routes to the exit.** Require $\lambda_H(s,t)\geq2$. This guarantees that no single edge is enough to separate start and exit.
+**Two routes to the exit.** Require $\lambda_H(s,t)\geq2$. This guarantees that no single edge is enough to separate entrance and exit.
 
 **Explorable loop.** Require a simple cycle $C\subseteq H$ with at least $L_{loop}$ edges. The condition $\beta\geq1$ alone would allow the only cycle to be very small.
 
 **Hub.** Require a room or junction $h$ with degree $d(h)\geq d_{hub}$, or favor a degree distribution that concentrates several options in one region.
 
-**Intentional bottleneck.** Require a bridge or articulation at a specified stretch of the main path. This can concentrate the level's pacing, as long as progression allows crossing it.
+**Intentional bottleneck.** Require a bridge or articulation at a specified stretch of the main path. This concentrates the route between entrance and exit in one stretch.
 
 These requirements can coexist. For example, a profile can require a long spine, two branches with rewards and two alternative routes in the final stretch.
 
-## 10. Progression with keys and switches
+## 10. Extension: several floors
 
-Topology answers "which places connect?". Progression answers "when can the player cross each connection?". To model locked doors and objectives, we extend the player's state:
-
-$$
-q=(I,S,O),
-$$
-
-where $I$ is the inventory, $S$ the set of activated mechanisms and $O$ the completed objectives.
-
-An edge can be crossed only if its condition is satisfied in $q$. The crate implements masks of up to eight keys and eight switches and checks the state space of location and inventory. A key is collected on entering the room; a switch is activated on entering it.
-
-To keep each lock meaningful even when there are shortcuts, the generator splits the graph by successive cuts of the main path and applies the condition to all the edges that cross each cut. So it is not enough to place a key before a chosen door: every path that goes past that point must satisfy the condition. The validator walks states $(v,I,S)$ and requires the stairs to remain reachable.
-
-The `pacing.enabled` field distributes rest, boss and ambush rooms along the main path and raises the preference for prizes in optional branches. These roles describe pacing and content; they do not create mission objectives.
-
-The same model can extend to a multi-floor campaign: we assign each room a floor index and let stair or elevator edges connect vertices on different floors. Each floor has its own geometric realization $\varphi_f$, but connectivity and progression are checked on the joint graph. This extension is not yet implemented in this crate.
+A campaign of several floors can extend the same model: we assign each room a floor index and let stair or elevator edges connect vertices on different floors. Each floor has its own geometric realization $\varphi_f$, and connectivity is checked on the joint graph. This extension is not implemented in this crate.
 
 ## 11. Model parameters
 
@@ -433,14 +418,13 @@ The parameters can be grouped by function. The names in parentheses are those us
 | Corridors | width, clearance, exit stretch, minimum segment, minimum distance, maximum bends (`width`, `clear`, `exit`, `seg`, `minLen`, `maxBends`) | geometry of the passages |
 | Weights | probabilities per route type, including the W detour, bend/length/diagonal costs (`pI`, `pL`, `pZ`, `pW`, `pT`, `pX`, `costBend`, `costLen`, `cost45`, `costFacing`) | preference among valid candidates |
 | Topology | proximity, radius, density and profile (`proximity`, `near`, `delta`, `topology`) | pairs considered, cycle target and network requirements |
-| Progression | number of key and switch locks (`progression`) | crossing conditions checked in the state graph |
-| Pacing | roles distributed along the main path (`pacing`) | contrast between advancing, resting, combat and optional exploration |
-| Start and exit | stairs door limit and minimum distance in hops (`stairsDoors`, `minHops`) | topological position of the stairs |
-| Content | number of ambushes and leaf chambers; allowed classes and roles (`ambush`, `leaves`, `leafClasses`, `leafRoles`) | distribution of existing functions |
+| Layout | grid or grown, and the settings of the grown layout (`layout`, `growth`) | one room per block, or rooms grown one from another off a door |
+| Entrance and exit | whether each exists, door limit and minimum distance in hops (`entrance`, `exitRoom`, `exitDoors`, `exitMinHops`) | which rooms anchor the floor and how far apart they are |
+| Leaf chambers | number and allowed classes (`leaves`, `leafClasses`) | dead-end rooms |
 | Mixing | compatibility matrix between classes (`mix`) | allows or discourages connections between shapes |
 | Junctions | optional conductance (`junction`) | reference parameter, not yet used by the generator |
 
-The profile $\Pi$ complements $\Lambda$: the parameters control how the generator operates; the profile describes the structure you want to obtain.
+The profile $\Pi$ complements $\Lambda$: the parameters control how the generator operates; the profile describes the structure you want to obtain. The apps start from a size (small, medium, large or huge) that only sets the grid, the large blocks, the leaf chambers and the minimum distance to the exit; every other parameter keeps its default.
 
 ## 12. What exists in the Rust crate
 
@@ -452,23 +436,20 @@ This table avoids confusing the reference specification with this repository's i
 | Directions and routes | Modes with 4 or 8 directions; I/L/Z candidates, T branches and X crossings. |
 | Main connection | Tree growth over candidate room pairs; the generator tries other proximity relations if it runs out of connections. |
 | Cycles | Later choice of cycle actions up to the target derived from `delta` and the `betaMax` reference. |
-| Start and stairs | One start and one stairs room per floor; the stairs are chosen among distant rooms, usually leaves. |
-| Room content | Marking of start, stairs, boss, rest, ambush, trap, prize, key, switch or empty. The labels are not a mission system. |
+| Layouts | One room per grid block, or rooms grown one from another off a door (`layout`). |
+| Entrance and exit | Optional, in both layouts: one entrance room and, with it, one exit room chosen among distant rooms, usually leaves. |
 | Proximity | The Rust enum includes RNG, Gabriel and radius-based Near. Delaunay appears in the reference specification, but not in the current enum. |
 | Topology profiles | Requirements for branches, depth, independent routes, hub and minimum cycle implemented; global profile scoring not yet implemented. |
-| Stateful progression | Keys, switches, conditional doors and reachability checking implemented; mission objectives not yet implemented. |
-| Exploration pacing | Rest, boss and ambush roles on the main path and a higher preference for prizes in optional branches. |
 | Spatial flexibility | Irregular grid limited by minimum dimensions, shape rotation and W routes of up to six bends. |
-| Connected multiple floors | Each current generation produces a single 2D map; the progression relationship between floors is not modeled here. |
+| Connected multiple floors | Each current generation produces a single 2D map; the relationship between floors is not modeled here. |
 
 In the crate, the geometric and topological checks are spread mainly across [generate.rs](../crates/tapiti-core/src/generate.rs), [validate.rs](../crates/tapiti-core/src/validate.rs) and [metrics.rs](../crates/tapiti-core/src/metrics.rs). The validator is the reference for deciding whether a concrete output satisfies the coded conditions.
 
 ## 13. Summary
 
-The model separates three questions:
+The model separates two questions:
 
 1. **Does the geometry fit?** Do rooms, doors and corridors respect widths and clearances?
 2. **Does the network have the desired shape?** Do the cycles, branches, bottlenecks and routes to the exit match the profile?
-3. **Can the level be completed?** If there are progression rules, does the exit remain reachable in the right state?
 
-This separation keeps the mathematics clear. Geometry defines what is physically possible; the graph defines the navigation structure; profiles define the level's intent. The next natural step is to express intent as conditions on $H$, without confusing the global number of cycles with the availability of alternative routes at specific points.
+This separation keeps the mathematics clear. Geometry defines what is physically possible; the graph defines the navigation structure; profiles define the intent of the floor. The next natural step is to express intent as conditions on $H$, without confusing the global number of cycles with the availability of alternative routes at specific points.

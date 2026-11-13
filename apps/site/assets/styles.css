@@ -23,7 +23,6 @@
     --plate: #1b1712;      /* floor figures and the minimap */
     --ok: #7cc98f;
     --danger: #ef7a6e;
-    --gate: #e3b54f;
 
     --map-rect: #7d9cc4;
     --map-disc: #5fb3a6;
@@ -139,17 +138,14 @@
 
   /* Floor colours: the SVG only carries classes, the tokens colour it. */
   .tapiti-floor .corridor { stroke: var(--map-corridor); }
-  .tapiti-floor .gated { stroke: var(--gate); }
   .tapiti-floor .room { stroke: var(--plate); stroke-width: 4; }
   .tapiti-floor .c-rect { fill: var(--map-rect); }
   .tapiti-floor .c-disc { fill: var(--map-disc); }
   .tapiti-floor .c-oct { fill: var(--map-oct); }
   .tapiti-floor .c-L { fill: var(--map-L); }
   .tapiti-floor .c-star { fill: var(--map-star); }
-  .tapiti-floor .r-start, .tapiti-floor .r-rest { stroke: var(--ok); }
-  .tapiti-floor .r-stairs, .tapiti-floor .r-switch { stroke: var(--carrot); }
-  .tapiti-floor .r-ambush, .tapiti-floor .r-boss, .tapiti-floor .r-trap { stroke: var(--danger); }
-  .tapiti-floor .r-key, .tapiti-floor .r-prize { stroke: var(--gate); }
+  .tapiti-floor .r-entrance { stroke: var(--ok); }
+  .tapiti-floor .r-exit { stroke: var(--carrot); }
   .tapiti-floor .junction { fill: var(--bone); stroke: var(--plate); }
   .tapiti-floor .door { stroke: var(--bone); }
 }

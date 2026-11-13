@@ -40,7 +40,7 @@ fn run(label: &str, p: &params::Params) {
     let depth: Vec<f64> = ds
         .iter()
         .map(|d| {
-            let h = tapiti_core::generate::room_hops(&d.nodes, &d.edges, d.rooms[d.start].id);
+            let h = tapiti_core::generate::room_hops(&d.nodes, &d.edges, d.origin());
             h.iter()
                 .cloned()
                 .filter(|x| x.is_finite())
@@ -55,7 +55,7 @@ fn run(label: &str, p: &params::Params) {
 }
 
 fn main() {
-    let mut p = params::params_of_level(5);
+    let mut p = params::rich_of_size(params::Size::Medium);
     p.cols = 16;
     p.rows = 12;
     println!("--- 16x12 world, level 5 (area = whole world) ---");

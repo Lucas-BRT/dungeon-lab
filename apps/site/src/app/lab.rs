@@ -39,7 +39,7 @@ fn dictionary() -> String {
     }
     let map = dict! {
         lab_map_instructions, lab_3d_instructions,
-        lab_level_1, lab_level_2, lab_level_3, lab_level_4, lab_level_5,
+        lab_size_1, lab_size_2, lab_size_3, lab_size_4,
         lab_seed_error, lab_copied, lab_no_clipboard,
         lab_changed_none, lab_changed_some(n),
         lab_exp_shapes_done, lab_exp_cycles_done, lab_exp_junctions_done, lab_exp_rooms_done,
@@ -48,7 +48,7 @@ fn dictionary() -> String {
         lab_perf_800_result(one, workers, many, invalid), lab_perf_800_fail(error),
         lab_err_int(min, max), lab_err_range(min, max),
         lab_help_prefix(text), lab_gen_failed, lab_valid, lab_valid_detail(draws, ms), lab_invalid(n), lab_invalid_detail(draws),
-        lab_panel_title, lab_panel_meta(level, seed),
+        lab_panel_title, lab_panel_meta(size, seed),
         lab_g_size, lab_g_cycles, lab_g_paths,
         lab_m_rooms, lab_m_rooms_help, lab_m_leaf_chambers, lab_m_leaf_chambers_help,
         lab_m_junctions, lab_m_junctions_help, lab_m_edges, lab_m_edges_help,
@@ -63,24 +63,19 @@ fn dictionary() -> String {
         lab_m_lambda2, lab_m_lambda2_help,
         lab_shapes_title, lab_log_title, lab_legend_title, lab_legend_shapes, lab_legend_roles,
         lab_class_rect, lab_class_disc, lab_class_oct, lab_class_L, lab_class_star,
-        lab_role_start, lab_role_stairs, lab_role_ambush, lab_role_boss, lab_role_rest,
-        lab_role_key, lab_role_switch, lab_role_trap, lab_role_prize, lab_role_empty, lab_role_plain,
-        lab_leaf_role(role),
+        lab_role_entrance, lab_role_exit, lab_role_plain,
+        lab_leaf_chamber,
         lab_node_junction, lab_node_room(id), lab_node_point,
-        lab_bits_keys(n), lab_bits_switches(n),
-        lab_tip_room(role, id, class, area, used, possible), lab_tip_items(list),
+        lab_tip_room(role, id, class, area, used, possible),
         lab_tip_junction(degree, x, y), lab_tip_corridor(id, from, to, n, length),
-        lab_tip_locked(list), lab_tip_and,
-        lab_gate_key(bits), lab_gate_keys(bits), lab_gate_switch(bits), lab_gate_switches(bits),
         lab_v_v1(a), lab_v_v2_rooms(a, b), lab_v_v4_reach(a, b), lab_v_v4_short(a, b, c),
         lab_v_v2_straight(a, b), lab_v_v2_past_door(a, b), lab_v_v2_corr_room(a, b),
         lab_v_v2_corr_corr(a, b), lab_v_v3_diag(a), lab_v_v3_back(a), lab_v_v3_circle(a),
         lab_v_v3_doors(a), lab_v_v4_alphabet(a), lab_v_v4_turn(a, b), lab_v_v4_segment(a, b),
-        lab_v_v4_angle(a), lab_v_v5_doors(a, b), lab_v_v5_hops(a, b), lab_v_v5_distinct,
+        lab_v_v4_angle(a), lab_v_v5_doors(a, b), lab_v_v5_hops(a, b), lab_v_v5_distinct, lab_v_v5_no_entrance,
         lab_v_t1(a, b), lab_v_t2(a, b), lab_v_t3(a, b), lab_v_t4(a, b), lab_v_t5(a, b),
-        lab_v_p1, lab_v_p2, lab_v_p3,
-        lab_l_stuck_candidates(a), lab_l_stuck_near(a), lab_l_left_out(a), lab_l_stairs(a, b),
-        lab_l_beta(a, b), lab_l_block(a, b), lab_l_leaves(a, b), lab_l_locks(a, b), lab_l_lock_bits,
+        lab_l_stuck_candidates(a), lab_l_stuck_near(a), lab_l_left_out(a), lab_l_exit(a, b), lab_l_anchors, lab_l_islands,
+        lab_l_beta(a, b), lab_l_block(a, b), lab_l_leaves(a, b),
         lab_l_routes(a, b), lab_l_hub(a), lab_l_cycle(a), lab_l_branches(a, b), lab_l_jitter(a, b),
         lab_l_caps,
     };
@@ -146,7 +141,7 @@ fn field_help(field: &ParamField) -> String {
 )]
 pub async fn page(cx: &Cx) -> Result<impl View> {
     let groups = tapiti_schema::groups();
-    let levels_help = e!(lab_levels_help);
+    let sizes_help = e!(lab_sizes_help);
     let seed_help = e!(lab_seed_help);
     let overlays_help = e!(lab_overlays_help);
     let params_help = e!(lab_params_help);
@@ -231,25 +226,25 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
             <section id="controls" class="lab-panel" aria-label=(e!(lab_controls_aria))>
                 <h1>(e!(lab_title))</h1>
                 <p class="intro-copy">(e!(lab_intro))</p>
-                <div class="level-section">
+                <div class="size-section">
                     <div class="section-title">
-                        <h2>(e!(lab_levels_title))</h2>
-                        help_button(text: &levels_help)
+                        <h2>(e!(lab_sizes_title))</h2>
+                        help_button(text: &sizes_help)
                     </div>
-                    <div class="level-list">
-                        for n in 1..=5 {
+                    <div class="size-list">
+                        for n in 1..=4 {
                             <button
                                 type="button"
-                                class="level-button"
-                                data-level=(n.to_string())
+                                class="size-button"
+                                data-size=(n.to_string())
                                 aria-pressed="false"
-                                aria-label=(e!(lab_level_aria, n: n))
+                                aria-label=(e!(lab_size_aria, n: n))
                             >
-                                (e!(lab_level_button, n: n))
+                                (e!(lab_size_button, n: n))
                             </button>
                         }
                     </div>
-                    <p class="level-description" id="level-description"></p>
+                    <p class="size-description" id="size-description"></p>
                 </div>
                 <div class="seed-card">
                     <label for="seed-input">
@@ -291,8 +286,8 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
                     <button type="button" class="secondary-button" id="copy-params">
                         (e!(lab_copy))
                     </button>
-                    <button type="button" class="secondary-button" id="reset-level">
-                        (e!(lab_reset_level))
+                    <button type="button" class="secondary-button" id="reset-size">
+                        (e!(lab_reset_size))
                     </button>
                 </div>
                 <p class="changed-status" id="changed-status"></p>
@@ -508,7 +503,7 @@ async fn param_group(cx: &Cx, group: &ParamGroup) -> Result<impl View> {
     })
 }
 
-/// One parameter: its label, help, and an input the page script fills with the level's value.
+/// One parameter: its label, help, and an input the page script fills with the size's value.
 #[component]
 async fn param_field(cx: &Cx, field: &ParamField) -> Result<impl View> {
     let id = format!("param-{}", field.path.replace('.', "-"));

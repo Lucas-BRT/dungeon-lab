@@ -2,7 +2,7 @@
 
 How to measure the generator natively.
 
-The native benchmark measures generation (`generate`), generation with validation and attempts (`stage_with_validation`), isolated validation and the metrics computation separately. It includes levels 1–5, a scenario with an irregular grid, rotated shapes and W routes, and a backbone scenario with keys, a switch and pacing enabled.
+The native benchmark measures generation (`generate`), generation with validation and attempts (`stage_with_validation`), isolated validation and the metrics computation separately. It includes the four sizes with every option on, a scenario with an irregular grid, rotated shapes and W routes, and a backbone scenario.
 
 ```sh
 cargo bench --bench generator

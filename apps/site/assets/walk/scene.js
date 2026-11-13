@@ -1,5 +1,5 @@
 // The walk: a fixed three.js scene behind the landing page. Scrolling carries a camera along the main path of one real floor, the one the
-// generator draws for the seed and level in `data-seed` and `data-level`, built here in the browser by the same wasm module the lab uses.
+// generator draws for the seed and size in `data-seed` and `data-size`, built here in the browser by the same wasm module the lab uses.
 // Scrolling stays native: this file only reads the scroll position. Without WebGL2, scripts or consent to data, the page keeps the
 // server-rendered SVG of the same floor behind it. Geometry comes from build.js (pure data); this file owns everything that touches the GPU.
 
@@ -655,10 +655,10 @@ async function boot() {
   if (!root || params.get('scene') === 'off' || saveData() || !hasWebGL2()) return
   const canvas = root.querySelector('canvas')
   const seed = Number(root.dataset.seed)
-  const level = Number(root.dataset.level)
+  const size = Number(root.dataset.size)
   const [wasm, build, THREE] = await Promise.all([import('/lab/pkg/tapiti.js'), import(root.dataset.build), import(root.dataset.three)])
   await wasm.default()
-  const answer = JSON.parse(wasm.stage_json(seed, wasm.default_params(level)))
+  const answer = JSON.parse(wasm.stage_json(seed, wasm.rich_params(size)))
   const floor = answer.floor
   const built = build.build(floor)
   const handle = mount({ THREE, canvas, floor, scene: built, mode: sceneMode, page: document.querySelector('.rooms') })

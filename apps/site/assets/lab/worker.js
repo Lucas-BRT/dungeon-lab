@@ -4,7 +4,7 @@ import init, { bench } from '/lab/pkg/tapiti.js'
 
 const ready = init()
 
-self.onmessage = async ({ data: { id, level, from, count } }) => {
+self.onmessage = async ({ data: { id, size, from, count } }) => {
   await ready
-  self.postMessage({ id, ...JSON.parse(bench(level, from, count)) })
+  self.postMessage({ id, ...JSON.parse(bench(size, from, count)) })
 }

@@ -13,9 +13,9 @@ cd tapiti
 cargo run --release
 ```
 
-Pick a level (1 to 5), change the seed, and edit any parameter: the floor is dug again a moment after each change. The side panel has three tabs: the floor reading and layout, every parameter of Λ, and the analysis. The theme is in the bottom bar.
+Pick a size (small, medium, large or huge), change the seed, and edit any parameter: the floor is dug again a moment after each change. The side panel has three tabs: the floor reading and layout, every parameter of Λ, and the analysis. The theme is in the bottom bar.
 
-Shortcuts: <kbd>Alt</kbd>+<kbd>1</kbd> to <kbd>5</kbd> switch the level, <kbd>Alt</kbd>+<kbd>R</kbd> draws a random seed, <kbd>Alt</kbd>+<kbd>←</kbd> and <kbd>→</kbd> step the seed. Drag the map to pan, scroll to zoom, double-click to fit.
+Shortcuts: <kbd>Alt</kbd>+<kbd>1</kbd> to <kbd>4</kbd> switch the size, <kbd>Alt</kbd>+<kbd>R</kbd> draws a random seed, <kbd>Alt</kbd>+<kbd>←</kbd> and <kbd>→</kbd> step the seed. Drag the map to pan, scroll to zoom, double-click to fit.
 
 ## The website and the lab
 
@@ -47,10 +47,13 @@ tapiti-core = { git = "https://github.com/Lucas-BRT/tapiti" }
 ```
 
 ```rust
-use tapiti_core::{params::params_of_level, stage::stage};
+use tapiti_core::{
+    params::{params_of_size, Size},
+    stage::stage,
+};
 
 fn main() {
-    let params = params_of_level(5);
+    let params = params_of_size(Size::Medium);
     // Up to 8 draws: a floor the validator rejects is dug again from a derived seed.
     let staged = stage(42, &params, 8);
     assert!(staged.violations.is_empty());
@@ -64,7 +67,7 @@ The same seed and parameters always give the same floor, native or WebAssembly.
 
 ```sh
 cargo run --release -p tapiti-core --example dump               # a hash per stage, to compare two builds
-cargo run -p tapiti-render --example export_svg -- 5 26 floor.svg dark   # level, seed, output, theme
+cargo run -p tapiti-render --example export_svg -- medium 26 floor.svg dark   # size, seed, output, theme
 cargo bench -p tapiti-core --bench generator                    # Criterion benchmarks
 ```
 

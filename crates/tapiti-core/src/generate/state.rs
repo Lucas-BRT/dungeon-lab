@@ -39,7 +39,7 @@ pub(super) struct Gen<'a> {
     pub(super) no_fit: Vec<AtomicBool>,
     /// `statics[i]` can never become a crossing: its doors are taken or it already touches two corridors (both only grow).
     pub(super) no_cross: Vec<AtomicBool>,
-    pub(super) stairs_room: usize,
+    pub(super) exit_room: usize,
     /// Broad phase over the regions of `statics`, to find the candidates near a corridor that changed.
     pub(super) static_index: SpatialHash,
     /// Broad phase over the rooms and, kept up to date by `add_edge`/`split_edge`, over the corridor regions (a superset after a rollback: callers re-test exactly).
@@ -157,8 +157,6 @@ impl<'a> Gen<'a> {
             pts,
             ends,
             region,
-            requires_keys: 0,
-            requires_switches: 0,
         });
         self.edge_index.insert_region(id, &self.edges[id].region);
         id
@@ -201,7 +199,7 @@ impl<'a> Gen<'a> {
     }
 
     pub(super) fn locked_full(&self, r: usize) -> bool {
-        r == self.stairs_room && self.degree(r) >= self.p.stairs_doors as usize
+        r == self.exit_room && self.degree(r) >= self.p.exit_doors as usize
     }
 
     pub(super) fn weighted(&mut self, ws: &[f64]) -> Option<usize> {
@@ -225,8 +223,6 @@ impl<'a> Gen<'a> {
         self.nodes.push(Node::Junction { p: Box::new(h) });
         let old_v = self.edges[e].v;
         let old_end = self.edges[e].ends[1];
-        let requires_keys = self.edges[e].requires_keys;
-        let requires_switches = self.edges[e].requires_switches;
         let mut first: Vec<V> = self.edges[e].pts[..=seg].to_vec();
         first.push(h);
         let mut second: Vec<V> = vec![h];
@@ -248,11 +244,7 @@ impl<'a> Gen<'a> {
             pts: second,
             ends: [None, old_end],
             region: tail_region,
-            requires_keys,
-            requires_switches,
         });
-        self.edges[e].requires_keys = requires_keys;
-        self.edges[e].requires_switches = requires_switches;
         self.edge_index.insert_region(e, &self.edges[e].region);
         self.edge_index.insert_region(id, &self.edges[id].region);
         j
@@ -330,6 +322,22 @@ impl<'a> Gen<'a> {
             if !r.alive || self.locked_full(r.id) {
                 return out;
             }
+            // An arm is perpendicular to its segment, so where it meets the segment (`along`) is the door's own position along it:
+            // a room whose box lies outside every segment's usable stretch (plus a hair of slack) has no branch at all.
+            let [b0, b1] = [r.bounds.lo, r.bounds.hi];
+            let corners = [b0, [b1[0], b0[1]], [b0[0], b1[1]], b1];
+            let near = axes.iter().flatten().any(|sr| {
+                let (mut lo, mut hi) = (f64::INFINITY, f64::NEG_INFINITY);
+                for c in corners {
+                    let d = dot(sub(c, sr.a), sr.ds);
+                    lo = lo.min(d);
+                    hi = hi.max(d);
+                }
+                hi >= margin - 1e-3 && lo <= sr.sl - margin + 1e-3
+            });
+            if !near {
+                return out;
+            }
             // The doors in use only change when an edge is added, so the free ones are worked out once for the room, not once per segment.
             let mut free: Vec<bool> = vec![false; r.ports.len()];
             let mut free_known: Vec<bool> = vec![false; r.ports.len()];
@@ -341,11 +349,8 @@ impl<'a> Gen<'a> {
                         continue;
                     }
                     let e = &self.edges[sr.edge];
-                    let rooms_of_e: Vec<usize> = [e.u, e.v]
-                        .iter()
-                        .filter_map(|n| self.room_of_node(*n))
-                        .collect();
-                    if rooms_of_e.contains(&r.id) {
+                    let rooms_of_e = [self.room_of_node(e.u), self.room_of_node(e.v)];
+                    if rooms_of_e.contains(&Some(r.id)) {
                         continue;
                     }
                     {
@@ -440,8 +445,12 @@ impl<'a> Gen<'a> {
                                     let o = &self.rooms[ri];
                                     o.alive
                                         && own.is_none_or(|q| q.room != ri)
-                                        && region_shape_dist(region, &o.shape, o.bounds)
-                                            < pr.clear - 1e-6
+                                        && region_shape_within(
+                                            region,
+                                            &o.shape,
+                                            o.bounds,
+                                            pr.clear - 1e-6,
+                                        )
                                 })
                         };
                         if too_close(&first_region, e.ends[0]) || too_close(&tail_region, e.ends[1])
@@ -541,15 +550,12 @@ impl<'a> Gen<'a> {
                         }
                     }
                 }
-                let rooms_of_e: Vec<usize> = [e.u, e.v]
-                    .iter()
-                    .filter_map(|n| self.room_of_node(*n))
-                    .collect();
-                if rooms_of_e.contains(&c.a) || rooms_of_e.contains(&c.b) {
+                let rooms_of_e = [self.room_of_node(e.u), self.room_of_node(e.v)];
+                if rooms_of_e.contains(&Some(c.a)) || rooms_of_e.contains(&Some(c.b)) {
                     return None;
                 }
                 for ra in [c.a, c.b] {
-                    for rb in &rooms_of_e {
+                    for rb in rooms_of_e.iter().flatten() {
                         if shape_within(&self.rooms[ra].shape, &self.rooms[*rb].shape, pr.min_len) {
                             return None;
                         }
@@ -729,13 +735,12 @@ impl<'a> Gen<'a> {
             .saturating_mul(segment_count)
             .saturating_mul(8);
         let new_branches = if estimated_work >= 4096 {
-            pflat_min(&self.rooms, 64, |r| {
-                self.branches_of(r, &axes, Some(&changed_edges))
-            })
+            // `axes` holds only the segments of `changes.edges`, so no edge filter is needed.
+            pflat_min(&self.rooms, 64, |r| self.branches_of(r, &axes, None))
         } else {
             self.rooms
                 .iter()
-                .flat_map(|r| self.branches_of(r, &axes, Some(&changed_edges)))
+                .flat_map(|r| self.branches_of(r, &axes, None))
                 .collect()
         };
         for opts in new_branches {

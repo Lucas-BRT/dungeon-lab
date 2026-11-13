@@ -69,9 +69,20 @@ pub(super) fn regions_may_be_within(a: &[Bounded], b: &[Bounded], limit: f64) ->
 }
 
 pub(super) fn mix_of(p: &Params, rooms: &[Room], a: usize, b: usize) -> f64 {
-    *p.mix
-        .get(&mix_key(rooms[a].cls, rooms[b].cls))
-        .unwrap_or(&1.0)
+    let (x, y) = (rooms[a].cls, rooms[b].cls);
+    let (x, y) = if x.index() <= y.index() {
+        (x, y)
+    } else {
+        (y, x)
+    };
+    // The key is at most "rect-rect" (9 bytes): built on the stack, no String per lookup.
+    let mut buf = [0u8; 16];
+    let (nx, ny) = (x.name().as_bytes(), y.name().as_bytes());
+    buf[..nx.len()].copy_from_slice(nx);
+    buf[nx.len()] = b'-';
+    buf[nx.len() + 1..nx.len() + 1 + ny.len()].copy_from_slice(ny);
+    let key = std::str::from_utf8(&buf[..nx.len() + 1 + ny.len()]).unwrap();
+    *p.mix.get(key).unwrap_or(&1.0)
 }
 
 pub(super) fn type_weight(p: &Params, t: RouteType) -> f64 {

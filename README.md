@@ -2,15 +2,15 @@
 
 Tapiti digs floors from a seed, in Rust and WebAssembly: rooms of many shapes (rect, disc, octagon, L, truncated star), continuous doors,
 octilinear corridors (I, L, Z/U, T, X), leaf chambers, a validator (V1 to V5) and the graph's measures (β, δ, bridges, Menger routes, λ₂), with a
-desktop app and a page to generate any level and edit every parameter of Λ.
+desktop app and a page to generate any floor and edit every parameter of Λ.
 
 The same seed and Λ always draw the same stage (the rng is Mulberry32). Every optimization below was checked against that: `cargo run --release -p tapiti-core --example dump`
-hashes 150 stages (5 levels × 30 seeds) and the hashes did not move, single-threaded or parallel.
+hashes 150 stages (the four sizes × 30 seeds, then 30 grown floors) and the hashes did not move, single-threaded or parallel.
 
 ## Speed
 
 Generation cost depends on Λ: the current model evaluates corridor candidates,
-βmax with junction actions, topology constraints, progression, and leaf chambers.
+βmax with junction actions, topology constraints and leaf chambers.
 Do not compare it with measurements from the earlier, smaller model.
 
 Recent native release measurements on the development machine (14 Rayon threads)
@@ -67,11 +67,11 @@ The website is a [Topcoat](https://github.com/tokio-rs/topcoat) app (`apps/site`
 Needs the `wasm32-unknown-unknown` target and the `wasm-bindgen` CLI at the version in `crates/tapiti-wasm/Cargo.toml` (`=0.2.130`).
 
 The native egui frontend is the workspace's default application. It calls the shared Rust generator directly with Rayon enabled and renders the map
-without WebAssembly. The map fills the window; a right-hand panel has three tabs (floor reading and layout, every Λ parameter, analysis). Controls: all level
+without WebAssembly. The map fills the window; a right-hand panel has three tabs (floor reading and layout, every Λ parameter, analysis). Controls: the size
 presets, Λ parameters with per-field reset and a filter, guided experiments, JSON editing and copying, five map overlays and a legend,
 pan/zoom/hover inspection, validation, and metrics. Edits regenerate the map after a short pause. Each interactive request generates one floor;
 a slow generation shows rooms and corridor connections as the generator creates them. A separate benchmark compares single-thread and
-multi-thread throughput over many independent maps. Shortcuts: Alt+1–5 level, Alt+R random seed, Alt+left/right seed.
+multi-thread throughput over many independent maps. Shortcuts: Alt+1–4 size, Alt+R random seed, Alt+left/right seed.
 Building needs the usual eframe system libraries on Linux (xkbcommon, Wayland and/or X11, OpenGL).
 
 The desktop's single-map latency and progressive-rendering design is documented in [docs/desktop-generation-rendering.md](docs/desktop-generation-rendering.md).
@@ -93,7 +93,7 @@ The desktop's single-map latency and progressive-rendering design is documented 
 | `crates/tapiti-render/` | SVG rendering of floors for the site, docs and social images |
 | `crates/tapiti-schema/` | the parameters of Λ as data (groups, ranges, help), shared by the desktop app and the docs |
 | `docs/` | the documentation (Markdown, math as `$…$`), rendered by the site and readable on GitHub |
-| `crates/tapiti-wasm/` | the WASM API: `default_params(level)`, `stage_json(seed, params)`, `bench(level, from, count)`, `threads()` |
+| `crates/tapiti-wasm/` | the WASM API: `default_params(size)`, `rich_params(size)`, `stage_json(seed, params)`, `bench(size, from, count)`, `threads()` |
 | `crates/tapiti-core/tests/`, `benches/`, `examples/` | model tests, Criterion benchmarks, profiling and deterministic dumps |
 
 Floats: only `+ − × ÷`, `sqrt` and the libm inside the module, so every browser rounds the same.
