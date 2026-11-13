@@ -1,5 +1,34 @@
 # Getting started
 
+## Install
+
+Every [release](https://github.com/Lucas-BRT/tapiti/releases/latest) has the desktop app for each platform. Pick one:
+
+**Linux, any distribution** (x86_64, glibc 2.35 or newer: Ubuntu 22.04+, Debian 12+, Fedora 36+; not Alpine), without `sudo`:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Lucas-BRT/tapiti/main/install.sh | bash
+```
+
+The script downloads the latest release, checks it against the release's `SHA256SUMS` and installs `tapiti` in `~/.local/bin`, with a launcher entry and an icon in `~/.local/share`. It tells you how to put `~/.local/bin` on your `PATH` when that is needed, and never edits your files. After `bash -s --` it takes `--version X.Y.Z`, `--prefix DIR`, `--update` (installs only when there is a newer release), `--verify` (also checks the build provenance with the GitHub CLI) and `--uninstall`.
+
+**Debian and Ubuntu**, a `.deb`; **Fedora and openSUSE**, an `.rpm`:
+
+```sh
+sudo apt install ./tapiti_<version>-1_amd64.deb
+sudo dnf install ./tapiti-<version>-1.x86_64.rpm
+```
+
+Both install `/usr/bin/tapiti`, the launcher entry and the icon. There is no apt or dnf repository yet, so `apt update` does not bring a new release: download the new package and install it the same way, or use `install.sh --update`.
+
+**Windows:** download `tapiti-x86_64-pc-windows-msvc.exe` and run it, or the `.zip` with the same program, the licence and the README. It needs a graphics driver with OpenGL 2. Windows may ask for confirmation, as the program is not signed with a certificate.
+
+**macOS (Apple silicon):** `tapiti-aarch64-apple-darwin.tar.gz` holds `Tapiti.app`; drag it to Applications. It is not signed with a developer certificate, so the first start needs a right-click and Open.
+
+Each release also has `SHA256SUMS`, and the files carry a signed build provenance: `gh attestation verify FILE --repo Lucas-BRT/tapiti`.
+
+## Build from source
+
 Tapiti is a Rust workspace. You need a recent stable Rust toolchain ([rustup](https://rustup.rs)); nothing else to try the generator. The desktop app also needs the usual graphics libraries of your platform (on Linux: xkbcommon, Wayland and/or X11, and OpenGL; on Windows a driver with OpenGL 2, which a virtual machine or remote desktop without a GPU may lack).
 
 ```sh

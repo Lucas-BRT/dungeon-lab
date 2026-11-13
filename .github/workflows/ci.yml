@@ -21,6 +21,14 @@ env:
   CARGO_NET_RETRY: "10"
 
 jobs:
+  # The install script and the packer of the Linux tar.gz (shellcheck is on the runner image).
+  shell:
+    name: Shell scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: shellcheck install.sh scripts/package-linux.sh scripts/package-macos.sh scripts/test-linux-packages.sh
+
   # Format, lints and tests of the Rust crates. Dependencies and build outputs are cached by rust-cache.
   rust:
     name: Rust

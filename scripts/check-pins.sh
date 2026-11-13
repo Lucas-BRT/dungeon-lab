@@ -42,6 +42,11 @@ check "topcoat" "apps/site, workflows, Dockerfile" "$topcoat" "$(crate_latest to
 chef=$(grep -hEo 'cargo-chef --version [0-9.]+' Dockerfile | awk '{print $3}' | sort -u)
 check "cargo-chef" "Dockerfile" "$chef" "$(crate_latest cargo-chef)"
 
+deb=$(grep -hEo 'cargo-deb --version [0-9.]+' .github/workflows/*.yml | awk '{print $3}' | sort -u)
+check "cargo-deb" "release.yml" "$deb" "$(crate_latest cargo-deb)"
+rpm=$(grep -hEo 'cargo-generate-rpm --version [0-9.]+' .github/workflows/*.yml | awk '{print $3}' | sort -u)
+check "cargo-generate-rpm" "release.yml" "$rpm" "$(crate_latest cargo-generate-rpm)"
+
 axe=$(grep -hEo 'axe-core@[0-9.]+' .github/workflows/*.yml | sort -u | cut -d@ -f2)
 check "axe-core" "ci.yml (browser job)" "$axe" "$(npm view axe-core version)"
 
