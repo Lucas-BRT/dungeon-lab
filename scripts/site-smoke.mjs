@@ -3,13 +3,12 @@
 // Checks the scene starts and stays inside its budgets, follows the scroll, agrees with the server's minimap, does not shift the layout,
 // can be switched off, steps under reduced motion, and that the docs load neither three.js nor wasm. With AXE_JS set, also runs axe-core.
 import { spawn } from 'node:child_process'
-import { mkdtempSync, readFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { freshProfile } from './firefox-profile.mjs'
 
 const base = process.argv[2] ?? 'http://127.0.0.1:3000'
 const port = 9336
-const profile = mkdtempSync(join(tmpdir(), 'tapiti-site-'))
+const profile = freshProfile('site')
 const firefox = spawn('firefox', ['--headless', '--no-remote', '--profile', profile, `--remote-debugging-port=${port}`], { stdio: 'ignore' })
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 let ws
@@ -48,6 +47,7 @@ await sleep(800)
 const h1Off = await run("return document.querySelector('h1').getBoundingClientRect().top")
 check('?scene=off keeps the map', (await run("return !document.documentElement.classList.contains('walk-on') && !window.__walk")) === true)
 
+check('WebGL2 is available in this Firefox', (await run("return !!document.createElement('canvas').getContext('webgl2')")) === true, 'the scene and the lab 3D view need it')
 await open('/')
 const started = await until("return document.documentElement.classList.contains('walk-on')")
 check('the scene starts', started)

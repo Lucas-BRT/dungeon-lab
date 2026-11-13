@@ -2,13 +2,11 @@
 //   node scripts/lab-smoke.mjs [url]        default: http://127.0.0.1:3000/lab (start the site first: topcoat dev -p tapiti-site)
 // Checks that the floor is drawn and the panel filled, that editing a parameter and a bad value behave, and that a benchmark runs.
 import { spawn } from 'node:child_process'
-import { mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { freshProfile } from './firefox-profile.mjs'
 
 const url = process.argv[2] ?? 'http://127.0.0.1:3000/lab'
 const port = 9333
-const profile = mkdtempSync(join(tmpdir(), 'tapiti-lab-'))
+const profile = freshProfile('lab')
 const firefox = spawn('firefox', ['--headless', '--no-remote', '--profile', profile, `--remote-debugging-port=${port}`], { stdio: 'ignore' })
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -48,7 +46,7 @@ const run = async (body) => {
 
 const checks = [
   ['panel is filled', `return document.getElementById('results').innerText.includes('Valid map')`, (v) => v === true],
-  ['size button works', `document.querySelector('[data-size="3"]').click(); await new Promise(r => setTimeout(r, 700)); return document.getElementById('results').innerText.includes('Level 3, seed')`, (v) => v === true],
+  ['size button works', `document.querySelector('[data-size="3"]').click(); await new Promise(r => setTimeout(r, 700)); return document.getElementById('results').innerText.includes('large size, seed')`, (v) => v === true],
   ['a parameter change is counted', `const el = document.querySelector('[name="cols"]'); el.value = '9'; el.dispatchEvent(new Event('change', { bubbles: true })); return document.getElementById('changed-status').textContent`, (v) => /1 parameter/.test(v)],
   ['a bad value is refused', `const el = document.querySelector('[name="rows"]'); el.value = '999'; el.dispatchEvent(new Event('change', { bubbles: true })); return el.parentElement.querySelector('.field-error').textContent`, (v) => v.length > 0],
   ['benchmark runs', `document.getElementById('bench-40').click(); return document.getElementById('bench-status').textContent`, (v) => /invalid of 40/.test(v)],

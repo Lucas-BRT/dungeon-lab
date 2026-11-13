@@ -2,9 +2,9 @@
 //   node scripts/site-shots.mjs <out-dir> [base-url] [path ...]
 // VIEWPORT=1 captures only the first screen. Default base http://127.0.0.1:3000 and paths / /docs/model /search?q=seed /leaf /lab. Writes <out-dir>/<name>-<width>.png.
 import { spawn } from 'node:child_process'
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { freshProfile } from './firefox-profile.mjs'
 
 const [out, base = 'http://127.0.0.1:3000', ...rest] = process.argv.slice(2)
 if (!out) { console.error('usage: node scripts/site-shots.mjs <out-dir> [base-url] [path ...]'); process.exit(2) }
@@ -14,7 +14,7 @@ const widths = (process.env.WIDTHS ?? '1440x900,390x844').split(',').map((w) => 
 mkdirSync(out, { recursive: true })
 
 const port = 9334
-const profile = mkdtempSync(join(tmpdir(), 'tapiti-shots-'))
+const profile = freshProfile('shots')
 const firefox = spawn('firefox', ['--headless', '--no-remote', '--profile', profile, `--remote-debugging-port=${port}`], { stdio: 'ignore' })
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 let ws

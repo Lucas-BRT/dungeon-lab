@@ -2,14 +2,14 @@
 // scene itself in headless Firefox over WebDriver BiDi, with the wordmark and the claim set in the site's own fonts.
 //   node scripts/og-card.mjs [base-url] [out.png]       default: http://127.0.0.1:3000, apps/site/assets/brand/og.png (site running)
 import { spawn } from 'node:child_process'
-import { mkdtempSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { freshProfile } from './firefox-profile.mjs'
 
 const base = process.argv[2] ?? 'http://127.0.0.1:3000'
 const out = resolve(process.argv[3] ?? join(import.meta.dirname, '../apps/site/assets/brand/og.png'))
 const port = 9337
-const profile = mkdtempSync(join(tmpdir(), 'tapiti-og-'))
+const profile = freshProfile('og')
 const firefox = spawn('firefox', ['--headless', '--no-remote', '--profile', profile, `--remote-debugging-port=${port}`], { stdio: 'ignore' })
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 let ws
