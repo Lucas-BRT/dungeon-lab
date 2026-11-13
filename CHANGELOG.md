@@ -6,17 +6,29 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
-- Site redesign: a drawing sheet (paper by day, blueprint by night), hairline rules instead of boxes, the floors on a drafting grid, a plain register of measured facts, the procedure as a table of rows, docs as a calm document with copy buttons and a live table of contents; the language links keep the current page.
-- Site: colour tokens by soil layer (dawn, soil, clay, rock, deep) with a carrot accent; landing sections are full-bleed layers.
-- Site: canonical link and `hreflang` alternates on every page.
-- The Tapiti website: landing page, documentation (English and Portuguese, with math as MathML, a generated parameter reference and search), the browser lab, sitemap and robots.txt.
-- `tapiti-render` (SVG floors) and `tapiti-schema` (the parameters of Λ as data, in English and Portuguese).
+- Site redesign: a torchlit stone floor (dark only: wet-stone base, bone text, one carrot accent; Grenze, Alegreya Sans and JetBrains Mono), docs as a calm document with copy buttons and a live table of contents, and a canonical link on every page.
+- A social card made from the 3D scene, and browser checks in CI (the landing walk, the lab, the 404, axe-core) with screenshots kept as an artifact.
+- The Tapiti website: landing page, documentation (with math as MathML, a generated parameter reference and search), the browser lab, sitemap and robots.txt.
+- `tapiti-render` (SVG floors) and `tapiti-schema` (the parameters of Λ as data).
 - "Dig again" on the landing page: dig the floor of any seed on the server (cached, with a bounded budget).
-- English and Portuguese in the desktop app, with a language switch.
 - MIT license, contribution guide, CI (format, lints, tests, WebAssembly build, cached multi-stage Docker build) and a release workflow for desktop binaries.
 
 ### Changed
 
+- A size sets the minimum distance from the entrance to the exit (2, 3, 4 and 5 room hops from small to huge: a floor of nine rooms cannot be four hops long), and the grown layout leaves room for all the leaf chambers asked for (it grows the grid's blocks less the chambers). Valid on the first draw with the sizes' own settings, 60 of 60 seeds in every size, with or without every option on; leaf chambers from the grown layout: 60% of those asked for (the grid layout: 85 to 95%).
+- The grown layout has a `growth.start` option: its first room, the entrance, stands in the middle of the world (the default, as before) or against the north, south, east or west border (north is the top of the map). A border start makes a deeper floor: valid on the first draw on the medium size, 85% from the middle and 93 to 100% from a border.
+- The documentation drops the game-design layer: `docs/model.md` speaks of floors, the entrance and the exit; the sections on keys, switches, pacing and the roles are gone (section 10 is now only the multi-floor extension), the V6 furniture rule and the parameter tables follow the code, and the README, the roadmap and the getting-started page use sizes instead of levels.
+- The entrance and the exit are options of the Λ (`entrance`, `exitRoom`), in both layouts; both are on by default. "Start" and "stairs" are now "entrance" and "exit" everywhere: `Role::Entrance` and `Role::Exit`, `Floor.entrance` and `Floor.exit` (nullable), `exitDoors`, `exitMinHops`, `routesToExit`, `hopsToExit`, `geometricPathToExit` (the last two nullable), the V5 messages and the CSS classes. Without an entrance there is no exit and no main path, and the side-branch and independent-route requirements of the topology profiles are left out with a log line; the hub and long-loop profiles do not depend on them. With both on, the geometry of every stage is unchanged.
+- The room roles are only entrance, stairs and plain: `Boss`, `Rest`, `Key`, `Switch`, `Ambush`, `Trap`, `Prize` and `Empty`, the `ambush` and `leafRoles` parameters and their colours are gone. A stage that has leaf chambers is drawn differently from the same seed, because the leaf role was drawn from the RNG.
+- Keys, switches, gated corridors and exploration pacing are gone (`progression`, `pacing`, the P1 to P3 checks, `Room.keys`/`switches`, `Edge.requiresKeys`/`requiresSwitches`): they were game design, not floor generation. The geometry of every stage is unchanged.
+- Sizes replace the five levels: small, medium, large and huge only set the grid, the large blocks, the leaf chambers and the minimum distance to the exit (`params_of_size`); every other parameter keeps its default and can be changed. The desktop app and the lab pick a size (keys 1 to 4), the wasm module takes a size, and `rich_of_size` (every shape, junction and connection option on) serves tests, benchmarks and the landing page. The levels carried game-design settings the generator does not need.
+- The lab follows the site's stone and carrot look: a segmented level control, the reading of the floor in a drawer below 1280 px and as a tab below 1000 px (the map first), and an optional Plan / 3D switch that turns the generated floor in three dimensions, rebuilt on every regenerate.
+- The landing page is seven rooms along one real floor (level 5, seed 279), each with its own composition and no boxes around the text: the entrance title large at the bottom left, the five shapes along the floor, the checks as a map table (a floor kept beside a floor thrown away), the steps of the dig across the bottom, the numbers carved large, the stairs centred. A labelled route at the right edge (minimap with a "you are here" dot, every room by name, the pause control) replaces the depth gauge and the floating minimap; on the landing page the header lies over the scene and scrolls away. A three.js scene behind the page walks a torchlit camera along the floor as you scroll (the floor is built in the browser by the same WebAssembly module as the lab); without WebGL2 or scripts, or with `TAPITI_SCENE=off`, the floor stays as a dimmed map. "Dig again" is gone from the landing page: digging any seed lives in the lab.
+- The scene's light: warm torches (about 2700 K) on warm-grey stone against a cool fill, softer falloff, thin fog in the overview so the whole floor reads as a lit model, torches spread over the floor in the overview, and the picture moved away from the side that holds the text. Below 1100 px the scene stays behind the entrance only, and stops drawing once scrolled away.
+- Docs: page titles in Grenze, section headings in Alegreya Sans, a search field with an icon, an outline without boxed rows, the page list as one scrolling row on phones; headings no longer slide under the sticky header (one `--header-h` token drives the header, the scroll padding, the docs' sticky columns and the lab's height). The header marks the current section with `aria-current`.
+- The browser lab is a Topcoat page (`/lab`) whose form is built from `tapiti-schema`; the generator still runs in the browser with WebAssembly.
+- The room layout is a `layout` parameter (`grid` or `growth`), shown as a drop-down in the desktop app and the lab; it replaces the `growth.enabled` checkbox. A Λ without `layout` is a grid, and one that set `growth.enabled` must set `layout` instead. The generator output is unchanged.
+- `Dungeon` is now `Floor`; `generate.rs` is split into one file per phase. The generator output is unchanged.
 - Accessibility pass on the website: axe-core reports no violations in light and dark, and no page scrolls sideways at 360 px.
 - Renamed the project to Tapiti.
 - The desktop app now uses egui instead of libcosmic, with a new layout: the map always visible, and tabs for the floor, the parameters and the analysis.
@@ -24,4 +36,6 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Removed
 
+- Portuguese everywhere: the website (`/pt-BR`, the language prefix; old `/en/*` and `/pt-BR/*` URLs redirect), `docs/pt-BR`, the desktop language switch and the Portuguese texts of `tapiti-schema`. The project is English only.
+- The plain `web/` lab page, the `frontier-growth` experiment and the `gpu_proximity` example (with the `wgpu` dev-dependency).
 - The `apps/web-server` development server: the website serves the lab.

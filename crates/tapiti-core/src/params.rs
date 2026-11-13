@@ -1,4 +1,4 @@
-//! The parameter vector Λ of the dungeon model (§8): one generator, a different Λ per level. The JSON field names are camelCase,
+//! The parameter vector Λ of the Tapiti model (§8): one generator, one Λ that a size preset or the user fills in. The JSON field names are camelCase,
 //! so a Λ copied from one frontend (desktop or web) loads in the other.
 
 use serde::{Deserialize, Serialize};
@@ -67,6 +67,19 @@ pub enum Proximity {
     Near,
 }
 
+fn yes() -> bool {
+    true
+}
+
+/// How the rooms are laid out: one per grid block, or grown one from another off a parent's door.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Layout {
+    #[default]
+    Grid,
+    Growth,
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum TopologyProfile {
@@ -103,6 +116,18 @@ impl Default for TopologySpec {
 }
 
 impl TopologySpec {
+    /// The requirements of the profile and the explicit minimums. Side branches and independent routes are measured from the
+    /// path between the entrance and the exit, so without both they cannot hold and are left out.
+    pub fn requirements_with(self, anchors: bool) -> Self {
+        let mut out = self.requirements();
+        if !anchors {
+            out.min_branches = 0;
+            out.min_branch_depth = 0;
+            out.min_exit_routes = 1;
+        }
+        out
+    }
+
     pub fn requirements(self) -> Self {
         let mut out = self;
         if out.min_branch_depth > 0 {
@@ -122,18 +147,24 @@ impl TopologySpec {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
-#[serde(default, rename_all = "camelCase")]
-pub struct ProgressionSpec {
-    pub key_locks: usize,
-    pub switch_locks: usize,
+/// Where the first room of the grown layout stands: the middle of the world, or against one of its borders (north is the top of the map).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum GrowthStart {
+    #[default]
+    Center,
+    North,
+    South,
+    East,
+    West,
 }
 
-/// Grown layout (prototype): rooms are placed one after another off a parent's door, instead of one per grid block.
+/// Grown layout: rooms are placed one after another off a parent's door, instead of one per grid block.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct GrowthSpec {
-    pub enabled: bool,
+    /// Where the first room (the entrance, when there is one) stands.
+    pub start: GrowthStart,
     /// Rooms to grow; 0 takes the number of live blocks the grid scaffold would have given.
     pub rooms: i32,
     /// Each room spawns 1..=branch children.
@@ -151,7 +182,7 @@ pub struct GrowthSpec {
 impl Default for GrowthSpec {
     fn default() -> Self {
         Self {
-            enabled: false,
+            start: GrowthStart::Center,
             rooms: 0,
             branch: 3,
             depth: 8,
@@ -162,22 +193,12 @@ impl Default for GrowthSpec {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
-#[serde(default, rename_all = "camelCase")]
-pub struct PacingSpec {
-    pub enabled: bool,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct LeafRoles {
-    pub trap: f64,
-    pub prize: f64,
-    pub empty: f64,
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Params {
+    /// The layout mode; the `growth` settings apply only to `growth`.
+    #[serde(default)]
+    pub layout: Layout,
     // Scaffold (§7.1)
     pub cols: i32,
     pub rows: i32,
@@ -225,21 +246,21 @@ pub struct Params {
     pub proximity: Proximity,
     pub near: f64,
     pub delta: f64,
-    pub stairs_doors: i32,
-    pub min_hops: i32,
-    pub ambush: i32,
+    /// Whether the floor has an entrance room.
+    #[serde(default = "yes")]
+    pub entrance: bool,
+    /// Whether the floor has an exit room (only with an entrance).
+    #[serde(default = "yes")]
+    pub exit_room: bool,
+    pub exit_doors: i32,
+    pub exit_min_hops: i32,
     // Leaf chambers (§7.6)
     pub leaves: i32,
     pub leaf_classes: ByClass,
-    pub leaf_roles: LeafRoles,
     /// Junction conductance ω_h (§4.2.1): null merges the arms into one space. Shown, not used by the generator.
     pub junction: Option<f64>,
     #[serde(default)]
     pub topology: TopologySpec,
-    #[serde(default)]
-    pub progression: ProgressionSpec,
-    #[serde(default)]
-    pub pacing: PacingSpec,
     #[serde(default)]
     pub growth: GrowthSpec,
 }
@@ -266,6 +287,7 @@ fn full_mix() -> BTreeMap<String, f64> {
 
 fn base() -> Params {
     Params {
+        layout: Layout::Grid,
         cols: 4,
         rows: 3,
         cell_w: 270.0,
@@ -276,7 +298,7 @@ fn base() -> Params {
         layout_jitter: 0.0,
         rotate_rooms: false,
         weights: ByClass::new(1.0, 0.0, 0.0, 0.0, 0.0),
-        max_of: ByClass::new(99.0, 99.0, 99.0, 99.0, 99.0),
+        max_of: ByClass::new(10000.0, 10000.0, 10000.0, 10000.0, 10000.0),
         star_cells: 2,
         homophily: 0.0,
         m: 4,
@@ -302,79 +324,86 @@ fn base() -> Params {
         proximity: Proximity::Rng,
         near: 520.0,
         delta: 0.15,
-        stairs_doors: 1,
-        min_hops: 3,
-        ambush: 1,
+        entrance: true,
+        exit_room: true,
+        exit_doors: 1,
+        exit_min_hops: 3,
         leaves: 0,
         leaf_classes: ByClass::new(1.0, 0.0, 0.0, 0.0, 0.0),
-        leaf_roles: LeafRoles {
-            trap: 1.0,
-            prize: 1.0,
-            empty: 1.0,
-        },
         junction: None,
         topology: TopologySpec::default(),
-        progression: ProgressionSpec::default(),
-        pacing: PacingSpec::default(),
         growth: GrowthSpec::default(),
     }
 }
 
-/// Λ by level (the doc's §8 table, to be tuned here).
-pub fn params_of_level(level: usize) -> Params {
-    let mut p = base();
-    match level.clamp(1, 5) {
-        1 => {}
-        2 => {
-            p.cols = 5;
-            p.weights = ByClass::new(0.8, 0.0, 0.0, 0.2, 0.0);
-            p.delta = 0.25;
-            p.p_t = 0.1;
-            p.leaves = 1;
+impl Params {
+    /// The topology requirements this Λ can meet: those that need the path between an entrance and an exit are left out without
+    /// both, and independent routes to the exit are left out with several islands, whose bridges are single corridors.
+    pub fn topology_requirements(&self) -> TopologySpec {
+        let mut out = self
+            .topology
+            .requirements_with(self.entrance && self.exit_room);
+        if self.layout == Layout::Growth && self.growth.islands > 1 {
+            out.min_exit_routes = 1;
         }
-        3 => {
-            p.cols = 5;
-            p.rows = 4;
-            p.m = 8;
-            p.weights = ByClass::new(0.6, 0.2, 0.0, 0.2, 0.0);
-            p.proximity = Proximity::Gabriel;
-            p.delta = 0.35;
-            p.p_t = 0.15;
-            p.p_x = 0.05;
-            p.leaves = 2;
-            p.leaf_classes = ByClass::new(1.0, 1.0, 0.0, 0.0, 0.0);
-            p.big = 3;
-        }
-        4 => {
-            p.cols = 6;
-            p.rows = 4;
-            p.m = 8;
-            p.weights = ByClass::new(0.4, 0.2, 0.1, 0.2, 0.1);
-            p.proximity = Proximity::Gabriel;
-            p.delta = 0.45;
-            p.p_t = 0.2;
-            p.p_x = 0.1;
-            p.stairs_doors = 2;
-            p.leaves = 3;
-            p.leaf_classes = ByClass::new(1.0, 1.0, 1.0, 0.0, 0.0);
-            p.big = 3;
-        }
-        _ => {
-            p.cols = 6;
-            p.rows = 5;
-            p.m = 8;
-            p.weights = ByClass::new(0.3, 0.2, 0.15, 0.2, 0.15);
-            p.proximity = Proximity::Near;
-            p.delta = 0.55;
-            p.p_t = 0.25;
-            p.p_x = 0.15;
-            p.stairs_doors = 2;
-            p.min_hops = 4;
-            p.ambush = 2;
-            p.leaves = 4;
-            p.leaf_classes = ByClass::new(1.0, 1.0, 1.0, 0.0, 0.0);
-            p.big = 4;
-        }
+        out
     }
+}
+
+/// A starting size for the floor: the grid and how many large blocks and leaf chambers go with it. A quick way to begin;
+/// every other parameter stays at its default and any value can be changed afterwards.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Size {
+    Small,
+    Medium,
+    Large,
+    Huge,
+}
+
+impl Size {
+    pub const ALL: [Size; 4] = [Size::Small, Size::Medium, Size::Large, Size::Huge];
+
+    pub fn name(self) -> &'static str {
+        ["small", "medium", "large", "huge"][self as usize]
+    }
+
+    /// The size at position `n` (1 to 4) of `ALL`, clamped.
+    pub fn of_index(n: usize) -> Size {
+        Size::ALL[n.clamp(1, 4) - 1]
+    }
+
+    /// Columns by rows of the grid.
+    pub fn grid(self) -> (i32, i32) {
+        [(4, 3), (6, 5), (10, 8), (16, 12)][self as usize]
+    }
+}
+
+/// Λ of a size: the grid, about one large block in seven cells, one leaf chamber in eight and the exit distance that fits.
+pub fn params_of_size(size: Size) -> Params {
+    let mut p = base();
+    let (cols, rows) = size.grid();
+    let cells = cols * rows;
+    p.cols = cols;
+    p.rows = rows;
+    p.big = (cells + 3) / 7;
+    p.leaves = [1, 4, 10, 24][size as usize];
+    // A small floor has few rooms between its two ends: the exit must be at least this many room hops from the entrance.
+    p.exit_min_hops = [2, 3, 4, 5][size as usize];
+    p
+}
+
+/// `params_of_size` with every shape, junction and connection option switched on, for tests, benchmarks and demos: a floor that
+/// uses the whole generator. It is not a preset of the apps, which start from `params_of_size`.
+pub fn rich_of_size(size: Size) -> Params {
+    let mut p = params_of_size(size);
+    p.m = 8;
+    p.weights = ByClass::new(0.3, 0.2, 0.15, 0.2, 0.15);
+    p.proximity = Proximity::Near;
+    p.delta = 0.55;
+    p.p_t = 0.25;
+    p.p_x = 0.15;
+    p.exit_doors = 2;
+    p.exit_min_hops = 4;
+    p.leaf_classes = ByClass::new(1.0, 1.0, 1.0, 0.0, 0.0);
     p
 }

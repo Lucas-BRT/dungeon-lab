@@ -21,6 +21,20 @@ opt-level = 3
 lto = "thin"
 codegen-units = 16
 panic = "abort"
+# No `strip` here: the WebAssembly module is built with this profile, and wasm-bindgen warns that stripping drops the section it reads the
+# enabled Wasm features from. The desktop release (release.yml) and the server (below) are stripped.
+
+# The server in the Docker image: it is I/O-bound, so size beats speed (fat LTO, one codegen unit, optimized for size). The WebAssembly
+# module and the desktop app keep `release`, and so does the generator inside the server, which digs floors for the landing page.
+[profile.website]
+inherits = "release"
+opt-level = "s"
+lto = "fat"
+codegen-units = 1
+strip = true
+
+[profile.website.package.tapiti-core]
+opt-level = 3
 
 # UI crates stay incremental and quick to rebuild. The generator is compiled at
 # full speed even in `cargo run`, because it is the hot path users exercise.

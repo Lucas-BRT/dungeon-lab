@@ -27,8 +27,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.99.1
           components: rustfmt, clippy
       - name: System libraries of the desktop app
         run: |
@@ -37,17 +38,19 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: workspace
-      - run: cargo fmt --check -p tapiti-site -p tapiti-render -p tapiti-schema
-      - run: cargo clippy -p tapiti-site -p tapiti-render -p tapiti-schema -p tapiti-desktop --no-deps -- -D warnings
+      - run: cargo fmt --check --all
+      - run: cargo clippy -p tapiti-core -p tapiti-site -p tapiti-render -p tapiti-schema -p tapiti-desktop --no-deps -- -D warnings
       - run: cargo test --release -p tapiti-core -p tapiti-render -p tapiti-schema -p tapiti-site -p tapiti-desktop
 
-  # Topcoat's own formatter and the translation check (English and Portuguese must stay in step).
+  # Topcoat's own formatter and the translation check (no unused or missing message).
   site:
     name: Site checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: workspace
@@ -73,8 +76,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.99.1
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
         with:
@@ -87,8 +91,79 @@ jobs:
           key: wasm-bindgen-cli-0.2.130
       - if: steps.bindgen.outputs.cache-hit != 'true'
         run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
-      - run: ./build.sh
-      - run: node --check web/main.js
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: scripts/build-wasm.sh
+      - run: node --check apps/site/assets/lab/lab.js && node --check apps/site/assets/lab/worker.js
+      - run: node --check apps/site/assets/walk/build.js && node --check apps/site/assets/walk/scene.js && node --check scripts/vendor-three.mjs
+      - run: for f in scripts/*.mjs; do node --check "$f"; done
+      - run: node scripts/walk-check.mjs
+
+  # The real site in headless Firefox: the landing page's 3D walk, the lab, the 404, and accessibility (axe-core). Screenshots are kept.
+  browser:
+    name: Browser
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: browser
+      # The runner has no GPU and no display, and Firefox cannot make a WebGL2 context without one: Xvfb is the display and Mesa draws in software.
+      - name: Xvfb and Mesa
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb libgl1-mesa-dri libglx-mesa0 libegl1
+      - name: wasm-bindgen CLI (cached by version)
+        id: bindgen
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/wasm-bindgen
+          key: wasm-bindgen-cli-0.2.130
+      - if: steps.bindgen.outputs.cache-hit != 'true'
+        run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
+      - name: Topcoat CLI (cached by version)
+        id: topcoat
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/topcoat
+            ~/.cargo/bin/cargo-topcoat
+          key: topcoat-cli-0.12.0
+      - if: steps.topcoat.outputs.cache-hit != 'true'
+        run: cargo install topcoat-cli --version 0.12.0 --locked
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: scripts/build-wasm.sh
+      - run: cargo build --release -p tapiti-site && topcoat asset bundle --release --package tapiti-site
+      - name: Start the site
+        run: |
+          TAPITI_LAB_PKG="$PWD/apps/site/pkg" PORT=3000 target/release/tapiti-site > site.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:3000/healthz && break; sleep 1; done
+          curl -sf http://127.0.0.1:3000/healthz
+      - name: axe-core
+        run: |
+          npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/axe" axe-core@4.10.3
+          echo "AXE_JS=$RUNNER_TEMP/axe/node_modules/axe-core/axe.min.js" >> "$GITHUB_ENV"
+      - run: firefox --version
+      - run: xvfb-run -a node scripts/site-smoke.mjs http://127.0.0.1:3000
+      - run: xvfb-run -a node scripts/lab-smoke.mjs http://127.0.0.1:3000/lab
+      - name: Screenshots
+        if: always()
+        run: xvfb-run -a node scripts/site-shots.mjs shots http://127.0.0.1:3000
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: shots
+      - name: Site log
+        if: failure()
+        run: cat site.log
 
   # The image builds (multi-stage, dependencies cached in the GitHub Actions cache). Nothing is pushed.
   docker:

@@ -1,0 +1,6 @@
+# The Rust toolchain of the whole workspace: local builds, CI and the Docker image use this one. Move it on purpose, in a commit of its own.
+[toolchain]
+channel = "1.99.1"
+components = ["rustfmt", "clippy"]
+targets = ["wasm32-unknown-unknown"]
+profile = "minimal"

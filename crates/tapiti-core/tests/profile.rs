@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 use tapiti_core::generate::generate;
-use tapiti_core::params::params_of_level;
+use tapiti_core::params::{rich_of_size, Size};
 
-/// Where a stage's time goes at each level (`cargo test --release -p tapiti-core profile -- --nocapture`).
+/// Where a stage's time goes at each size (`cargo test --release -p tapiti-core profile -- --nocapture`).
 #[test]
 fn profile() {
-    for level in [3usize, 5] {
-        let p = params_of_level(level);
+    for size in [Size::Small, Size::Medium] {
+        let p = rich_of_size(size);
         let n = 30u32;
         let mut sum: BTreeMap<String, f64> = BTreeMap::new();
         let mut order: Vec<String> = Vec::new();
@@ -20,7 +20,8 @@ fn profile() {
         }
         let line: Vec<String> = order.iter().map(|k| format!("{k} {:.2}", sum[k])).collect();
         println!(
-            "L{level}: {} (total {:.1} ms, {} threads)",
+            "{}: {} (total {:.1} ms, {} threads)",
+            size.name(),
             line.join(" · "),
             sum.values().sum::<f64>(),
             tapiti_core::par::threads()

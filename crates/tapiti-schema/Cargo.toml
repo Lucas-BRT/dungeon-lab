@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "The parameters of the Tapiti generator as data: groups, fields, ranges and help in English and Portuguese"
+description = "The parameters of the Tapiti generator as data: groups, fields, ranges and help"
 
 [dev-dependencies]
 tapiti-core = { path = "../tapiti-core", default-features = false }

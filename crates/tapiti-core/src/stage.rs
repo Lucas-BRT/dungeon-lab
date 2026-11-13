@@ -1,15 +1,15 @@
-use crate::generate::{generate_with_progress, Dungeon, GenerationEvent};
+use crate::generate::{generate_with_progress, Floor, GenerationEvent};
 use crate::params::Params;
 use crate::validate::validate;
 
 pub struct Stage {
-    pub d: Dungeon,
+    pub d: Floor,
     pub violations: Vec<String>,
     pub draws: u32,
 }
 
 /// A valid stage for `seed` and Λ: the generator keeps every constraint it can by construction; the few it can't promise on every draw
-/// (the stairs' distance from the start on a small floor, V5) are checked by the validator, and the draw is redone from a seed derived
+/// (the exit's distance from the entrance on a small floor, V5) are checked by the validator, and the draw is redone from a seed derived
 /// from the first, up to `attempts` times. Returns the stage, its violations (empty when valid) and how many draws it took.
 pub fn stage(seed: u32, p: &Params, attempts: u32) -> Stage {
     stage_inner(seed, p, attempts, None)

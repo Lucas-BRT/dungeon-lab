@@ -1,44 +1,16 @@
-//! The shape of the parameter vector Λ as data: groups, fields, ranges and help, in English and Portuguese.
+//! The shape of the parameter vector Λ as data: groups, fields, ranges and help.
 //! Pure data (no UI), shared by the desktop app and the website's parameter reference, so a label is written once.
 
-use std::collections::HashMap;
-use std::sync::OnceLock;
+/// A text of the schema: always English.
+pub type Text = String;
 
-mod pt;
-
-/// One text in both supported languages.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Text {
-    pub en: String,
-    pub pt: String,
+/// `a` + separator + `b`.
+fn join(a: &str, separator: &str, b: &str) -> Text {
+    format!("{a}{separator}{b}")
 }
 
-impl Text {
-    pub fn get(&self, portuguese: bool) -> &str {
-        if portuguese {
-            &self.pt
-        } else {
-            &self.en
-        }
-    }
-
-    /// `a` + separator + `b`, in each language.
-    pub fn join(a: &Text, separator: &str, b: &Text) -> Text {
-        Text {
-            en: format!("{}{separator}{}", a.en, b.en),
-            pt: format!("{}{separator}{}", a.pt, b.pt),
-        }
-    }
-}
-
-/// English text with its Portuguese translation (the English text itself when the table has none: numbers and names such as RNG).
 fn tx(en: &str) -> Text {
-    static TABLE: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
-    let table = TABLE.get_or_init(|| pt::PT.iter().copied().collect());
-    Text {
-        en: en.to_string(),
-        pt: table.get(en).copied().unwrap_or(en).to_string(),
-    }
+    en.to_string()
 }
 
 #[derive(Clone, Debug)]
@@ -119,7 +91,7 @@ fn class_fields(prefix: &str, title: Text, range: (f64, f64), integer: bool) -> 
     .map(|(class, label)| {
         number(
             &format!("{prefix}.{class}"),
-            Text::join(&title, " · ", &label),
+            join(&title, " · ", &label),
             range.0,
             range.1,
             integer,
@@ -202,7 +174,7 @@ pub fn groups() -> Vec<ParamGroup> {
         for (b, b_label) in classes.iter().skip(i) {
             mix.push(number(
                 &format!("mix.{a}-{b}"),
-                Text::join(a_label, " × ", b_label),
+                join(a_label, " × ", b_label),
                 0.0,
                 1.0,
                 false,
@@ -223,29 +195,6 @@ pub fn groups() -> Vec<ParamGroup> {
         (0.0, 1000.0),
         false,
     ));
-    leaves.extend([
-        number(
-            "leafRoles.trap",
-            tx("Relative chance · trap"),
-            0.0,
-            1000.0,
-            false,
-        ),
-        number(
-            "leafRoles.prize",
-            tx("Relative chance · prize"),
-            0.0,
-            1000.0,
-            false,
-        ),
-        number(
-            "leafRoles.empty",
-            tx("Relative chance · empty"),
-            0.0,
-            1000.0,
-            false,
-        ),
-    ]);
 
     vec![
         group(
@@ -253,6 +202,11 @@ pub fn groups() -> Vec<ParamGroup> {
             tx("Grid and size"),
             tx("Defines the available space and how many blocks make up the floor."),
             vec![
+                choice(
+                    "layout",
+                    tx("Layout"),
+                    &[("grid", tx("Grid")), ("growth", tx("Growth"))],
+                ),
                 number("cols", tx("Columns"), 1.0, 64.0, true),
                 number("rows", tx("Rows"), 1.0, 64.0, true),
                 number("cellW", tx("Cell width (px)"), 1.0, 5000.0, false),
@@ -328,27 +282,27 @@ pub fn groups() -> Vec<ParamGroup> {
                 ),
                 number("topology.minBranches", tx("Minimum side branches"), 0.0, 1000.0, true),
                 number("topology.minBranchDepth", tx("Minimum branch depth"), 0.0, 1000.0, true),
-                number("topology.minExitRoutes", tx("Independent routes to the stairs"), 0.0, 1000.0, true),
+                number("topology.minExitRoutes", tx("Independent routes to the exit"), 0.0, 1000.0, true),
                 number("topology.minCycleLength", tx("Minimum cycle length"), 0.0, 1000.0, true),
                 number("topology.minHubDegree", tx("Minimum hub degree"), 0.0, 1000.0, true),
             ],
         ),
         group(
-            "progression",
-            tx("Progression and pacing"),
-            tx("Add gates that require items or switches and spread roles along the main path."),
-            vec![
-                number("progression.keyLocks", tx("Key locks"), 0.0, 8.0, true),
-                number("progression.switchLocks", tx("Switch locks"), 0.0, 8.0, true),
-                boolean("pacing.enabled", tx("Enable exploration pacing")),
-            ],
-        ),
-        group(
             "growth",
-            tx("Growth (prototype)"),
-            tx("Instead of one room per grid block, rooms grow one from another, in free positions. The grid only sets the size of the world."),
+            tx("Growth"),
+            tx("Used by the Growth layout: instead of one room per grid block, rooms grow one from another, in free positions. The grid only sets the size of the world."),
             vec![
-                boolean("growth.enabled", tx("Enable growth")),
+                choice(
+                    "growth.start",
+                    tx("First room"),
+                    &[
+                        ("center", tx("Middle")),
+                        ("north", tx("North border")),
+                        ("south", tx("South border")),
+                        ("east", tx("East border")),
+                        ("west", tx("West border")),
+                    ],
+                ),
                 number("growth.rooms", tx("Rooms (0 = as the grid)"), 0.0, 2000.0, true),
                 number("growth.branch", tx("Children per room (1 to N)"), 1.0, 16.0, true),
                 number("growth.depth", tx("Maximum depth"), 1.0, 200.0, true),
@@ -359,24 +313,25 @@ pub fn groups() -> Vec<ParamGroup> {
         ),
         group(
             "roles",
-            tx("Entrance, stairs and roles"),
-            tx("Controls the stairs doors, the distance from the entrance and the number of ambushes."),
+            tx("Entrance and exit"),
+            tx("Whether the floor has an entrance and an exit, how many doors the exit may have and how far it is from the entrance."),
             vec![
-                number("stairsDoors", tx("Maximum doors on the stairs"), 1.0, 1000.0, true),
-                number("minHops", tx("Minimum steps to the stairs"), 1.0, 1000.0, true),
-                number("ambush", tx("Ambush rooms"), 0.0, 1000.0, true),
+                boolean("entrance", tx("Entrance room")),
+                boolean("exitRoom", tx("Exit room")),
+                number("exitDoors", tx("Maximum doors on the exit"), 1.0, 1000.0, true),
+                number("exitMinHops", tx("Minimum steps to the exit"), 1.0, 1000.0, true),
             ],
         ),
         group(
             "leaves",
             tx("Isolated chambers"),
-            tx("Extra rooms linked by a single corridor, like dead ends with a prize or a trap."),
+            tx("Extra rooms linked by a single corridor, like dead ends."),
             leaves,
         ),
     ]
 }
 
-fn help(path: &str, label: &Text) -> Text {
+fn help(path: &str, label: &str) -> Text {
     match path {
         "cols" => tx("Number of columns. More columns increase the potential width of the floor."),
         "rows" => tx("Number of rows. More rows increase the potential height of the floor."),
@@ -410,38 +365,30 @@ fn help(path: &str, label: &Text) -> Text {
         "proximity" => tx("RNG and Gabriel filter pairs by geometric proximity. Near uses a maximum radius."),
         "near" => tx("Maximum radius between room centers in Near mode; ignored in the other modes."),
         "delta" => tx("Fraction of the cycle reference the generator tries to reach. Higher values favor shortcuts and alternative routes."),
-        "stairsDoors" => tx("Maximum number of corridors that can enter the stairs room."),
-        "minHops" => tx("Minimum number of links between the entrance and the stairs, counted in rooms."),
-        "ambush" => tx("Number of larger plain rooms that get the ambush role."),
+        "entrance" => tx("Marks one room as the entrance. Turn it off for a floor with no entry point; the exit and the profiles that need a path then have nothing to measure."),
+        "exitRoom" => tx("Marks a far room as the exit. It needs the entrance; the side-branch and independent-route requirements of the topology profiles also need both."),
+        "exitDoors" => tx("Maximum number of corridors that can enter the exit room."),
+        "exitMinHops" => tx("Minimum number of links between the entrance and the exit, counted in rooms."),
         "topology.profile" => tx("Classic keeps the base behavior; other profiles require branches, a hub, redundant routes or long cycles."),
         "topology.minBranches" => tx("Minimum number of side components linked to the main path by a single passage."),
         "topology.minBranchDepth" => tx("Minimum number of rooms in a branch from the main path."),
-        "topology.minExitRoutes" => tx("Minimum number of independent paths between the entrance and the stairs."),
+        "topology.minExitRoutes" => tx("Minimum number of independent paths between the entrance and the exit."),
         "topology.minCycleLength" => tx("Minimum number of segments in the shortest cycle. Zero imposes no such requirement."),
         "topology.minHubDegree" => tx("Minimum number of arms at a central point. Zero does not require a hub."),
-        "progression.keyLocks" => tx("Number of gates that require a collected key before crossing."),
-        "progression.switchLocks" => tx("Number of gates that require activating a switch before crossing."),
-        "growth.enabled" => tx("Turns on the growth generator. Isolated chambers are not generated in this mode."),
-        "growth.rooms" => tx("Number of rooms to grow. Zero uses the number of live blocks the grid would give."),
+        "layout" => tx("Grid puts one room in each grid block. Growth grows rooms one from another off a parent's door, in free space; isolated chambers are not generated in that mode."),
+        "growth.start" => tx("Where the first room, the entrance when there is one, stands: the middle of the world or against a border (north is the top of the map). Growing from a border makes a deeper floor."),
+        "growth.rooms" => tx("Number of rooms to grow. Zero uses the number of live blocks the grid would give, less the leaf chambers asked for, which are placed in the room that is left."),
         "growth.branch" => tx("Each room spawns from 1 up to this many children before the draw picks another parent."),
         "growth.depth" => tx("Deepest generation a room can have; the first room is 0."),
         "growth.islands" => tx("Splits the rooms into islands linked by long bridges. With more than one, cycles stay inside each island."),
         "growth.cluster" => tx("Positive concentrates new rooms where there are already many; negative spreads them; zero is neutral."),
         "growth.reach" => tx("Average corridor distance beyond the minimum, in grid cells."),
-        "pacing.enabled" => tx("Spreads rest, boss and ambushes along the main path and prizes in optional branches."),
         "leaves" => tx("Number of extra chambers the generator tries to place in free cells."),
-        "leafRoles.trap" => tx("Relative weight for a leaf chamber to get a trap."),
-        "leafRoles.prize" => tx("Relative weight for a leaf chamber to get a prize."),
-        "leafRoles.empty" => tx("Relative weight for a leaf chamber to stay empty."),
         _ if path.starts_with("weights.") => tx("Draw weight for rooms of this shape. It is relative to the other weights and does not need to sum to 1."),
         _ if path.starts_with("maxOf.") => tx("Limit of rooms of this shape. If the limits sum too low, the generator may exceed them."),
         _ if path.starts_with("leafClasses.") => tx("Relative weight for choosing this shape for leaf chambers."),
         _ if path.starts_with("mix.") => tx("Compatibility between two shapes: zero forbids the link; one keeps the normal chance."),
-        _ if path.starts_with("leafRoles.") => tx("Relative weight for the leaf chamber to get this role."),
-        _ => Text {
-            en: format!("{}. Adjust this value and watch how it changes the floor layout.", label.en),
-            pt: format!("{}. Ajuste este valor e observe como ele altera a configuração do andar.", label.pt),
-        },
+        _ => format!("{label}. Adjust this value and watch how it changes the floor layout."),
     }
 }
 
@@ -452,7 +399,10 @@ mod tests {
 
     #[test]
     fn every_field_path_exists_in_lambda() {
-        let lambda = serde_json::to_value(tapiti_core::params::params_of_level(5)).unwrap();
+        let lambda = serde_json::to_value(tapiti_core::params::rich_of_size(
+            tapiti_core::params::Size::Medium,
+        ))
+        .unwrap();
         for group in groups() {
             for field in &group.fields {
                 let found = field.path.split('.').try_fold(&lambda, |v, k| v.get(k));
@@ -462,11 +412,7 @@ mod tests {
     }
 
     #[test]
-    fn every_text_has_both_languages() {
-        let numbers_and_names: HashSet<&str> = [
-            "0", "1", "2", "4", "5", "6", "8", "16", "RNG", "Gabriel", "Hub", "circular",
-        ]
-        .into();
+    fn every_text_is_filled_and_groups_are_unique() {
         let mut seen = HashSet::new();
         for group in groups() {
             assert!(
@@ -483,20 +429,7 @@ mod tests {
                 }
             }
             for text in texts {
-                assert!(
-                    !text.en.is_empty() && !text.pt.is_empty(),
-                    "empty text in {}",
-                    group.id
-                );
-                assert!(
-                    text.en != text.pt
-                        || text
-                            .en
-                            .split(|c| c == '×' || c == '·')
-                            .all(|part| numbers_and_names.contains(part.trim())),
-                    "no Portuguese for: {}",
-                    text.en
-                );
+                assert!(!text.is_empty(), "empty text in {}", group.id);
             }
         }
     }

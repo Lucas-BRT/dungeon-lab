@@ -1,8 +1,7 @@
 // Progressive enhancement only: the site works without this file.
 (() => {
   // Docs: a copy button on every code block.
-  const pt = document.documentElement.lang.startsWith("pt");
-  const label = pt ? ["Copiar", "Copiado"] : ["Copy", "Copied"];
+  const label = ["Copy", "Copied"];
   for (const pre of document.querySelectorAll(".docs-article pre")) {
     if (!navigator.clipboard) break;
     const wrap = document.createElement("div");
@@ -40,7 +39,7 @@
         for (const e of entries) (e.isIntersecting ? seen.add(e.target) : seen.delete(e.target));
         mark();
       },
-      { rootMargin: "-72px 0px -60% 0px" },
+      { rootMargin: `-${parseInt(getComputedStyle(document.documentElement).getPropertyValue("--header-h")) + 16 || 80}px 0px -60% 0px` },
     );
     heads.forEach((h) => io.observe(h));
   }

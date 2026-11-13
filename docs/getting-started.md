@@ -13,9 +13,9 @@ cd tapiti
 cargo run --release
 ```
 
-Pick a level (1 to 5), change the seed, and edit any parameter: the floor is dug again a moment after each change. The side panel has three tabs: the floor reading and layout, every parameter of Λ, and the analysis. The language (English or Portuguese) and the theme are in the bottom bar.
+Pick a size (small, medium, large or huge), change the seed, and edit any parameter: the floor is dug again a moment after each change. The side panel has three tabs: the floor reading and layout, every parameter of Λ, and the analysis. The theme is in the bottom bar.
 
-Shortcuts: <kbd>Alt</kbd>+<kbd>1</kbd> to <kbd>5</kbd> switch the level, <kbd>Alt</kbd>+<kbd>R</kbd> draws a random seed, <kbd>Alt</kbd>+<kbd>←</kbd> and <kbd>→</kbd> step the seed. Drag the map to pan, scroll to zoom, double-click to fit.
+Shortcuts: <kbd>Alt</kbd>+<kbd>1</kbd> to <kbd>4</kbd> switch the size, <kbd>Alt</kbd>+<kbd>R</kbd> draws a random seed, <kbd>Alt</kbd>+<kbd>←</kbd> and <kbd>→</kbd> step the seed. Drag the map to pan, scroll to zoom, double-click to fit.
 
 ## The website and the lab
 
@@ -23,11 +23,11 @@ The website you are reading is a [Topcoat](https://github.com/tokio-rs/topcoat) 
 
 ```sh
 cargo install topcoat-cli
-./build.sh                      # the WebAssembly module of the lab
+scripts/build-wasm.sh                      # the WebAssembly module of the lab
 topcoat dev -p tapiti-site      # http://127.0.0.1:3000
 ```
 
-The lab (`/lab`) runs the generator in your browser, compiled to WebAssembly.
+The lab (`/lab`) runs the generator in your browser, compiled to WebAssembly. Its form is built from the same parameter schema as the desktop app. The lab is in English only.
 
 ## Docker
 
@@ -47,10 +47,13 @@ tapiti-core = { git = "https://github.com/Lucas-BRT/tapiti" }
 ```
 
 ```rust
-use tapiti_core::{params::params_of_level, stage::stage};
+use tapiti_core::{
+    params::{params_of_size, Size},
+    stage::stage,
+};
 
 fn main() {
-    let params = params_of_level(5);
+    let params = params_of_size(Size::Medium);
     // Up to 8 draws: a floor the validator rejects is dug again from a derived seed.
     let staged = stage(42, &params, 8);
     assert!(staged.violations.is_empty());
@@ -64,7 +67,7 @@ The same seed and parameters always give the same floor, native or WebAssembly.
 
 ```sh
 cargo run --release -p tapiti-core --example dump               # a hash per stage, to compare two builds
-cargo run -p tapiti-render --example export_svg -- 5 26 floor.svg dark   # level, seed, output, theme
+cargo run -p tapiti-render --example export_svg -- medium 26 floor.svg dark   # size, seed, output, theme
 cargo bench -p tapiti-core --bench generator                    # Criterion benchmarks
 ```
 
@@ -72,5 +75,5 @@ cargo bench -p tapiti-core --bench generator                    # Criterion benc
 
 - [The mathematical model](model): what a floor is, how it is validated and measured.
 - [Parameters](parameters): every parameter of Λ, with its range.
-- [Performance and memory](performance): where the time and the bytes go.
+- [Benchmarks](performance): how to measure the generator.
 - [Roadmap](roadmap): what is unfinished.

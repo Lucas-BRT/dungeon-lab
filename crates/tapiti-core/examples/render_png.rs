@@ -60,7 +60,7 @@ fn png(path: &str, w: usize, h: usize, rgb: &[u8]) {
     std::fs::write(path, out).unwrap();
 }
 
-fn render(d: &generate::Dungeon, scale: f64) -> (usize, usize, Vec<u8>) {
+fn render(d: &generate::Floor, scale: f64) -> (usize, usize, Vec<u8>) {
     let (w, h) = (
         (d.grid_x.last().unwrap() * scale) as usize + 1,
         (d.grid_y.last().unwrap() * scale) as usize + 1,
@@ -93,9 +93,9 @@ fn render(d: &generate::Dungeon, scale: f64) -> (usize, usize, Vec<u8>) {
         }
     }
     for r in d.rooms.iter().filter(|r| r.alive) {
-        let col = if r.id == d.start {
+        let col = if Some(r.id) == d.entrance {
             [90, 190, 110]
-        } else if r.id == d.stairs {
+        } else if Some(r.id) == d.exit {
             [220, 90, 90]
         } else {
             [70, 90, 150]
@@ -124,27 +124,27 @@ fn render(d: &generate::Dungeon, scale: f64) -> (usize, usize, Vec<u8>) {
 
 fn main() {
     let dir = std::env::args().nth(1).unwrap_or_else(|| ".".into());
-    let mut base = params::params_of_level(5);
+    let mut base = params::rich_of_size(params::Size::Medium);
     base.cols = 16;
     base.rows = 12;
     let variants: Vec<(&str, params::Params)> = vec![
         ("grid", base.clone()),
         ("grow30_islands1", {
             let mut p = base.clone();
-            p.growth.enabled = true;
+            p.layout = params::Layout::Growth;
             p.growth.rooms = 30;
             p
         }),
         ("grow30_islands3", {
             let mut p = base.clone();
-            p.growth.enabled = true;
+            p.layout = params::Layout::Growth;
             p.growth.rooms = 30;
             p.growth.islands = 3;
             p
         }),
         ("grow60_islands4_c1", {
             let mut p = base.clone();
-            p.growth.enabled = true;
+            p.layout = params::Layout::Growth;
             p.growth.rooms = 60;
             p.growth.islands = 4;
             p.growth.cluster = 1.0;
