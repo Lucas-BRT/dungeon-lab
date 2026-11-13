@@ -294,21 +294,23 @@ pub fn side_panel(app: &mut App, ui: &mut Ui) {
                     app.tab = Tab::Advanced;
                 }
             });
-            ui.horizontal(|ui| {
-                let search = ui.add(
-                    TextEdit::singleline(&mut app.filter)
-                        .hint_text("Search every parameter…")
-                        .desired_width(ui.available_width() - 34.0),
-                );
-                if search.changed() && !app.filter.trim().is_empty() {
-                    app.tab = Tab::Settings;
-                }
+            // The clear button first, from the right, and the box takes what is left: a box sized as "the width left minus a guess" is
+            // a few pixels too wide, and in a side panel (which grows to fit its content) that made the panel widen at every repaint.
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if ui
                     .add_enabled(!app.filter.is_empty(), Button::new("×"))
                     .on_hover_text("Clear the search")
                     .clicked()
                 {
                     app.filter.clear();
+                }
+                let search = ui.add(
+                    TextEdit::singleline(&mut app.filter)
+                        .hint_text("Search every parameter…")
+                        .desired_width(ui.available_width()),
+                );
+                if search.changed() && !app.filter.trim().is_empty() {
+                    app.tab = Tab::Settings;
                 }
             });
             ui.separator();
