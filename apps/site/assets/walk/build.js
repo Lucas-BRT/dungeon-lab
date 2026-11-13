@@ -424,7 +424,7 @@ export function build(floor) {
   })
 
   const leaf = floor.rooms.find((r) => r.alive && r.leaf)
-  const stairs = floor.rooms[floor.stairs]
+  const stairs = floor.rooms[floor.exit]
   const mask = new Uint8Array(field.nx * field.ny)
   for (let i = 0; i < mask.length; i++) mask[i] = field.values[i] > 0 ? 255 : 0
   const stairsShape = stairs.shape
@@ -442,7 +442,7 @@ export function build(floor) {
     path: { points: Float32Array.from(points.flatMap(([x, y]) => [x, 0, y])), lengths, total },
     stations,
     leafRoom: leaf ? { id: leaf.id, center: leaf.center, cls: leaf.cls } : null,
-    stairs: { room: floor.stairs, center: stairs.center, radius: stairsRadius },
+    stairs: { room: floor.exit, center: stairs.center, radius: stairsRadius },
     contours: loops.length,
   }
 }

@@ -97,14 +97,14 @@ impl<'a> Gen<'a> {
                 if kind == Proximity::Near {
                     ok = dij <= near * near;
                 } else {
-                    for k in 0..n {
+                    for (k, other) in self.rooms.iter().enumerate() {
                         if !ok {
                             break;
                         }
                         if k == i || k == j {
                             continue;
                         }
-                        let ck = self.rooms[k].center;
+                        let ck = other.center;
                         ok = if kind == Proximity::Rng {
                             !(d2(ci, ck).max(d2(cj, ck)) < dij)
                         } else {
