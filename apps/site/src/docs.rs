@@ -49,6 +49,11 @@ const SOURCES: &[Source] = &[
         file: "desktop-generation-rendering.md",
     },
     Source {
+        slug: "development",
+        en: include_str!("../../../docs/development.md"),
+        file: "development.md",
+    },
+    Source {
         slug: "roadmap",
         en: include_str!("../../../docs/roadmap.md"),
         file: "roadmap.md",
