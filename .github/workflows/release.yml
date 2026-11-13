@@ -36,7 +36,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: release-${{ matrix.target }}
-      - run: cargo build --release -p tapiti-desktop --target ${{ matrix.target }}
+      - run: cargo build --release --locked -p tapiti-desktop --target ${{ matrix.target }}
+        env:
+          CARGO_PROFILE_RELEASE_STRIP: "true"
       - name: Package
         shell: bash
         run: |
