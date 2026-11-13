@@ -23,7 +23,7 @@ jobs:
           - { os: macos-latest, target: aarch64-apple-darwin, archive: tar.gz }
           - { os: windows-latest, target: x86_64-pc-windows-msvc, archive: zip }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.99.1
@@ -53,7 +53,7 @@ jobs:
             tar czf "$name.tar.gz" "$name"
           fi
           echo "ASSET=$name.${{ matrix.archive }}" >> "$GITHUB_ENV"
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: ${{ env.ASSET }}
           generate_release_notes: true

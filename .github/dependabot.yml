@@ -2,6 +2,8 @@ version: 2
 updates:
   - package-ecosystem: cargo
     directory: /
+    # The work goes through dev; main only receives dev.
+    target-branch: dev
     schedule:
       interval: weekly
     groups:
@@ -14,9 +16,13 @@ updates:
       - dependency-name: topcoat
   - package-ecosystem: github-actions
     directory: /
+    # The work goes through dev; main only receives dev.
+    target-branch: dev
     schedule:
       interval: weekly
   - package-ecosystem: docker
     directory: /
+    # The work goes through dev; main only receives dev.
+    target-branch: dev
     schedule:
       interval: weekly
