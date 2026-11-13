@@ -53,7 +53,7 @@ jobs:
           shared-key: workspace
       - name: Topcoat CLI (cached by version)
         id: topcoat
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/bin/topcoat
@@ -81,7 +81,7 @@ jobs:
           shared-key: wasm
       - name: wasm-bindgen CLI (cached by version)
         id: bindgen
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cargo/bin/wasm-bindgen
           key: wasm-bindgen-cli-0.2.130
