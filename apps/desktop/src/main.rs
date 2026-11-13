@@ -119,8 +119,6 @@ pub struct App {
     tx: Sender<(u64, Event)>,
     rx: Receiver<(u64, Event)>,
     pub tab: Tab,
-    /// The group of parameters the Settings tab shows (an id of `tapiti_schema::groups`).
-    pub group: String,
     pub size: Size,
     pub seed: u32,
     pub seed_draft: String,
@@ -154,6 +152,8 @@ pub struct App {
     shot: Option<Shot>,
     /// `TAPITI_SCROLL`: where the side panel starts, for a screenshot of the part below the fold.
     pub scroll_to: Option<f32>,
+    /// A group of parameters to open and scroll to once (the screenshots of the docs ask for it).
+    pub focus_group: Option<String>,
 }
 
 struct Shot {
@@ -171,7 +171,6 @@ impl App {
             tx,
             rx,
             tab: Tab::Floor,
-            group: "scaffold".into(),
             size: Size::Small,
             seed: 1,
             seed_draft: "1".into(),
@@ -206,6 +205,7 @@ impl App {
             generated: None,
             building: BuildingMap::default(),
             groups: params_ui::groups(),
+            focus_group: None,
             scroll_to: std::env::var("TAPITI_SCROLL")
                 .ok()
                 .and_then(|v| v.parse().ok()),
@@ -252,7 +252,7 @@ impl App {
                 "advanced" => self.tab = Tab::Advanced,
                 id => {
                     self.tab = Tab::Settings;
-                    self.group = id.to_string();
+                    self.focus_group = Some(id.to_string());
                 }
             }
         }

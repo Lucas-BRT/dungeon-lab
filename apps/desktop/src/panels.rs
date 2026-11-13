@@ -229,51 +229,19 @@ pub fn side_panel(app: &mut App, ui: &mut Ui) {
         .size_range(340.0..=600.0)
         .show(ui, |ui| {
             ui.add_space(4.0);
-            // One tab for the floor, one for each group of parameters the layout uses, then the advanced tools and the analysis.
-            let layout = app.params.layout;
-            let tabs: Vec<(String, String)> = app
-                .groups
-                .iter()
-                .filter(|g| group_applies(&g.id, layout))
-                .map(|g| {
-                    let changed = g
-                        .fields
-                        .iter()
-                        .filter(|f| f.path != "layout" && app.changed.contains(&f.path))
-                        .count();
-                    let title = if changed > 0 {
-                        format!("{} · {changed}", g.title.as_str())
-                    } else {
-                        g.title.as_str().to_string()
-                    };
-                    (g.id.clone(), title)
-                })
-                .collect();
-            if !tabs.iter().any(|(id, _)| *id == app.group) {
-                if let Some((id, _)) = tabs.first() {
-                    app.group = id.clone();
-                }
-            }
-            // The tabs, as Zed draws its tab bar: flat, 32 px high, side by side with no gap, wrapping to a second row when they do not fit.
+            // Four tabs that fit one row: the parameters are one list of collapsible groups, not a tab each.
             ui.scope(|ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
-                ui.horizontal_wrapped(|ui| {
-                    if theme::tab(ui, "Floor", app.tab == Tab::Floor).clicked() {
-                        app.tab = Tab::Floor;
-                    }
-                    if theme::tab(ui, "Analysis", app.tab == Tab::Analysis).clicked() {
-                        app.tab = Tab::Analysis;
-                    }
-                    for (id, title) in &tabs {
-                        if theme::tab(ui, title, app.tab == Tab::Settings && app.group == *id)
-                            .clicked()
-                        {
-                            app.tab = Tab::Settings;
-                            app.group = id.clone();
+                ui.horizontal(|ui| {
+                    for (tab, title) in [
+                        (Tab::Floor, "Floor"),
+                        (Tab::Settings, "Parameters"),
+                        (Tab::Analysis, "Analysis"),
+                        (Tab::Advanced, "Advanced"),
+                    ] {
+                        if theme::tab(ui, title, app.tab == tab).clicked() {
+                            app.tab = tab;
                         }
-                    }
-                    if theme::tab(ui, "Advanced", app.tab == Tab::Advanced).clicked() {
-                        app.tab = Tab::Advanced;
                     }
                 });
             });
@@ -304,7 +272,7 @@ pub fn side_panel(app: &mut App, ui: &mut Ui) {
             // Each tab keeps its own scroll position and starts at the top: with one shared area, leaving a long tab (the Analysis, scrolled
             // down) for a short one left the content to slide back up to fit.
             let mut area = ScrollArea::vertical()
-                .id_salt((app.tab as u8, app.group.clone()))
+                .id_salt(app.tab as u8)
                 .auto_shrink(false);
             if app.generated.is_some() {
                 if let Some(offset) = app.scroll_to.take() {
@@ -401,22 +369,21 @@ fn floor_tab(app: &mut App, ui: &mut Ui) {
     });
 }
 
-// ---- Settings: one tab for each group of parameters -----------------------------------------------
+// ---- Settings: one list of collapsible groups --------------------------------------------------
 
-/// The parameters of the selected group as rows, or, with a search, the ones that match in every group the layout uses.
+/// The parameters as one list of collapsible groups: Grid and size and Room shapes open, the others closed, a count of the changed
+/// ones in each title. A search opens every group that has a match and hides the rest.
 fn settings_tab(app: &mut App, ui: &mut Ui) {
     let groups = std::mem::take(&mut app.groups);
     let current = serde_json::to_value(&app.params).unwrap_or(Value::Null);
     let needle = app.filter.trim().to_lowercase();
     let layout = app.params.layout;
+    let focus = app.focus_group.take();
     let mut edits: Vec<(String, Value)> = Vec::new();
     let mut reset = None;
     let mut shown = 0;
     for group in groups.iter().filter(|g| group_applies(&g.id, layout)) {
-        if needle.is_empty() && group.id != app.group {
-            continue;
-        }
-        // The layout has its own strip under the top bar.
+        // The layout is chosen in the top bar.
         let fields: Vec<&ParamField> = group
             .fields
             .iter()
@@ -436,28 +403,43 @@ fn settings_tab(app: &mut App, ui: &mut Ui) {
             .iter()
             .filter(|f| f.path != "layout" && app.changed.contains(&f.path))
             .count();
-        ui.label(RichText::new(group.title.as_str()).strong().size(16.0));
-        ui.label(muted(ui, group.intro.as_str()));
-        ui.add_space(4.0);
-        Grid::new(&group.id)
-            .num_columns(3)
-            .spacing([10.0, 6.0])
+        let title = if changed > 0 {
+            format!("{} · {changed}", group.title.as_str())
+        } else {
+            group.title.as_str().to_string()
+        };
+        let focused = focus.as_deref() == Some(group.id.as_str());
+        let forced = (focused || !needle.is_empty()).then_some(true);
+        let response = egui::CollapsingHeader::new(RichText::new(title).strong())
+            .id_salt(("group", &group.id))
+            .default_open(matches!(group.id.as_str(), "scaffold" | "shapes"))
+            .open(forced)
             .show(ui, |ui| {
-                for field in fields {
-                    let value = get_path(&current, &field.path)
-                        .cloned()
-                        .unwrap_or(Value::Null);
-                    if let Some(next) =
-                        field_row(ui, field, &value, get_path(&app.defaults, &field.path))
-                    {
-                        edits.push((field.path.clone(), next));
-                    }
+                ui.label(muted(ui, group.intro.as_str()));
+                ui.add_space(4.0);
+                Grid::new(&group.id)
+                    .num_columns(3)
+                    .spacing([10.0, 6.0])
+                    .show(ui, |ui| {
+                        for field in fields {
+                            let value = get_path(&current, &field.path)
+                                .cloned()
+                                .unwrap_or(Value::Null);
+                            if let Some(next) =
+                                field_row(ui, field, &value, get_path(&app.defaults, &field.path))
+                            {
+                                edits.push((field.path.clone(), next));
+                            }
+                        }
+                    });
+                if changed > 0 && ui.small_button("Reset this group").clicked() {
+                    reset = Some(group.id.clone());
                 }
+                ui.add_space(6.0);
             });
-        if changed > 0 && ui.small_button("Reset this tab").clicked() {
-            reset = Some(group.id.clone());
+        if focused {
+            response.header_response.scroll_to_me(Some(Align::TOP));
         }
-        ui.add_space(10.0);
     }
     app.groups = groups;
     if shown == 0 {
