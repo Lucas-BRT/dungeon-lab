@@ -143,6 +143,7 @@ pub struct App {
     work_id: u64,
     launched_at: Instant,
     show_building: bool,
+    show_shortcuts: bool,
     apply_at: Option<Instant>,
     pub status: String,
     pub performance_status: Option<String>,
@@ -198,6 +199,7 @@ impl App {
             work_id: 0,
             launched_at: Instant::now(),
             show_building: false,
+            show_shortcuts: false,
             apply_at: None,
             status: "Preparing the generator…".into(),
             performance_status: None,
@@ -691,11 +693,13 @@ impl eframe::App for App {
         self.poll_events();
         self.shortcuts(&ctx);
         self.apply_due(&ctx);
+        panels::menu_bar(self, ui);
         panels::top_bar(self, ui);
         panels::layout_bar(self, ui);
         panels::bottom_bar(self, ui);
         panels::side_panel(self, ui);
         panels::central(self, ui);
+        panels::shortcuts_window(self, &ctx);
         self.take_screenshot(&ctx);
     }
 }

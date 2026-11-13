@@ -42,6 +42,50 @@ fn primary(ui: &Ui, text: &str) -> Button<'static> {
     .fill(theme::of(ui).border_focused)
 }
 
+pub fn menu_bar(app: &mut App, ui: &mut Ui) {
+    Panel::top("menu")
+        .frame(theme::bar_frame(ui))
+        .show(ui, |ui| {
+            egui::MenuBar::new().ui(ui, |ui| {
+                ui.menu_button("View", |ui| {
+                    let mut theme = ui.options(|o| o.theme_preference);
+                    for (value, name) in [
+                        (egui::ThemePreference::Dark, "Dark theme"),
+                        (egui::ThemePreference::Light, "Light theme"),
+                        (egui::ThemePreference::System, "Follow the system"),
+                    ] {
+                        ui.radio_value(&mut theme, value, name);
+                    }
+                    ui.ctx().set_theme(theme);
+                });
+                ui.menu_button("Help", |ui| {
+                    if ui.button("Shortcuts").clicked() {
+                        app.show_shortcuts = true;
+                        ui.close();
+                    }
+                });
+            });
+        });
+}
+
+pub fn shortcuts_window(app: &mut App, ctx: &egui::Context) {
+    egui::Window::new("Shortcuts")
+        .open(&mut app.show_shortcuts)
+        .collapsible(false)
+        .resizable(false)
+        .show(ctx, |ui| {
+            for line in [
+                "Alt+1–4 switches the size · Alt+R random seed",
+                "Alt+Left / Right: previous / next seed",
+                "Esc cancels a generation",
+                "Drag moves the map · wheel zooms at the cursor",
+                "Double-click fits the map to the window",
+            ] {
+                ui.label(line);
+            }
+        });
+}
+
 pub fn top_bar(app: &mut App, ui: &mut Ui) {
     Panel::top("top")
         .frame(theme::bar_frame(ui))
@@ -115,18 +159,6 @@ pub fn bottom_bar(app: &mut App, ui: &mut Ui) {
                 ui.label(muted(ui, &app.status));
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     ui.label(muted(ui, format!("{} threads", par::threads())));
-                    ui.separator();
-                    let mut theme = ui.options(|o| o.theme_preference);
-                    for (value, name) in [
-                        (egui::ThemePreference::Dark, "Dark"),
-                        (egui::ThemePreference::Light, "Light"),
-                        (egui::ThemePreference::System, "Auto"),
-                    ] {
-                        if ui.selectable_label(theme == value, name).clicked() {
-                            theme = value;
-                        }
-                    }
-                    ui.ctx().set_theme(theme);
                 });
             });
         });
@@ -397,17 +429,6 @@ fn floor_tab(app: &mut App, ui: &mut Ui) {
                     ),
                 ));
             }
-        }
-    });
-
-    card(ui, "Shortcuts", |ui| {
-        for line in [
-            "Alt+1–4 switches the size · Alt+R random seed",
-            "Alt+Left / Right: previous / next seed",
-            "Drag moves the map · wheel zooms at the cursor",
-            "Double-click fits the map to the window",
-        ] {
-            ui.label(muted(ui, line));
         }
     });
 }
