@@ -11,13 +11,13 @@ WORKDIR /app
 
 # ---- tools -------------------------------------------------------------------------------------------------
 FROM base AS tool-chef
-RUN --mount=type=cache,target=/usr/local/cargo/registry cargo install cargo-chef --version 0.1.77 --locked
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked cargo install cargo-chef --version 0.1.77 --locked
 
 FROM base AS tool-wasm-bindgen
-RUN --mount=type=cache,target=/usr/local/cargo/registry cargo install wasm-bindgen-cli --version 0.2.130 --locked
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked cargo install wasm-bindgen-cli --version 0.2.130 --locked
 
 FROM base AS tool-topcoat
-RUN --mount=type=cache,target=/usr/local/cargo/registry cargo install topcoat-cli --version 0.12.0 --locked
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked cargo install topcoat-cli --version 0.12.0 --locked
 
 # ---- recipe: changes only when manifests or Cargo.lock change ------------------------------------------------
 FROM tool-chef AS planner
@@ -27,20 +27,20 @@ RUN cargo chef prepare --recipe-path recipe.json
 # ---- the site: native binary + bundled assets --------------------------------------------------------------
 FROM tool-chef AS site-build
 COPY --from=planner /app/recipe.json recipe.json
-RUN --mount=type=cache,target=/usr/local/cargo/registry cargo chef cook --release --package tapiti-site --recipe-path recipe.json
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked cargo chef cook --release --package tapiti-site --recipe-path recipe.json
 COPY --from=tool-topcoat /usr/local/cargo/bin/topcoat /usr/local/cargo/bin/cargo-topcoat /usr/local/cargo/bin/
 COPY . .
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     cargo build --release -p tapiti-site \
  && topcoat asset bundle --release --package tapiti-site
 
 # ---- the lab: WebAssembly module (builds in parallel with the site) -----------------------------------------
 FROM tool-chef AS wasm-build
 COPY --from=planner /app/recipe.json recipe.json
-RUN --mount=type=cache,target=/usr/local/cargo/registry cargo chef cook --release --target wasm32-unknown-unknown --package tapiti-wasm --recipe-path recipe.json
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked cargo chef cook --release --target wasm32-unknown-unknown --package tapiti-wasm --recipe-path recipe.json
 COPY --from=tool-wasm-bindgen /usr/local/cargo/bin/wasm-bindgen /usr/local/cargo/bin/
 COPY . .
-RUN --mount=type=cache,target=/usr/local/cargo/registry scripts/build-wasm.sh
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked scripts/build-wasm.sh
 
 # ---- runtime ---------------------------------------------------------------------------------------------
 FROM debian:bookworm-slim AS runtime
