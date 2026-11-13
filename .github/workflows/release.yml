@@ -50,7 +50,7 @@ jobs:
             tar czf "$name.tar.gz" "$name"
           fi
           echo "ASSET=$name.${{ matrix.archive }}" >> "$GITHUB_ENV"
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: ${{ env.ASSET }}
           generate_release_notes: true
