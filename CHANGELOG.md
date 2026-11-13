@@ -4,6 +4,24 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-13
+
+### Added
+
+- `install.sh`: installs the Linux build without sudo (`curl -fsSL https://raw.githubusercontent.com/Lucas-BRT/tapiti/main/install.sh | bash`). It checks the download against `SHA256SUMS`, can verify the build provenance (`--verify`), updates only when there is a newer release (`--update`), takes `--version` and `--prefix`, and uninstalls what it installed (`--uninstall`). It also installs a launcher entry and the icon.
+- Releases carry a `.deb`, an `.rpm`, a bare Windows `.exe` next to the `.zip`, `SHA256SUMS` and a signed build provenance of every file (`gh attestation verify FILE --repo Lucas-BRT/tapiti`). The macOS archive holds `Tapiti.app`, with its icon and an ad hoc signature.
+- The logo: the hand-drawn rabbit head, traced to centre lines and smoothed, on the site (header, footer, favicon), in the README, as the desktop window icon, in `tapiti-desktop.exe` and in `Tapiti.app`.
+- `packages.yml` builds and checks the packages when something that goes into them changes, and the release is built by calling it: the `.deb` is installed and removed, the `.rpm` is listed, `install.sh` runs against the archive, the `.exe` is checked for its icon and the app bundle for its plist, icon and signature.
+
+### Changed
+
+- The README is about the product (features, install, usage, badges); the speed measurements, the run commands, the notes on the workspace and the website, the determinism check and the table of files moved to the docs (Performance, The desktop app, and a new Development page).
+- The archives of a release no longer carry the version in their names, so `/releases/latest/download/` links work; the program inside is `tapiti`.
+
+### Fixed
+
+- The Linux binary of 0.1.0 was built on a runner with glibc 2.43 and did not start on Ubuntu 22.04 (`version GLIBC_2.43 not found`). Releases are now built on Ubuntu 22.04 and need glibc 2.35 or newer; `install.sh` says so before installing.
+
 ## [0.1.0] - 2026-11-13
 
 ### Added

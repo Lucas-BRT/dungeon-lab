@@ -3407,7 +3407,7 @@ dependencies = [
 
 [[package]]
 name = "tapiti-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "criterion",
  "rayon",
@@ -3418,7 +3418,7 @@ dependencies = [
 
 [[package]]
 name = "tapiti-desktop"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "eframe",
  "rfd",
@@ -3431,14 +3431,14 @@ dependencies = [
 
 [[package]]
 name = "tapiti-render"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "tapiti-core",
 ]
 
 [[package]]
 name = "tapiti-schema"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde_json",
  "tapiti-core",
@@ -3446,7 +3446,7 @@ dependencies = [
 
 [[package]]
 name = "tapiti-site"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "pulldown-cmark",
  "pulldown-latex",
@@ -3460,7 +3460,7 @@ dependencies = [
 
 [[package]]
 name = "tapiti-wasm"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
  "serde_json",
