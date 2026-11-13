@@ -8,7 +8,7 @@
 #   --prefix DIR     install in DIR/bin and DIR/share (default: ~/.local)
 #   --update         install the release only if it is not the version installed
 #   --verify         also verify the build provenance (a GitHub attestation)
-#                    with `gh attestation verify`; needs the GitHub CLI
+#                    with `gh attestation verify`; needs the GitHub CLI 2.49+
 #   --uninstall      remove Tapiti (nothing else is kept: the app writes no
 #                    configuration)
 #
@@ -111,6 +111,8 @@ curl -fsL --retry 3 -o "$work/SHA256SUMS" "$url/SHA256SUMS"
     die "the download does not match the release's SHA256SUMS"
 if [ "$VERIFY" = 1 ]; then
     command -v gh >/dev/null || die "--verify needs the GitHub CLI: https://cli.github.com"
+    # `gh attestation` came with GitHub CLI 2.49; an older one would print its help and fail.
+    gh attestation --help >/dev/null 2>&1 || die "--verify needs GitHub CLI 2.49 or newer (this is $(gh --version | head -n 1)): https://cli.github.com"
     say "verifying the build provenance"
     if ! attestation=$(gh attestation verify "$work/$ASSET" --repo Lucas-BRT/tapiti 2>&1); then
         printf '%s\n' "$attestation" >&2

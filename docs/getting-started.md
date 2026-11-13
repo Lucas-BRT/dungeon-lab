@@ -10,7 +10,7 @@ Every [release](https://github.com/Lucas-BRT/tapiti/releases/latest) has the des
 curl -fsSL https://raw.githubusercontent.com/Lucas-BRT/tapiti/main/install.sh | bash
 ```
 
-The script downloads the latest release, checks it against the release's `SHA256SUMS` and installs `tapiti` in `~/.local/bin`, with a launcher entry and an icon in `~/.local/share`. It tells you how to put `~/.local/bin` on your `PATH` when that is needed, and never edits your files. After `bash -s --` it takes `--version X.Y.Z`, `--prefix DIR`, `--update` (installs only when there is a newer release), `--verify` (also checks the build provenance with the GitHub CLI) and `--uninstall`.
+The script downloads the latest release, checks it against the release's `SHA256SUMS` and installs `tapiti` in `~/.local/bin`, with a launcher entry and an icon in `~/.local/share`. It tells you how to put `~/.local/bin` on your `PATH` when that is needed, and never edits your files. After `bash -s --` it takes `--version X.Y.Z`, `--prefix DIR`, `--update` (installs only when there is a newer release), `--verify` (also checks the build provenance; needs the GitHub CLI 2.49 or newer) and `--uninstall`.
 
 **Debian and Ubuntu**, a `.deb`; **Fedora and openSUSE**, an `.rpm`:
 

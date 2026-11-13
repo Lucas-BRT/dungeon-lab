@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+
+- `install.sh --verify` with a GitHub CLI older than 2.49 (no `gh attestation`) now says that it needs 2.49 or newer, before installing anything, instead of reporting that the provenance could not be verified.
+
 ## [0.1.1] - 2026-11-13
 
 ### Added
