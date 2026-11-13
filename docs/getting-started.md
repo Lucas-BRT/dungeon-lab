@@ -1,6 +1,6 @@
 # Getting started
 
-Tapiti is a Rust workspace. You need a recent stable Rust toolchain ([rustup](https://rustup.rs)); nothing else to try the generator. The desktop app also needs the usual graphics libraries of your platform (on Linux: xkbcommon, Wayland and/or X11, and OpenGL).
+Tapiti is a Rust workspace. You need a recent stable Rust toolchain ([rustup](https://rustup.rs)); nothing else to try the generator. The desktop app also needs the usual graphics libraries of your platform (on Linux: xkbcommon, Wayland and/or X11, and OpenGL; on Windows a driver with OpenGL 2, which a virtual machine or remote desktop without a GPU may lack).
 
 ```sh
 git clone https://github.com/Lucas-BRT/tapiti
