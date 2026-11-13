@@ -113,10 +113,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: browser
-      - name: Mesa, to draw WebGL2 in software (the runner has no GPU)
+      # The runner has no GPU and no display, and Firefox cannot make a WebGL2 context without one: Xvfb is the display and Mesa draws in software.
+      - name: Xvfb and Mesa
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libgl1-mesa-dri libglx-mesa0 libegl1
+          sudo apt-get install -y --no-install-recommends xvfb libgl1-mesa-dri libglx-mesa0 libegl1
       - name: wasm-bindgen CLI (cached by version)
         id: bindgen
         uses: actions/cache@v4
@@ -150,11 +151,11 @@ jobs:
           npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/axe" axe-core@4.10.3
           echo "AXE_JS=$RUNNER_TEMP/axe/node_modules/axe-core/axe.min.js" >> "$GITHUB_ENV"
       - run: firefox --version
-      - run: node scripts/site-smoke.mjs http://127.0.0.1:3000
-      - run: node scripts/lab-smoke.mjs http://127.0.0.1:3000/lab
+      - run: xvfb-run -a node scripts/site-smoke.mjs http://127.0.0.1:3000
+      - run: xvfb-run -a node scripts/lab-smoke.mjs http://127.0.0.1:3000/lab
       - name: Screenshots
         if: always()
-        run: node scripts/site-shots.mjs shots http://127.0.0.1:3000
+        run: xvfb-run -a node scripts/site-shots.mjs shots http://127.0.0.1:3000
       - uses: actions/upload-artifact@v4
         if: always()
         with:
