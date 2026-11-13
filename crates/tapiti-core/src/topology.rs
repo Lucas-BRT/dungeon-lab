@@ -1,4 +1,4 @@
-//! Graph operations used by topology profiles and progression validation.
+//! Graph operations used by topology profiles.
 
 use crate::generate::{Edge, Node};
 use std::collections::VecDeque;
@@ -123,6 +123,11 @@ pub fn edge_connectivity_frontiers(
     source: usize,
     sink: usize,
 ) -> (usize, Vec<bool>, Vec<bool>) {
+    // The same node twice (an entrance with no corridor to leave by, so the exit stayed on it) has no routes to count; the flow
+    // below would never end.
+    if source == sink {
+        return (0, vec![false; node_count], vec![false; node_count]);
+    }
     let mut graph = vec![Vec::<Arc>::new(); node_count];
     for edge in edges {
         // An undirected unit edge is represented by one unit-capacity arc in
@@ -295,88 +300,5 @@ pub fn cycle_girth(node_count: usize, edges: &[Edge]) -> Option<usize> {
             }
         }
     }
-    (best != usize::MAX).then_some(best + 1)
-}
-
-pub fn progression_reachable(
-    nodes: &[Node],
-    edges: &[Edge],
-    rooms: &[crate::generate::Room],
-    start: usize,
-    stairs: usize,
-) -> (bool, u8, u8) {
-    #[derive(Clone, Copy, Hash, PartialEq, Eq)]
-    struct State {
-        node: usize,
-        keys: u8,
-        switches: u8,
-    }
-    let mut adj = vec![Vec::<(usize, usize)>::new(); nodes.len()];
-    for (i, edge) in edges.iter().enumerate() {
-        adj[edge.u].push((edge.v, i));
-        adj[edge.v].push((edge.u, i));
-    }
-    let enter = |node: usize, keys: u8, switches: u8| {
-        if let Node::Room { room } = nodes[node] {
-            (keys | rooms[room].keys, switches)
-        } else {
-            (keys, switches)
-        }
-    };
-    let (keys, switches) = enter(start, 0, 0);
-    let mut queue = VecDeque::from([State {
-        node: start,
-        keys,
-        switches,
-    }]);
-    let mut seen = std::collections::HashSet::from([State {
-        node: start,
-        keys,
-        switches,
-    }]);
-    let mut key_union = keys;
-    let mut switch_union = switches;
-    let mut reached_stairs = false;
-    while let Some(state) = queue.pop_front() {
-        if let Node::Room { room } = nodes[state.node] {
-            let available = rooms[room].switches & !state.switches;
-            for bit in 0..8 {
-                let mask = 1u8 << bit;
-                if available & mask != 0 {
-                    let next = State {
-                        node: state.node,
-                        keys: state.keys,
-                        switches: state.switches | mask,
-                    };
-                    if seen.insert(next) {
-                        queue.push_back(next);
-                        switch_union |= next.switches;
-                    }
-                }
-            }
-            if room == stairs {
-                reached_stairs = true;
-            }
-        }
-        for &(next_node, edge_i) in &adj[state.node] {
-            let edge = &edges[edge_i];
-            if edge.requires_keys & state.keys != edge.requires_keys
-                || edge.requires_switches & state.switches != edge.requires_switches
-            {
-                continue;
-            }
-            let (keys, switches) = enter(next_node, state.keys, state.switches);
-            let next = State {
-                node: next_node,
-                keys,
-                switches,
-            };
-            if seen.insert(next) {
-                key_union |= keys;
-                switch_union |= switches;
-                queue.push_back(next);
-            }
-        }
-    }
-    (reached_stairs, key_union, switch_union)
+    (best != usize::MAX).then(|| best + 1)
 }

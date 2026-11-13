@@ -1,7 +1,7 @@
 //! How regular a floor's room layout looks: statistics of the room centers that are blind to how the layout was produced,
 //! so a grid scaffold and a grown layout can be compared on the same scale.
 
-use crate::generate::Dungeon;
+use crate::generate::Floor;
 use std::f64::consts::TAU;
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -17,7 +17,7 @@ pub struct LayoutStats {
     pub area_cv: f64,
 }
 
-pub fn layout_stats(d: &Dungeon) -> LayoutStats {
+pub fn layout_stats(d: &Floor) -> LayoutStats {
     let rooms: Vec<_> = d.rooms.iter().filter(|r| r.alive).collect();
     let n = rooms.len();
     if n < 3 {

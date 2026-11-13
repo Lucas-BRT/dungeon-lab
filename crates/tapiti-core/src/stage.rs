@@ -1,18 +1,19 @@
-use crate::generate::{generate_with_progress, Dungeon, GenerationEvent};
+use crate::cancel::Cancel;
+use crate::generate::{generate_cancellable, generate_with_progress, Floor, GenerationEvent};
 use crate::params::Params;
 use crate::validate::validate;
 
 pub struct Stage {
-    pub d: Dungeon,
+    pub d: Floor,
     pub violations: Vec<String>,
     pub draws: u32,
 }
 
 /// A valid stage for `seed` and Λ: the generator keeps every constraint it can by construction; the few it can't promise on every draw
-/// (the stairs' distance from the start on a small floor, V5) are checked by the validator, and the draw is redone from a seed derived
+/// (the exit's distance from the entrance on a small floor, V5) are checked by the validator, and the draw is redone from a seed derived
 /// from the first, up to `attempts` times. Returns the stage, its violations (empty when valid) and how many draws it took.
 pub fn stage(seed: u32, p: &Params, attempts: u32) -> Stage {
-    stage_inner(seed, p, attempts, None)
+    stage_inner(seed, p, attempts, None, None).expect("only a cancelled stage gives up")
 }
 
 /// Generate and validate a stage while forwarding geometry events from each draw.
@@ -22,7 +23,19 @@ pub fn stage_with_progress(
     attempts: u32,
     progress: &mut dyn FnMut(GenerationEvent),
 ) -> Stage {
-    stage_inner(seed, p, attempts, Some(progress))
+    stage_inner(seed, p, attempts, Some(progress), None).expect("only a cancelled stage gives up")
+}
+
+/// Like `stage_with_progress`, but `None` when `cancel` was called before a stage was done (a very large floor, or too many draws). A
+/// stage that is not cancelled is the same as the one `stage` gives.
+pub fn stage_cancellable(
+    seed: u32,
+    p: &Params,
+    attempts: u32,
+    cancel: &Cancel,
+    progress: &mut dyn FnMut(GenerationEvent),
+) -> Option<Stage> {
+    stage_inner(seed, p, attempts, Some(progress), Some(cancel))
 }
 
 fn stage_inner(
@@ -30,7 +43,8 @@ fn stage_inner(
     p: &Params,
     attempts: u32,
     mut progress: Option<&mut dyn FnMut(GenerationEvent)>,
-) -> Stage {
+    cancel: Option<&Cancel>,
+) -> Option<Stage> {
     let mut last: Option<Stage> = None;
     for i in 0..attempts.max(1) {
         let draw_seed = seed.wrapping_add(i.wrapping_mul(7919));
@@ -39,7 +53,10 @@ fn stage_inner(
                 draw: i + 1,
                 seed: draw_seed,
             });
-            generate_with_progress(draw_seed, p, &mut **callback)
+            match cancel {
+                Some(cancel) => generate_cancellable(draw_seed, p, cancel, &mut **callback)?,
+                None => generate_with_progress(draw_seed, p, &mut **callback),
+            }
         } else {
             crate::generate::generate(draw_seed, p)
         };
@@ -54,5 +71,5 @@ fn stage_inner(
             break;
         }
     }
-    last.unwrap()
+    last
 }

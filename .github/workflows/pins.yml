@@ -1,0 +1,50 @@
+name: Pins
+
+# Everything is pinned (AGENTS.md); this is the routine that keeps the pins from being forgotten. Every week it looks for newer
+# versions of what Dependabot does not watch (the toolchain, topcoat, wasm-bindgen, cargo-chef, axe-core), for pins that disagree
+# between files, and for security advisories on Cargo.lock. The report is an issue, opened, updated and closed here.
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  checks: write
+
+jobs:
+  versions:
+    name: Newer versions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Report
+        run: scripts/check-pins.sh > pins.md
+      - name: Issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: Pinned versions are behind
+        run: |
+          open=$(gh issue list --state open --search "in:title \"$TITLE\"" --json number --jq '.[0].number // empty')
+          if [ -s pins.md ]; then
+            if [ -n "$open" ]; then
+              gh issue edit "$open" --body-file pins.md
+            else
+              gh issue create --title "$TITLE" --body-file pins.md
+            fi
+          elif [ -n "$open" ]; then
+            gh issue close "$open" --comment "Every pinned version is current again."
+          fi
+
+  audit:
+    name: Security advisories
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: rustsec/audit-check@v2
+        with:
+          token: ${{ github.token }}

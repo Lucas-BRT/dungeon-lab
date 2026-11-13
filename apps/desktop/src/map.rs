@@ -1,11 +1,11 @@
 //! The map view: world-to-screen transform and egui painting of rooms, corridors and overlays.
 
-use crate::{class_label, point_along, role_label, view_box, BuildingMap, Overlays};
+use crate::{class_label, role_label, view_box, BuildingMap, Overlays};
 use eframe::egui::{
     epaint::PathShape, Align2, Color32, FontId, Mesh, Painter, Pos2, Rect, Shape as Draw, Stroke,
     Vec2,
 };
-use tapiti_core::generate::{Dungeon, Node, Role};
+use tapiti_core::generate::{Floor, Node, Role};
 use tapiti_core::geom::{dir_of, Shape};
 
 /// World (generator pixels) to screen.
@@ -62,37 +62,26 @@ pub struct Palette {
     pub ink: Color32,
     pub accent: Color32,
     pub success: Color32,
-    pub warning: Color32,
     pub danger: Color32,
     pub dark: bool,
 }
 
 impl Palette {
     pub fn new(dark: bool) -> Self {
-        if dark {
-            Self {
-                background: Color32::from_rgb(0x15, 0x18, 0x1d),
-                corridor: Color32::from_rgb(0x4a, 0x52, 0x60),
-                grid: Color32::from_rgb(0x26, 0x2b, 0x33),
-                ink: Color32::from_rgb(0xee, 0xf0, 0xf3),
-                accent: Color32::from_rgb(0x5b, 0x9b, 0xf5),
-                success: Color32::from_rgb(0x4a, 0xc2, 0x6b),
-                warning: Color32::from_rgb(0xe8, 0xb3, 0x39),
-                danger: Color32::from_rgb(0xef, 0x5d, 0x5d),
-                dark,
-            }
-        } else {
-            Self {
-                background: Color32::from_rgb(0xf6, 0xf7, 0xf9),
-                corridor: Color32::from_rgb(0xa9, 0xb1, 0xbd),
-                grid: Color32::from_rgb(0xe3, 0xe6, 0xeb),
-                ink: Color32::from_rgb(0x1b, 0x1f, 0x26),
-                accent: Color32::from_rgb(0x1f, 0x6f, 0xe0),
-                success: Color32::from_rgb(0x1d, 0x9a, 0x44),
-                warning: Color32::from_rgb(0xb7, 0x7d, 0x00),
-                danger: Color32::from_rgb(0xd1, 0x2f, 0x2f),
-                dark,
-            }
+        let c = crate::theme::colors(dark);
+        Self {
+            background: c.editor,
+            corridor: if dark {
+                Color32::from_rgb(0x4a, 0x52, 0x60)
+            } else {
+                Color32::from_rgb(0xa9, 0xb1, 0xbd)
+            },
+            grid: c.border_variant,
+            ink: c.text,
+            accent: c.accent,
+            success: c.success,
+            danger: c.error,
+            dark,
         }
     }
 
@@ -120,11 +109,9 @@ impl Palette {
 
     fn role(&self, role: Role) -> Color32 {
         match role {
-            Role::Start | Role::Rest => self.success,
-            Role::Stairs | Role::Switch => self.accent,
-            Role::Ambush | Role::Boss | Role::Trap => self.danger,
-            Role::Key | Role::Prize => self.warning,
-            Role::Empty | Role::Plain => self.grid,
+            Role::Entrance => self.success,
+            Role::Exit => self.accent,
+            Role::Plain => self.grid,
         }
     }
 }
@@ -338,19 +325,13 @@ pub fn draw_building(
     }
 }
 
-pub fn draw_dungeon(
-    painter: &Painter,
-    xf: &Xf,
-    dungeon: &Dungeon,
-    overlays: Overlays,
-    pal: &Palette,
-) {
+pub fn draw_floor(painter: &Painter, xf: &Xf, floor: &Floor, overlays: Overlays, pal: &Palette) {
     if overlays.cells {
-        grid(painter, xf, &dungeon.grid_x, &dungeon.grid_y, pal.grid);
+        grid(painter, xf, &floor.grid_x, &floor.grid_y, pal.grid);
     }
     if overlays.pairs {
-        for [a, b] in &dungeon.pairs {
-            if let (Some(first), Some(second)) = (dungeon.rooms.get(*a), dungeon.rooms.get(*b)) {
+        for [a, b] in &floor.pairs {
+            if let (Some(first), Some(second)) = (floor.rooms.get(*a), floor.rooms.get(*b)) {
                 painter.add(Draw::dashed_line(
                     &[xf.pt(first.center), xf.pt(second.center)],
                     Stroke::new(2.0, pal.accent.gamma_multiply(0.6)),
@@ -361,7 +342,7 @@ pub fn draw_dungeon(
         }
     }
     if overlays.candidates {
-        for candidate in &dungeon.candidates {
+        for candidate in &floor.candidates {
             polyline(
                 painter,
                 xf,
@@ -372,35 +353,17 @@ pub fn draw_dungeon(
             );
         }
     }
-    for edge in &dungeon.edges {
-        let gated = edge.requires_keys > 0 || edge.requires_switches > 0;
+    for edge in &floor.edges {
         polyline(
             painter,
             xf,
             &edge.pts,
-            if gated { pal.warning } else { pal.corridor },
-            dungeon.params.width.max(2.0) as f32,
-            gated,
+            pal.corridor,
+            floor.params.width.max(2.0) as f32,
+            false,
         );
-        if gated {
-            let middle = xf.pt(point_along(&edge.pts, 0.5));
-            let radius = (13.0 * xf.scale).max(7.0);
-            painter.circle(
-                middle,
-                radius,
-                pal.background,
-                Stroke::new(2.0, pal.warning),
-            );
-            painter.text(
-                middle,
-                Align2::CENTER_CENTER,
-                if edge.requires_keys > 0 { "K" } else { "S" },
-                FontId::proportional((radius * 1.2).clamp(9.0, 30.0)),
-                pal.ink,
-            );
-        }
     }
-    for room in &dungeon.rooms {
+    for room in &floor.rooms {
         if room.alive {
             let alpha = if room.leaf { 0.65 } else { 0.92 };
             room_shape(
@@ -417,7 +380,7 @@ pub fn draw_dungeon(
         }
     }
     if overlays.ports {
-        for room in &dungeon.rooms {
+        for room in &floor.rooms {
             for port in &room.ports {
                 let half = (4.0 * xf.scale).max(1.5);
                 painter.rect_filled(
@@ -428,7 +391,7 @@ pub fn draw_dungeon(
             }
         }
     }
-    for room in &dungeon.rooms {
+    for room in &floor.rooms {
         for port in &room.used {
             let d = dir_of(port.k);
             polyline(
@@ -441,7 +404,7 @@ pub fn draw_dungeon(
             );
         }
     }
-    for node in &dungeon.nodes {
+    for node in &floor.nodes {
         if let Node::Junction { p } = node {
             painter.circle(
                 xf.pt(**p),
@@ -452,45 +415,28 @@ pub fn draw_dungeon(
         }
     }
     if overlays.labels {
-        for room in dungeon.rooms.iter().filter(|room| room.alive) {
-            let inventory = [
-                (room.keys != 0).then(|| format!("K{}", room.keys.count_ones())),
-                (room.switches != 0).then(|| format!("S{}", room.switches.count_ones())),
-            ]
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>()
-            .join(" ");
+        for room in floor.rooms.iter().filter(|room| room.alive) {
             let role = if room.role == Role::Plain {
                 String::new()
             } else {
                 format!(" · {}", role_label(room.role))
             };
-            let text = format!(
-                "#{} {}{}{}",
-                room.id,
-                class_label(room.cls.name()),
-                role,
-                if inventory.is_empty() {
-                    String::new()
-                } else {
-                    format!(" · {inventory}")
-                }
-            );
+            let text = format!("#{} {}{}", room.id, class_label(room.cls.name()), role);
             label(painter, xf, &text, room.center, pal.on_room(), 18.0);
         }
     }
 }
 
-/// Small key over the map: what the fills and outlines mean.
-pub fn legend(painter: &Painter, rect: Rect, pal: &Palette, text_color: Color32) {
+/// Small key over the map: what the fills and outlines mean, for the shapes the floor has.
+pub fn legend(painter: &Painter, rect: Rect, pal: &Palette, text_color: Color32, present: &[&str]) {
     let font = FontId::proportional(12.0);
     let row = 18.0;
     let items: Vec<(Color32, String)> = SHAPE_CLASSES
         .iter()
+        .filter(|c| present.contains(c))
         .map(|c| (pal.shape(c), class_label(c).to_string()))
         .collect();
-    let height = row * (items.len() as f32 + 2.0) + 14.0;
+    let height = row * (items.len() as f32 + 1.0) + 14.0;
     let panel = Rect::from_min_size(
         Pos2::new(rect.left() + 10.0, rect.bottom() - height - 10.0),
         Vec2::new(200.0, height),
@@ -517,26 +463,11 @@ pub fn legend(painter: &Painter, rect: Rect, pal: &Palette, text_color: Color32)
         );
         y += row;
     }
-    painter.line_segment(
-        [
-            Pos2::new(panel.left() + 10.0, y),
-            Pos2::new(panel.left() + 24.0, y),
-        ],
-        Stroke::new(3.0, pal.warning),
-    );
-    painter.text(
-        Pos2::new(panel.left() + 30.0, y),
-        Align2::LEFT_CENTER,
-        t!("gate (key/switch)"),
-        font.clone(),
-        text_color,
-    );
-    y += row;
     painter.circle_filled(Pos2::new(panel.left() + 16.0, y), 4.0, pal.ink);
     painter.text(
         Pos2::new(panel.left() + 30.0, y),
         Align2::LEFT_CENTER,
-        t!("junction · outline = role"),
+        "junction · outline = role",
         font,
         text_color,
     );

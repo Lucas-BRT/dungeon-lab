@@ -5,7 +5,7 @@
 //! so a page can colour them with its own tokens and reveal the floor outwards from the entrance with a staggered animation.
 
 use std::fmt::Write;
-use tapiti_core::generate::{room_hops, Dungeon, Node, Role};
+use tapiti_core::generate::{room_hops, Floor, Node, Role};
 use tapiti_core::geom::{dir_of, Shape, V};
 
 /// How colours reach the SVG.
@@ -49,8 +49,6 @@ pub const CLASS_NAMES: &[&str] = &[
     "tapiti-floor",
     "grid",
     "corridor",
-    "gated",
-    "gate",
     "room",
     "leaf",
     "c-rect",
@@ -58,16 +56,8 @@ pub const CLASS_NAMES: &[&str] = &[
     "c-oct",
     "c-L",
     "c-star",
-    "r-start",
-    "r-stairs",
-    "r-ambush",
-    "r-boss",
-    "r-rest",
-    "r-key",
-    "r-switch",
-    "r-trap",
-    "r-prize",
-    "r-empty",
+    "r-entrance",
+    "r-exit",
     "r-plain",
     "junction",
     "door",
@@ -81,16 +71,8 @@ fn n(v: f64) -> String {
 
 fn role_class(role: Role) -> &'static str {
     match role {
-        Role::Start => "r-start",
-        Role::Stairs => "r-stairs",
-        Role::Ambush => "r-ambush",
-        Role::Boss => "r-boss",
-        Role::Rest => "r-rest",
-        Role::Key => "r-key",
-        Role::Switch => "r-switch",
-        Role::Trap => "r-trap",
-        Role::Prize => "r-prize",
-        Role::Empty => "r-empty",
+        Role::Entrance => "r-entrance",
+        Role::Exit => "r-exit",
         Role::Plain => "r-plain",
     }
 }
@@ -124,22 +106,23 @@ fn theme_css(theme: Theme) -> &'static str {
     match theme {
         Theme::Inherit => "",
         Theme::Dark => concat!(
-            ".tapiti-floor{background:#15110e}.grid{stroke:#2b231d}.corridor{stroke:#5a4e43}.gated{stroke:#e8b339}.gate{fill:#15110e;stroke:#e8b339}",
+            ".tapiti-floor{background:#15110e}.grid{stroke:#2b231d}.corridor{stroke:#5a4e43}",
             ".room{stroke-width:4}.c-rect{fill:#496c9a}.c-disc{fill:#29a89a}.c-oct{fill:#9b78d1}.c-L{fill:#ce843c}.c-star{fill:#d0ae38}",
-            ".r-plain,.r-empty{stroke:#2b231d}.r-start,.r-rest{stroke:#4ac26b}.r-stairs,.r-switch{stroke:#f08a3c}.r-ambush,.r-boss,.r-trap{stroke:#ef5d5d}.r-key,.r-prize{stroke:#e8b339}",
+            ".r-plain{stroke:#2b231d}.r-entrance{stroke:#4ac26b}.r-exit{stroke:#f08a3c}",
             ".junction{fill:#f2e9dc;stroke:#15110e}.door{stroke:#f2e9dc}.label{fill:#fff}"
         ),
         Theme::Light => concat!(
-            ".tapiti-floor{background:#f7f1e6}.grid{stroke:#e6dccb}.corridor{stroke:#b3a590}.gated{stroke:#b77d00}.gate{fill:#f7f1e6;stroke:#b77d00}",
+            ".tapiti-floor{background:#f7f1e6}.grid{stroke:#e6dccb}.corridor{stroke:#b3a590}",
             ".room{stroke-width:4}.c-rect{fill:#315f96}.c-disc{fill:#087f76}.c-oct{fill:#7253af}.c-L{fill:#a95812}.c-star{fill:#936c00}",
-            ".r-plain,.r-empty{stroke:#e6dccb}.r-start,.r-rest{stroke:#1d9a44}.r-stairs,.r-switch{stroke:#d96b13}.r-ambush,.r-boss,.r-trap{stroke:#d12f2f}.r-key,.r-prize{stroke:#b77d00}",
+            ".r-plain{stroke:#e6dccb}.r-entrance{stroke:#1d9a44}.r-exit{stroke:#d96b13}",
             ".junction{fill:#2a2118;stroke:#f7f1e6}.door{stroke:#2a2118}.label{fill:#fff}"
         ),
     }
 }
 
-/// Renders `d` as a standalone `<svg>` element.
-pub fn floor_svg(d: &Dungeon, style: &Style) -> String {
+/// The `viewBox` of the SVG of `d`, as `[x, y, width, height]` in world units (the floor plus the margin). Pages that draw over the SVG
+/// (a minimap, a position marker) use it to turn world coordinates into percentages.
+pub fn view_box(d: &Floor, style: &Style) -> [f64; 4] {
     let (x0, x1) = (
         d.grid_x.first().copied().unwrap_or(0.0),
         d.grid_x.last().copied().unwrap_or(1.0),
@@ -150,7 +133,21 @@ pub fn floor_svg(d: &Dungeon, style: &Style) -> String {
     );
     let (w, h) = ((x1 - x0).max(1.0), (y1 - y0).max(1.0));
     let m = w.max(h) * style.margin;
-    let hops = room_hops(&d.nodes, &d.edges, d.rooms[d.start].id);
+    [x0 - m, y0 - m, w + 2.0 * m, h + 2.0 * m]
+}
+
+/// Renders `d` as a standalone `<svg>` element.
+pub fn floor_svg(d: &Floor, style: &Style) -> String {
+    let (x0, x1) = (
+        d.grid_x.first().copied().unwrap_or(0.0),
+        d.grid_x.last().copied().unwrap_or(1.0),
+    );
+    let (y0, y1) = (
+        d.grid_y.first().copied().unwrap_or(0.0),
+        d.grid_y.last().copied().unwrap_or(1.0),
+    );
+    let (w, h) = ((x1 - x0).max(1.0), (y1 - y0).max(1.0));
+    let hops = room_hops(&d.nodes, &d.edges, d.origin());
     let hop_of_node = |node: usize| -> usize {
         let v = hops.get(node).copied().unwrap_or(0.0);
         if v.is_finite() {
@@ -164,14 +161,14 @@ pub fn floor_svg(d: &Dungeon, style: &Style) -> String {
     let _ = write!(
         out,
         r#"<svg xmlns="http://www.w3.org/2000/svg" class="tapiti-floor" viewBox="{} {} {} {}" role="img" aria-label="{}">"#,
-        n(x0 - m),
-        n(y0 - m),
-        n(w + 2.0 * m),
-        n(h + 2.0 * m),
+        n(view_box(d, style)[0]),
+        n(view_box(d, style)[1]),
+        n(view_box(d, style)[2]),
+        n(view_box(d, style)[3]),
         style
             .label
             .clone()
-            .unwrap_or_else(|| format!("Dungeon floor, seed {}", d.seed))
+            .unwrap_or_else(|| format!("Tapiti floor, seed {}", d.seed))
             .replace('&', "&amp;")
             .replace('"', "&quot;")
             .replace('<', "&lt;")
@@ -192,18 +189,11 @@ pub fn floor_svg(d: &Dungeon, style: &Style) -> String {
     }
     let width = d.params.width.max(2.0);
     for e in &d.edges {
-        let gated = e.requires_keys > 0 || e.requires_switches > 0;
         let _ = write!(
             out,
-            r#"<path class="corridor{}" style="--d:{}" fill="none" stroke-width="{}" stroke-linecap="round" stroke-linejoin="round"{} d="{}"/>"#,
-            if gated { " gated" } else { "" },
+            r#"<path class="corridor" style="--d:{}" fill="none" stroke-width="{}" stroke-linecap="round" stroke-linejoin="round" d="{}"/>"#,
             hop_of_node(e.u).max(hop_of_node(e.v)),
             n(width),
-            if gated {
-                r#" stroke-dasharray="14 9""#
-            } else {
-                ""
-            },
             points(&e.pts)
         );
     }
@@ -283,10 +273,25 @@ pub fn floor_svg(d: &Dungeon, style: &Style) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tapiti_core::{generate::generate, params::params_of_level};
+    use tapiti_core::{
+        generate::generate,
+        params::{rich_of_size, Size},
+    };
 
-    fn svg(seed: u32, level: usize, style: &Style) -> String {
-        floor_svg(&generate(seed, &params_of_level(level)), style)
+    /// The floor of `seed` at the medium size with every option on.
+    fn svg(seed: u32, style: &Style) -> String {
+        floor_svg(&generate(seed, &rich_of_size(Size::Medium)), style)
+    }
+
+    #[test]
+    fn the_view_box_is_the_one_the_svg_declares() {
+        let d = generate(5, &rich_of_size(Size::Medium));
+        let [x, y, w, h] = view_box(&d, &Style::default());
+        let svg = floor_svg(&d, &Style::default());
+        assert!(
+            svg.contains(&format!("viewBox=\"{} {} {} {}\"", n(x), n(y), n(w), n(h))),
+            "{svg:.200}"
+        );
     }
 
     #[test]
@@ -297,25 +302,25 @@ mod tests {
             labels: true,
             ..Style::default()
         };
-        assert_eq!(svg(7, 5, &style), svg(7, 5, &style));
-        assert_ne!(svg(7, 5, &style), svg(8, 5, &style));
+        assert_eq!(svg(7, &style), svg(7, &style));
+        assert_ne!(svg(7, &style), svg(8, &style));
         let named = Style {
             label: Some("A \"floor\"".into()),
             ..Style::default()
         };
-        assert!(svg(7, 5, &named).contains("aria-label=\"A &quot;floor&quot;\""));
+        assert!(svg(7, &named).contains("aria-label=\"A &quot;floor&quot;\""));
     }
 
     #[test]
     fn draws_rooms_corridors_and_a_viewbox() {
-        let s = svg(3, 5, &Style::default());
+        let s = svg(3, &Style::default());
         assert!(s.starts_with("<svg ") && s.ends_with("</svg>"));
         assert!(s.contains("viewBox=\""));
         assert!(s.matches("class=\"room ").count() >= 5, "rooms");
         assert!(s.contains("class=\"corridor"), "corridors");
         assert!(
-            s.contains("r-start") && s.contains("r-stairs"),
-            "entrance and stairs"
+            s.contains("r-entrance") && s.contains("r-exit"),
+            "entrance and exit"
         );
         assert!(
             !s.contains("<style>"),
@@ -327,7 +332,6 @@ mod tests {
     fn standalone_themes_embed_their_colours() {
         assert!(svg(
             3,
-            2,
             &Style {
                 theme: Theme::Dark,
                 ..Style::default()
@@ -336,7 +340,6 @@ mod tests {
         .contains("<style>"));
         assert!(svg(
             3,
-            2,
             &Style {
                 theme: Theme::Light,
                 ..Style::default()
@@ -349,7 +352,6 @@ mod tests {
     fn every_emitted_class_is_documented() {
         let s = svg(
             11,
-            5,
             &Style {
                 grid: true,
                 labels: true,

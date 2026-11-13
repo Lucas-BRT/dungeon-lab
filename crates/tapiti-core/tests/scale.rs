@@ -1,12 +1,12 @@
 use tapiti_core::generate::generate;
-use tapiti_core::params::params_of_level;
+use tapiti_core::params::{rich_of_size, Size};
 use tapiti_core::stage::stage;
 
 /// A stage on a bigger grid (`cargo test --release -p tapiti-core scale -- --nocapture`, with and without `--no-default-features`).
 #[test]
 fn scale() {
     for (cols, rows) in [(6, 5), (10, 8), (16, 12)] {
-        let mut p = params_of_level(5);
+        let mut p = rich_of_size(Size::Medium);
         p.cols = cols;
         p.rows = rows;
         p.big = cols * rows / 12;
@@ -25,7 +25,7 @@ fn scale() {
         );
     }
     // A batch of independent stages: what a gallery or a balance run does.
-    let p = params_of_level(5);
+    let p = rich_of_size(Size::Medium);
     let t = std::time::Instant::now();
     let seeds: Vec<u32> = (1..=200).collect();
     let bad: usize = tapiti_core::par::pmap(&seeds, |s| {
@@ -34,7 +34,7 @@ fn scale() {
     .iter()
     .sum();
     println!(
-        "BATCH 200 stages of level 5: {:.0} ms total ({} invalid) on {} threads",
+        "BATCH 200 stages of the medium size: {:.0} ms total ({} invalid) on {} threads",
         t.elapsed().as_secs_f64() * 1000.0,
         bad,
         tapiti_core::par::threads()
@@ -44,7 +44,7 @@ fn scale() {
 /// The phases of one big stage.
 #[test]
 fn big_phases() {
-    let mut p = params_of_level(5);
+    let mut p = rich_of_size(Size::Medium);
     p.cols = 16;
     p.rows = 12;
     p.big = 16;

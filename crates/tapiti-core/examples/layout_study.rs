@@ -19,7 +19,7 @@ fn main() {
     );
     for (cols, rows, scale) in [(10, 8, 1.0), (16, 12, 1.0), (10, 8, 2.0)] {
         for jitter in [0.0, 0.15, 0.3, 0.45] {
-            let mut p = params::params_of_level(5);
+            let mut p = params::rich_of_size(params::Size::Medium);
             p.cols = cols;
             p.rows = rows;
             p.layout_jitter = jitter;

@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "SVG rendering of Tapiti dungeon floors (website, docs figures, README and social images)"
+description = "SVG rendering of Tapiti floor floors (website, docs figures, README and social images)"
 
 [dependencies]
 tapiti-core = { path = "../tapiti-core" }

@@ -1,4 +1,4 @@
-//! The documentation: the repository's Markdown files (`docs/`, `docs/pt-BR/`) rendered once at startup, plus a generated parameter
+//! The documentation: the repository's Markdown files (`docs/`) rendered once at startup, plus a generated parameter
 //! reference. Math is written as `$…$` / `$$…$$` and becomes MathML on the server, so the pages need no script and no font files.
 
 use pulldown_cmark::{CowStr, Event, HeadingLevel, Options, Parser, Tag, TagEnd, html};
@@ -14,11 +14,10 @@ use tapiti_schema::{FieldKind, ParamGroup};
 
 pub const GITHUB_BLOB: &str = "https://github.com/Lucas-BRT/tapiti/blob/main";
 
-/// A documentation page: where its Markdown lives, in each language (`None` falls back to English).
+/// A documentation page: where its Markdown lives.
 struct Source {
     slug: &'static str,
     en: &'static str,
-    pt: Option<&'static str>,
     /// Path under `docs/`, for the "edit on GitHub" link.
     file: &'static str,
 }
@@ -27,41 +26,31 @@ const SOURCES: &[Source] = &[
     Source {
         slug: "getting-started",
         en: include_str!("../../../docs/getting-started.md"),
-        pt: Some(include_str!("../../../docs/pt-BR/getting-started.md")),
         file: "getting-started.md",
     },
     Source {
         slug: "model",
-        en: include_str!("../../../docs/dungeon-model.md"),
-        pt: Some(include_str!("../../../docs/pt-BR/dungeon-model.md")),
-        file: "dungeon-model.md",
+        en: include_str!("../../../docs/model.md"),
+        file: "model.md",
     },
     Source {
         slug: "parameters",
         en: "",
-        pt: None,
         file: "",
     },
     Source {
         slug: "performance",
         en: include_str!("../../../docs/performance-memory-review.md"),
-        pt: Some(include_str!(
-            "../../../docs/pt-BR/performance-memory-review.md"
-        )),
         file: "performance-memory-review.md",
     },
     Source {
         slug: "desktop",
         en: include_str!("../../../docs/desktop-generation-rendering.md"),
-        pt: Some(include_str!(
-            "../../../docs/pt-BR/desktop-generation-rendering.md"
-        )),
         file: "desktop-generation-rendering.md",
     },
     Source {
         slug: "roadmap",
         en: include_str!("../../../docs/roadmap.md"),
-        pt: Some(include_str!("../../../docs/pt-BR/roadmap.md")),
         file: "roadmap.md",
     },
 ];
@@ -93,58 +82,37 @@ pub struct Page {
     pub math_spans: usize,
     #[allow(dead_code)]
     pub math_rendered: usize,
-    /// True when the page has no translation and shows the English text.
-    pub fallback: bool,
     /// Where to read or edit the source on GitHub.
     pub source_url: String,
 }
 
 pub struct Docs {
-    by_locale: HashMap<&'static str, Vec<Page>>,
+    pages: Vec<Page>,
 }
-
-pub const LOCALES: [&str; 2] = ["en", "pt-BR"];
 
 pub fn docs() -> &'static Docs {
     static DOCS: OnceLock<Docs> = OnceLock::new();
-    DOCS.get_or_init(|| {
-        let mut by_locale = HashMap::new();
-        for locale in LOCALES {
-            let pages = SOURCES.iter().map(|source| build(source, locale)).collect();
-            by_locale.insert(locale, pages);
-        }
-        Docs { by_locale }
+    DOCS.get_or_init(|| Docs {
+        pages: SOURCES.iter().map(build).collect(),
     })
 }
 
 impl Docs {
-    pub fn pages(&self, locale: &str) -> &[Page] {
-        self.by_locale.get(locale).map_or(&[], Vec::as_slice)
+    pub fn pages(&self) -> &[Page] {
+        &self.pages
     }
 
-    pub fn page(&self, locale: &str, slug: &str) -> Option<&Page> {
-        self.pages(locale).iter().find(|p| p.slug == slug)
+    pub fn page(&self, slug: &str) -> Option<&Page> {
+        self.pages.iter().find(|p| p.slug == slug)
     }
 }
 
-fn build(source: &Source, locale: &'static str) -> Page {
-    let portuguese = locale == "pt-BR";
+fn build(source: &Source) -> Page {
     if source.slug == "parameters" {
-        return parameters_page(locale);
+        return parameters_page();
     }
-    let (markdown, fallback) = match (portuguese, source.pt) {
-        (true, Some(pt)) => (pt, false),
-        (true, None) => (source.en, true),
-        _ => (source.en, false),
-    };
-    let mut page = render(markdown, source.slug, locale);
-    page.fallback = fallback;
-    let dir = if portuguese && !fallback {
-        "pt-BR/"
-    } else {
-        ""
-    };
-    page.source_url = format!("{GITHUB_BLOB}/docs/{dir}{}", source.file);
+    let mut page = render(source.en, source.slug);
+    page.source_url = format!("{GITHUB_BLOB}/docs/{}", source.file);
     page
 }
 
@@ -234,7 +202,7 @@ fn slugify(text: &str) -> String {
 }
 
 /// Rewrites a link of the Markdown sources: page slugs become routes, repository paths become GitHub URLs.
-fn rewrite_link(dest: &str, locale: &str) -> String {
+fn rewrite_link(dest: &str) -> String {
     if dest.starts_with("http://")
         || dest.starts_with("https://")
         || dest.starts_with('#')
@@ -252,7 +220,7 @@ fn rewrite_link(dest: &str, locale: &str) -> String {
     }
     let (slug, fragment) = dest.split_once('#').map_or((dest, ""), |(s, f)| (s, f));
     if SOURCES.iter().any(|s| s.slug == slug) {
-        let mut url = format!("/{locale}/docs/{slug}");
+        let mut url = format!("/docs/{slug}");
         if !fragment.is_empty() {
             let _ = write!(url, "#{fragment}");
         }
@@ -261,7 +229,7 @@ fn rewrite_link(dest: &str, locale: &str) -> String {
     dest.to_string()
 }
 
-fn render(markdown: &str, slug: &'static str, locale: &str) -> Page {
+fn render(markdown: &str, slug: &'static str) -> Page {
     let mut math_spans = 0;
     let mut math_rendered = 0;
     let mut events: Vec<Event> = Vec::new();
@@ -302,7 +270,7 @@ fn render(markdown: &str, slug: &'static str, locale: &str) -> Page {
                 id,
             }) => Event::Start(Tag::Link {
                 link_type,
-                dest_url: CowStr::from(rewrite_link(&dest_url, locale)),
+                dest_url: CowStr::from(rewrite_link(&dest_url)),
                 title,
                 id,
             }),
@@ -405,7 +373,6 @@ fn render(markdown: &str, slug: &'static str, locale: &str) -> Page {
         sections,
         math_spans,
         math_rendered,
-        fallback: false,
         source_url: String::new(),
     }
 }
@@ -433,19 +400,13 @@ fn markdown_math(markdown: &str) -> Vec<String> {
 
 // ---- The parameter reference ------------------------------------------------------------------------
 
-fn parameters_page(locale: &'static str) -> Page {
-    let portuguese = locale == "pt-BR";
-    let text = |en: &'static str, pt: &'static str| if portuguese { pt } else { en };
-    let title = text("Parameters", "Parâmetros").to_string();
+fn parameters_page() -> Page {
+    let title = "Parameters".to_string();
     let mut html = String::new();
     let _ = write!(html, "<h1 id=\"parameters\">{title}</h1>");
     let _ = write!(
         html,
-        "<p>{}</p>",
-        text(
-            "Every parameter of Λ, as the desktop app and the lab show them. Names in code are the JSON field names, so a Λ copied from one frontend loads in the other. Pass a path like <code>growth.rooms</code> to read or set it.",
-            "Todos os parâmetros de Λ, como o app desktop e o laboratório os mostram. Os nomes em código são os campos do JSON, então um Λ copiado de um frontend carrega no outro. Um caminho como <code>growth.rooms</code> lê ou define o parâmetro."
-        )
+        "<p>Every parameter of Λ, as the desktop app and the lab show them. Names in code are the JSON field names, so a Λ copied from one frontend loads in the other. Pass a path like <code>growth.rooms</code> to read or set it.</p>"
     );
     let mut toc = Vec::new();
     let mut sections = vec![Section {
@@ -454,23 +415,23 @@ fn parameters_page(locale: &'static str) -> Page {
         text: title.clone(),
     }];
     for group in tapiti_schema::groups() {
-        let group_title = group.title.get(portuguese).to_string();
+        let group_title = group.title.as_str().to_string();
         let id = slugify(&group.id);
         let _ = write!(
             html,
             "<h2 id=\"{id}\">{}<a class=\"anchor\" href=\"#{id}\" aria-hidden=\"true\" tabindex=\"-1\">#</a></h2>",
             escape(&group_title)
         );
-        let _ = write!(html, "<p>{}</p>", escape(group.intro.get(portuguese)));
-        group_table(&mut html, &group, portuguese);
-        let mut body = group.intro.get(portuguese).to_string();
+        let _ = write!(html, "<p>{}</p>", escape(group.intro.as_str()));
+        group_table(&mut html, &group);
+        let mut body = group.intro.as_str().to_string();
         for field in &group.fields {
             let _ = write!(
                 body,
                 " {} {} {}",
                 field.path,
-                field.label.get(portuguese),
-                field.help.get(portuguese)
+                field.label.as_str(),
+                field.help.as_str()
             );
         }
         toc.push(TocEntry {
@@ -492,17 +453,12 @@ fn parameters_page(locale: &'static str) -> Page {
         sections,
         math_spans: 0,
         math_rendered: 0,
-        fallback: false,
         source_url: format!("{GITHUB_BLOB}/crates/tapiti-schema/src/lib.rs"),
     }
 }
 
-fn group_table(html: &mut String, group: &ParamGroup, portuguese: bool) {
-    let head = if portuguese {
-        ["Parâmetro", "Nome", "Valores", "O que faz"]
-    } else {
-        ["Parameter", "Name", "Values", "What it does"]
-    };
+fn group_table(html: &mut String, group: &ParamGroup) {
+    let head = ["Parameter", "Name", "Values", "What it does"];
     let _ = write!(
         html,
         "<div class=\"table-wrap\" tabindex=\"0\"><table><thead><tr>"
@@ -520,16 +476,10 @@ fn group_table(html: &mut String, group: &ParamGroup, portuguese: bool) {
                     format!("{min} – {max}")
                 }
             }
-            FieldKind::Boolean => {
-                if portuguese {
-                    "ligado / desligado".into()
-                } else {
-                    "on / off".into()
-                }
-            }
+            FieldKind::Boolean => "on / off".into(),
             FieldKind::Choice(options) => options
                 .iter()
-                .map(|(_, name)| name.get(portuguese))
+                .map(|(_, name)| name.as_str())
                 .collect::<Vec<_>>()
                 .join(", "),
         };
@@ -537,9 +487,9 @@ fn group_table(html: &mut String, group: &ParamGroup, portuguese: bool) {
             html,
             "<tr><td><code>{}</code></td><td>{}</td><td>{}</td><td>{}</td></tr>",
             escape(&field.path),
-            escape(field.label.get(portuguese)),
+            escape(field.label.as_str()),
             escape(&values),
-            escape(field.help.get(portuguese))
+            escape(field.help.as_str())
         );
     }
     let _ = write!(html, "</tbody></table></div>");
@@ -560,7 +510,7 @@ pub struct Hit {
 pub const MAX_QUERY: usize = 80;
 
 /// Sections containing every word of `query`, best first. Plain substring search, case-insensitive.
-pub fn search(locale: &str, query: &str) -> Vec<Hit> {
+pub fn search(query: &str) -> Vec<Hit> {
     let query: String = query.chars().take(MAX_QUERY).collect();
     let words: Vec<String> = query
         .split_whitespace()
@@ -571,7 +521,7 @@ pub fn search(locale: &str, query: &str) -> Vec<Hit> {
         return Vec::new();
     }
     let mut scored: Vec<(usize, Hit)> = Vec::new();
-    for page in docs().pages(locale) {
+    for page in docs().pages() {
         for section in &page.sections {
             let heading = section.heading.to_lowercase();
             let body = section.text.to_lowercase();
@@ -640,105 +590,102 @@ mod tests {
 
     #[test]
     fn every_math_span_becomes_mathml() {
-        for locale in LOCALES {
-            for page in docs().pages(locale) {
-                let counted = page.html.matches("<math").count();
-                assert_eq!(
-                    page.math_spans, page.math_rendered,
-                    "{locale}/{}: a formula failed to parse",
-                    page.slug
-                );
-                assert_eq!(
-                    page.math_spans, counted,
-                    "{locale}/{}: math spans and <math> elements differ",
-                    page.slug
-                );
-                assert!(!page.html.contains("math-error"), "{locale}/{}", page.slug);
-            }
+        for page in docs().pages() {
+            let counted = page.html.matches("<math").count();
+            assert_eq!(
+                page.math_spans, page.math_rendered,
+                "{}: a formula failed to parse",
+                page.slug
+            );
+            assert_eq!(
+                page.math_spans, counted,
+                "{}: math spans and <math> elements differ",
+                page.slug
+            );
+            assert!(!page.html.contains("math-error"), "{}", page.slug);
         }
     }
 
     #[test]
     fn the_model_page_has_all_its_formulas() {
-        let page = docs().page("en", "model").unwrap();
+        let page = docs().page("model").unwrap();
         assert!(page.math_spans > 200, "{}", page.math_spans);
     }
 
     #[test]
     fn heading_ids_are_unique_and_links_resolve() {
-        for locale in LOCALES {
-            for page in docs().pages(locale) {
-                let mut ids = std::collections::HashSet::new();
-                for entry in &page.toc {
+        for page in docs().pages() {
+            let mut ids = std::collections::HashSet::new();
+            for entry in &page.toc {
+                assert!(
+                    ids.insert(entry.id.clone()),
+                    "{}: duplicate id {}",
+                    page.slug,
+                    entry.id
+                );
+                assert!(page.html.contains(&format!("id=\"{}\"", entry.id)));
+            }
+            for href in page
+                .html
+                .split("href=\"")
+                .skip(1)
+                .map(|s| s.split('"').next().unwrap())
+            {
+                if let Some(rest) = href.strip_prefix("/docs/") {
+                    let (slug, fragment) = rest.split_once('#').unwrap_or((rest, ""));
+                    let target = docs()
+                        .page(slug)
+                        .unwrap_or_else(|| panic!("{}: broken link {href}", page.slug));
                     assert!(
-                        ids.insert(entry.id.clone()),
-                        "{locale}/{}: duplicate id {}",
-                        page.slug,
-                        entry.id
+                        fragment.is_empty() || target.html.contains(&format!("id=\"{fragment}\"")),
+                        "{}: missing anchor in {href}",
+                        page.slug
                     );
-                    assert!(page.html.contains(&format!("id=\"{}\"", entry.id)));
-                }
-                for href in page
-                    .html
-                    .split("href=\"")
-                    .skip(1)
-                    .map(|s| s.split('"').next().unwrap())
-                {
-                    if let Some(rest) = href.strip_prefix(&format!("/{locale}/docs/")) {
-                        let (slug, fragment) = rest.split_once('#').unwrap_or((rest, ""));
-                        let target = docs().page(locale, slug).unwrap_or_else(|| {
-                            panic!("{locale}/{}: broken link {href}", page.slug)
-                        });
-                        assert!(
-                            fragment.is_empty()
-                                || target.html.contains(&format!("id=\"{fragment}\"")),
-                            "{locale}/{}: missing anchor in {href}",
-                            page.slug
-                        );
-                    } else if let Some(fragment) = href.strip_prefix('#') {
-                        assert!(
-                            page.html.contains(&format!("id=\"{fragment}\"")),
-                            "{locale}/{}: missing anchor {href}",
-                            page.slug
-                        );
-                    } else {
-                        assert!(
-                            href.starts_with("https://")
-                                || href.starts_with("mailto:")
-                                || href.starts_with("http://localhost"),
-                            "{locale}/{}: unresolved link {href}",
-                            page.slug
-                        );
-                    }
+                } else if let Some(fragment) = href.strip_prefix('#') {
+                    assert!(
+                        page.html.contains(&format!("id=\"{fragment}\"")),
+                        "{}: missing anchor {href}",
+                        page.slug
+                    );
+                } else {
+                    assert!(
+                        href.starts_with("https://")
+                            || href.starts_with("mailto:")
+                            || href.starts_with("http://localhost"),
+                        "{}: unresolved link {href}",
+                        page.slug
+                    );
                 }
             }
         }
     }
 
     #[test]
-    fn titles_exist_and_translations_differ() {
-        for page in docs().pages("en") {
-            assert!(!page.title.is_empty(), "{}", page.slug);
+    fn no_rendered_link_has_a_locale_prefix() {
+        for page in docs().pages() {
+            assert!(!page.html.contains("href=\"/en/"), "{}", page.slug);
+            assert!(!page.html.contains("/pt-BR/"), "{}", page.slug);
         }
-        let en = docs().page("en", "roadmap").unwrap();
-        let pt = docs().page("pt-BR", "roadmap").unwrap();
-        assert_ne!(en.title, pt.title);
-        assert!(!pt.fallback);
     }
 
     #[test]
-    fn search_finds_greek_letters_and_words_in_both_languages() {
-        assert!(!search("en", "β").is_empty());
-        assert!(!search("pt-BR", "β").is_empty());
-        assert!(!search("en", "corridor").is_empty());
-        assert!(!search("pt-BR", "corredor").is_empty());
-        assert!(search("en", "xyzzyplugh").is_empty());
-        assert!(search("en", &"a".repeat(500)).len() <= 30);
+    fn titles_exist() {
+        for page in docs().pages() {
+            assert!(!page.title.is_empty(), "{}", page.slug);
+        }
+    }
+
+    #[test]
+    fn search_finds_greek_letters_and_words() {
+        assert!(!search("β").is_empty());
+        assert!(!search("corridor").is_empty());
+        assert!(search("xyzzyplugh").is_empty());
+        assert!(search(&"a".repeat(500)).len() <= 30);
     }
 
     #[test]
     fn the_parameter_reference_lists_every_field() {
-        let page = docs().page("en", "parameters").unwrap();
+        let page = docs().page("parameters").unwrap();
         for group in tapiti_schema::groups() {
             for field in group.fields {
                 assert!(

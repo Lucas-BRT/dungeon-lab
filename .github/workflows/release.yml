@@ -24,8 +24,9 @@ jobs:
           - { os: windows-latest, target: x86_64-pc-windows-msvc, archive: zip }
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.99.1
           targets: ${{ matrix.target }}
       - name: System libraries (Linux)
         if: runner.os == 'Linux'
@@ -35,7 +36,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: release-${{ matrix.target }}
-      - run: cargo build --release -p tapiti-desktop --target ${{ matrix.target }}
+      - run: cargo build --release --locked -p tapiti-desktop --target ${{ matrix.target }}
+        env:
+          CARGO_PROFILE_RELEASE_STRIP: "true"
       - name: Package
         shell: bash
         run: |

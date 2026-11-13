@@ -2,6 +2,8 @@ version: 2
 updates:
   - package-ecosystem: cargo
     directory: /
+    # The work goes through dev; main only receives dev.
+    target-branch: dev
     schedule:
       interval: weekly
     groups:
@@ -9,13 +11,18 @@ updates:
         patterns: ["*"]
     ignore:
       # Pinned on purpose: the lab's glue and the CLI must match this exact version, and Topcoat breaks between releases.
+      # Dependabot does not report them then: the weekly Pins workflow (scripts/check-pins.sh) does.
       - dependency-name: wasm-bindgen
       - dependency-name: topcoat
   - package-ecosystem: github-actions
     directory: /
+    # The work goes through dev; main only receives dev.
+    target-branch: dev
     schedule:
       interval: weekly
   - package-ecosystem: docker
     directory: /
+    # The work goes through dev; main only receives dev.
+    target-branch: dev
     schedule:
       interval: weekly
