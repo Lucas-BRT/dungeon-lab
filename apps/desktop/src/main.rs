@@ -10,6 +10,7 @@ mod map;
 mod panels;
 mod params_ui;
 mod pick;
+mod theme;
 
 use eframe::egui::{self, Key, Modifiers};
 use params_ui::ParamGroup;
@@ -232,6 +233,9 @@ impl App {
         }
         if std::env::var("TAPITI_LAYOUT").is_ok_and(|v| v == "growth") {
             self.params.layout = tapiti_core::params::Layout::Growth;
+        }
+        if std::env::var("TAPITI_THEME").is_ok_and(|v| v == "light") {
+            self.ctx.set_theme(egui::ThemePreference::Light);
         }
         if let Some(zoom) = std::env::var("TAPITI_ZOOM")
             .ok()
@@ -698,30 +702,7 @@ impl eframe::App for App {
 }
 
 fn setup_style(ctx: &egui::Context) {
-    ctx.all_styles_mut(|style| {
-        style.spacing.item_spacing = egui::vec2(8.0, 6.0);
-        style.spacing.button_padding = egui::vec2(10.0, 5.0);
-        style.spacing.interact_size.y = 26.0;
-        style.visuals.widgets.noninteractive.corner_radius = 6.0.into();
-        style.visuals.widgets.inactive.corner_radius = 6.0.into();
-        style.visuals.widgets.hovered.corner_radius = 6.0.into();
-        style.visuals.widgets.active.corner_radius = 6.0.into();
-        style.visuals.window_corner_radius = 10.0.into();
-        style.visuals.selection.bg_fill = egui::Color32::from_rgb(0x2f, 0x6f, 0xd6);
-        style.visuals.selection.stroke.color = egui::Color32::WHITE;
-        style
-            .text_styles
-            .insert(egui::TextStyle::Heading, egui::FontId::proportional(20.0));
-        style
-            .text_styles
-            .insert(egui::TextStyle::Body, egui::FontId::proportional(14.5));
-        style
-            .text_styles
-            .insert(egui::TextStyle::Button, egui::FontId::proportional(14.5));
-        style
-            .text_styles
-            .insert(egui::TextStyle::Small, egui::FontId::proportional(12.0));
-    });
+    theme::apply(ctx);
 }
 
 fn main() -> eframe::Result {

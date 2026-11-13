@@ -68,28 +68,20 @@ pub struct Palette {
 
 impl Palette {
     pub fn new(dark: bool) -> Self {
-        if dark {
-            Self {
-                background: Color32::from_rgb(0x15, 0x18, 0x1d),
-                corridor: Color32::from_rgb(0x4a, 0x52, 0x60),
-                grid: Color32::from_rgb(0x26, 0x2b, 0x33),
-                ink: Color32::from_rgb(0xee, 0xf0, 0xf3),
-                accent: Color32::from_rgb(0x5b, 0x9b, 0xf5),
-                success: Color32::from_rgb(0x4a, 0xc2, 0x6b),
-                danger: Color32::from_rgb(0xef, 0x5d, 0x5d),
-                dark,
-            }
-        } else {
-            Self {
-                background: Color32::from_rgb(0xf6, 0xf7, 0xf9),
-                corridor: Color32::from_rgb(0xa9, 0xb1, 0xbd),
-                grid: Color32::from_rgb(0xe3, 0xe6, 0xeb),
-                ink: Color32::from_rgb(0x1b, 0x1f, 0x26),
-                accent: Color32::from_rgb(0x1f, 0x6f, 0xe0),
-                success: Color32::from_rgb(0x1d, 0x9a, 0x44),
-                danger: Color32::from_rgb(0xd1, 0x2f, 0x2f),
-                dark,
-            }
+        let c = crate::theme::colors(dark);
+        Self {
+            background: c.editor,
+            corridor: if dark {
+                Color32::from_rgb(0x4a, 0x52, 0x60)
+            } else {
+                Color32::from_rgb(0xa9, 0xb1, 0xbd)
+            },
+            grid: c.border_variant,
+            ink: c.text,
+            accent: c.accent,
+            success: c.success,
+            danger: c.error,
+            dark,
         }
     }
 

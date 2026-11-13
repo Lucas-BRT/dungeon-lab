@@ -4,6 +4,7 @@ use crate::analysis::analysis_tab;
 use crate::map::{self, Palette, Xf};
 use crate::params_ui::{control, field_row, FieldKind, ParamField};
 use crate::pick::map_object_at;
+use crate::theme;
 use crate::{
     format_number, get_path, set_path, size_description, size_label, translate_violation, App,
     Experiment, GeneratedMap, Tab,
@@ -23,13 +24,13 @@ pub(crate) fn muted(ui: &Ui, text: impl Into<String>) -> RichText {
 }
 
 pub(crate) fn card(ui: &mut Ui, title: &str, body: impl FnOnce(&mut Ui)) {
-    Frame::group(ui.style()).inner_margin(12.0).show(ui, |ui| {
+    theme::card_frame(ui).show(ui, |ui| {
         ui.set_width(ui.available_width());
         ui.label(RichText::new(title).strong().size(15.0));
-        ui.add_space(2.0);
+        ui.add_space(theme::GAP);
         body(ui);
     });
-    ui.add_space(4.0);
+    ui.add_space(theme::GAP + 2.0);
 }
 
 fn primary(ui: &Ui, text: &str) -> Button<'static> {
@@ -38,194 +39,200 @@ fn primary(ui: &Ui, text: &str) -> Button<'static> {
             .strong()
             .color(Color32::WHITE),
     )
-    .fill(ui.visuals().selection.bg_fill)
+    .fill(theme::of(ui).border_focused)
 }
 
 pub fn top_bar(app: &mut App, ui: &mut Ui) {
-    Panel::top("top").show(ui, |ui| {
-        ui.add_space(4.0);
-        ui.horizontal(|ui| {
-            ui.heading("Tapiti");
-            ui.separator();
-            ui.label("Seed");
-            if ui
-                .button("<")
-                .on_hover_text("Previous seed (Alt+Left)")
-                .clicked()
-            {
-                app.set_seed(app.seed.saturating_sub(1));
-            }
-            let seed = ui.add(
-                TextEdit::singleline(&mut app.seed_draft)
-                    .desired_width(92.0)
-                    .hint_text("0–4294967295"),
-            );
-            if seed.lost_focus() && app.seed_draft != app.seed.to_string() {
-                app.commit_seed_draft();
-            }
-            if ui
-                .button(">")
-                .on_hover_text("Next seed (Alt+Right)")
-                .clicked()
-            {
-                app.set_seed(app.seed.saturating_add(1));
-            }
-            if ui
-                .button("Random")
-                .on_hover_text("New random seed (Alt+R)")
-                .clicked()
-            {
-                app.random_seed();
-            }
-            ui.separator();
-            if app.busy && app.can_cancel() {
+    Panel::top("top")
+        .frame(theme::bar_frame(ui))
+        .show(ui, |ui| {
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                ui.heading("Tapiti");
+                ui.separator();
+                ui.label("Seed");
                 if ui
-                    .add(
-                        Button::new(RichText::new("Cancel").strong().color(Color32::WHITE))
-                            .fill(Palette::new(ui.visuals().dark_mode).danger),
-                    )
-                    .on_hover_text("Stop this generation (Esc). The floor on the screen stays.")
+                    .button("<")
+                    .on_hover_text("Previous seed (Alt+Left)")
                     .clicked()
                 {
-                    app.cancel_generation();
+                    app.set_seed(app.seed.saturating_sub(1));
                 }
-            } else if ui
-                .add_enabled(!app.busy, primary(ui, "Generate"))
-                .on_hover_text("Generate again with the current Λ")
-                .clicked()
-            {
-                app.generate_now();
-            }
-            if app.busy {
-                ui.spinner();
-            }
+                let seed = ui.add(
+                    TextEdit::singleline(&mut app.seed_draft)
+                        .desired_width(92.0)
+                        .hint_text("0–4294967295"),
+                );
+                if seed.lost_focus() && app.seed_draft != app.seed.to_string() {
+                    app.commit_seed_draft();
+                }
+                if ui
+                    .button(">")
+                    .on_hover_text("Next seed (Alt+Right)")
+                    .clicked()
+                {
+                    app.set_seed(app.seed.saturating_add(1));
+                }
+                if ui
+                    .button("Random")
+                    .on_hover_text("New random seed (Alt+R)")
+                    .clicked()
+                {
+                    app.random_seed();
+                }
+                ui.separator();
+                if app.busy && app.can_cancel() {
+                    if ui
+                        .add(
+                            Button::new(RichText::new("Cancel").strong().color(Color32::WHITE))
+                                .fill(Palette::new(ui.visuals().dark_mode).danger),
+                        )
+                        .on_hover_text("Stop this generation (Esc). The floor on the screen stays.")
+                        .clicked()
+                    {
+                        app.cancel_generation();
+                    }
+                } else if ui
+                    .add_enabled(!app.busy, primary(ui, "Generate"))
+                    .on_hover_text("Generate again with the current Λ")
+                    .clicked()
+                {
+                    app.generate_now();
+                }
+                if app.busy {
+                    ui.spinner();
+                }
+            });
+            ui.add_space(4.0);
         });
-        ui.add_space(4.0);
-    });
 }
 
 pub fn bottom_bar(app: &mut App, ui: &mut Ui) {
-    Panel::bottom("bottom").show(ui, |ui| {
-        ui.horizontal(|ui| {
-            ui.label(muted(ui, &app.status));
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                ui.label(muted(
-                    ui,
-                    format!(
-                        "Rust engine · Rayon · {threads} threads",
-                        threads = par::threads()
-                    ),
-                ));
-                ui.separator();
-                let mut theme = ui.options(|o| o.theme_preference);
-                for (value, name) in [
-                    (egui::ThemePreference::Dark, "Dark"),
-                    (egui::ThemePreference::Light, "Light"),
-                    (egui::ThemePreference::System, "Auto"),
-                ] {
-                    if ui.selectable_label(theme == value, name).clicked() {
-                        theme = value;
+    Panel::bottom("bottom")
+        .frame(theme::bar_frame(ui))
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(muted(ui, &app.status));
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    ui.label(muted(
+                        ui,
+                        format!(
+                            "Rust engine · Rayon · {threads} threads",
+                            threads = par::threads()
+                        ),
+                    ));
+                    ui.separator();
+                    let mut theme = ui.options(|o| o.theme_preference);
+                    for (value, name) in [
+                        (egui::ThemePreference::Dark, "Dark"),
+                        (egui::ThemePreference::Light, "Light"),
+                        (egui::ThemePreference::System, "Auto"),
+                    ] {
+                        if ui.selectable_label(theme == value, name).clicked() {
+                            theme = value;
+                        }
                     }
-                }
-                ui.ctx().set_theme(theme);
+                    ui.ctx().set_theme(theme);
+                });
             });
         });
-    });
 }
 
 /// The layout of the floor and the settings a person reaches for first, in one strip under the top bar: the layout, the size, the
 /// grid, the leaf chambers, and for the grown layout where it starts and how many rooms.
 pub fn layout_bar(app: &mut App, ui: &mut Ui) {
-    Panel::top("layout").show(ui, |ui| {
-        ui.add_space(4.0);
-        let mut edit: Option<(String, Value)> = None;
-        let mut size = None;
-        ui.horizontal_wrapped(|ui| {
-            ui.label(RichText::new("Layout").strong());
-            if let Some(field) = app
-                .groups
-                .iter()
-                .flat_map(|g| &g.fields)
-                .find(|f| f.path == "layout")
-            {
-                if let FieldKind::Choice(options) = &field.kind {
-                    let current = get_path(
-                        &serde_json::to_value(&app.params).unwrap_or(Value::Null),
-                        "layout",
-                    )
-                    .and_then(Value::as_str)
-                    .unwrap_or("grid")
-                    .to_string();
-                    for (value, name) in options {
-                        if ui
-                            .selectable_label(*value == current, name.as_str())
-                            .on_hover_text(field.help.as_str())
-                            .clicked()
-                            && *value != current
-                        {
-                            edit = Some(("layout".into(), Value::String(value.clone())));
-                        }
-                    }
-                }
-            }
-            ui.separator();
-            ui.label(RichText::new("Size").strong());
-            for (n, s) in Size::ALL.into_iter().enumerate() {
-                let hint = format!("{}\nAlt+{}", size_description(s), n + 1);
-                if ui
-                    .selectable_label(app.size == s, size_label(s))
-                    .on_hover_text(hint)
-                    .clicked()
-                {
-                    size = Some(s);
-                }
-            }
-            ui.separator();
-            let grown = app.params.layout == tapiti_core::params::Layout::Growth;
-            let mut quick: Vec<(&str, &str)> = vec![
-                ("cols", "Columns"),
-                ("rows", "Rows"),
-                ("leaves", "Leaf chambers"),
-            ];
-            if grown {
-                quick.extend([("growth.start", "First room"), ("growth.rooms", "Rooms")]);
-            }
-            let current = serde_json::to_value(&app.params).unwrap_or(Value::Null);
-            for (path, label) in quick {
-                let Some(field) = app
+    Panel::top("layout")
+        .frame(theme::panel_frame(ui))
+        .show(ui, |ui| {
+            ui.add_space(4.0);
+            let mut edit: Option<(String, Value)> = None;
+            let mut size = None;
+            ui.horizontal_wrapped(|ui| {
+                ui.label(RichText::new("Layout").strong());
+                if let Some(field) = app
                     .groups
                     .iter()
                     .flat_map(|g| &g.fields)
-                    .find(|f| f.path == path)
-                else {
-                    continue;
-                };
-                ui.label(muted(ui, label));
-                let value = get_path(&current, path).cloned().unwrap_or(Value::Null);
-                if let Some(next) = control(ui, field, &value) {
-                    edit = Some((path.to_string(), next));
+                    .find(|f| f.path == "layout")
+                {
+                    if let FieldKind::Choice(options) = &field.kind {
+                        let current = get_path(
+                            &serde_json::to_value(&app.params).unwrap_or(Value::Null),
+                            "layout",
+                        )
+                        .and_then(Value::as_str)
+                        .unwrap_or("grid")
+                        .to_string();
+                        for (value, name) in options {
+                            if ui
+                                .selectable_label(*value == current, name.as_str())
+                                .on_hover_text(field.help.as_str())
+                                .clicked()
+                                && *value != current
+                            {
+                                edit = Some(("layout".into(), Value::String(value.clone())));
+                            }
+                        }
+                    }
                 }
+                ui.separator();
+                ui.label(RichText::new("Size").strong());
+                for (n, s) in Size::ALL.into_iter().enumerate() {
+                    let hint = format!("{}\nAlt+{}", size_description(s), n + 1);
+                    if ui
+                        .selectable_label(app.size == s, size_label(s))
+                        .on_hover_text(hint)
+                        .clicked()
+                    {
+                        size = Some(s);
+                    }
+                }
+                ui.separator();
+                let grown = app.params.layout == tapiti_core::params::Layout::Growth;
+                let mut quick: Vec<(&str, &str)> = vec![
+                    ("cols", "Columns"),
+                    ("rows", "Rows"),
+                    ("leaves", "Leaf chambers"),
+                ];
+                if grown {
+                    quick.extend([("growth.start", "First room"), ("growth.rooms", "Rooms")]);
+                }
+                let current = serde_json::to_value(&app.params).unwrap_or(Value::Null);
+                for (path, label) in quick {
+                    let Some(field) = app
+                        .groups
+                        .iter()
+                        .flat_map(|g| &g.fields)
+                        .find(|f| f.path == path)
+                    else {
+                        continue;
+                    };
+                    ui.label(muted(ui, label));
+                    let value = get_path(&current, path).cloned().unwrap_or(Value::Null);
+                    if let Some(next) = control(ui, field, &value) {
+                        edit = Some((path.to_string(), next));
+                    }
+                }
+            });
+            ui.label(muted(
+                ui,
+                format!(
+                    "{layout} {size}",
+                    layout = if app.params.layout == tapiti_core::params::Layout::Growth {
+                        "Rooms grow one from another off a door, in free space."
+                    } else {
+                        "One room per block of the grid."
+                    },
+                    size = size_description(app.size)
+                ),
+            ));
+            ui.add_space(4.0);
+            if let Some(s) = size {
+                app.set_size(s);
+            } else if let Some((path, value)) = edit {
+                app.change_param(&path, value);
             }
         });
-        ui.label(muted(
-            ui,
-            format!(
-                "{layout} {size}",
-                layout = if app.params.layout == tapiti_core::params::Layout::Growth {
-                    "Rooms grow one from another off a door, in free space."
-                } else {
-                    "One room per block of the grid."
-                },
-                size = size_description(app.size)
-            ),
-        ));
-        ui.add_space(4.0);
-        if let Some(s) = size {
-            app.set_size(s);
-        } else if let Some((path, value)) = edit {
-            app.change_param(&path, value);
-        }
-    });
 }
 
 /// Whether a group of parameters applies to the layout: the growth settings only to the grown layout.
@@ -235,6 +242,7 @@ fn group_applies(id: &str, layout: tapiti_core::params::Layout) -> bool {
 
 pub fn side_panel(app: &mut App, ui: &mut Ui) {
     Panel::right("side")
+        .frame(theme::panel_frame(ui))
         .default_size(400.0)
         .size_range(340.0..=600.0)
         .show(ui, |ui| {
@@ -264,54 +272,51 @@ pub fn side_panel(app: &mut App, ui: &mut Ui) {
                     app.group = id.clone();
                 }
             }
-            ui.horizontal_wrapped(|ui| {
-                if ui
-                    .selectable_label(app.tab == Tab::Floor, "Floor")
-                    .clicked()
-                {
-                    app.tab = Tab::Floor;
-                }
-                if ui
-                    .selectable_label(app.tab == Tab::Analysis, "Analysis")
-                    .clicked()
-                {
-                    app.tab = Tab::Analysis;
-                }
-                ui.separator();
-                for (id, title) in &tabs {
-                    if ui
-                        .selectable_label(app.tab == Tab::Settings && app.group == *id, title)
-                        .clicked()
-                    {
-                        app.tab = Tab::Settings;
-                        app.group = id.clone();
+            // The tabs, as Zed draws its tab bar: flat, 32 px high, side by side with no gap, wrapping to a second row when they do not fit.
+            ui.scope(|ui| {
+                ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
+                ui.horizontal_wrapped(|ui| {
+                    if theme::tab(ui, "Floor", app.tab == Tab::Floor).clicked() {
+                        app.tab = Tab::Floor;
                     }
-                }
-                if ui
-                    .selectable_label(app.tab == Tab::Advanced, "Advanced")
-                    .clicked()
-                {
-                    app.tab = Tab::Advanced;
-                }
+                    if theme::tab(ui, "Analysis", app.tab == Tab::Analysis).clicked() {
+                        app.tab = Tab::Analysis;
+                    }
+                    for (id, title) in &tabs {
+                        if theme::tab(ui, title, app.tab == Tab::Settings && app.group == *id)
+                            .clicked()
+                        {
+                            app.tab = Tab::Settings;
+                            app.group = id.clone();
+                        }
+                    }
+                    if theme::tab(ui, "Advanced", app.tab == Tab::Advanced).clicked() {
+                        app.tab = Tab::Advanced;
+                    }
+                });
             });
+            ui.add_space(theme::GAP);
             // The clear button first, from the right, and the box takes what is left: a box sized as "the width left minus a guess" is
             // a few pixels too wide, and in a side panel (which grows to fit its content) that made the panel widen at every repaint.
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if ui
-                    .add_enabled(!app.filter.is_empty(), Button::new("×"))
-                    .on_hover_text("Clear the search")
-                    .clicked()
-                {
-                    app.filter.clear();
-                }
-                let search = ui.add(
-                    TextEdit::singleline(&mut app.filter)
-                        .hint_text("Search every parameter…")
-                        .desired_width(ui.available_width()),
-                );
-                if search.changed() && !app.filter.trim().is_empty() {
-                    app.tab = Tab::Settings;
-                }
+            // (Inside a `horizontal`, so the right-to-left layout takes the height of one row, not what is left of the panel.)
+            ui.horizontal(|ui| {
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    if ui
+                        .add_enabled(!app.filter.is_empty(), Button::new("×"))
+                        .on_hover_text("Clear the search")
+                        .clicked()
+                    {
+                        app.filter.clear();
+                    }
+                    let search = ui.add(
+                        TextEdit::singleline(&mut app.filter)
+                            .hint_text("Search every parameter…")
+                            .desired_width(ui.available_width()),
+                    );
+                    if search.changed() && !app.filter.trim().is_empty() {
+                        app.tab = Tab::Settings;
+                    }
+                });
             });
             ui.separator();
             // Each tab keeps its own scroll position and starts at the top: with one shared area, leaving a long tab (the Analysis, scrolled
@@ -599,7 +604,7 @@ fn advanced_tab(app: &mut App, ui: &mut Ui) {
 
 pub fn central(app: &mut App, ui: &mut Ui) {
     egui::CentralPanel::default()
-        .frame(Frame::new().inner_margin(10.0))
+        .frame(Frame::new().fill(theme::of(ui).panel).inner_margin(10.0))
         .show(ui, |ui| {
             toolbar(app, ui);
             ui.add_space(4.0);
