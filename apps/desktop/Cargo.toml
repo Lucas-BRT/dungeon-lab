@@ -9,5 +9,6 @@ description = "Native desktop frontend (egui) for Tapiti"
 [dependencies]
 eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "wayland", "x11"] }
 tapiti-core = { path = "../../crates/tapiti-core" }
+tapiti-render = { path = "../../crates/tapiti-render" }
 tapiti-schema = { path = "../../crates/tapiti-schema" }
 serde_json = "1"

@@ -56,6 +56,29 @@ pub fn menu_bar(app: &mut App, ui: &mut Ui) {
                         app.status = "Parameters copied as JSON.".into();
                         ui.close();
                     }
+                    if ui
+                        .add_enabled(app.generated.is_some(), Button::new("Copy SVG"))
+                        .on_hover_text("The floor as an SVG image, with the grid and labels as shown")
+                        .clicked()
+                    {
+                        if let Some(generated) = &app.generated {
+                            let style = tapiti_render::Style {
+                                theme: if ui.visuals().dark_mode {
+                                    tapiti_render::Theme::Dark
+                                } else {
+                                    tapiti_render::Theme::Light
+                                },
+                                grid: app.overlays.cells,
+                                labels: app.overlays.labels,
+                                ..tapiti_render::Style::default()
+                            };
+                            ui.ctx()
+                                .copy_text(tapiti_render::floor_svg(&generated.floor, &style));
+                            app.status = "Floor copied as SVG.".into();
+                        }
+                        ui.close();
+                    }
+                    ui.separator();
                     if ui.button("Quit").clicked() {
                         ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                     }

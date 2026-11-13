@@ -3376,6 +3376,7 @@ dependencies = [
  "eframe",
  "serde_json",
  "tapiti-core",
+ "tapiti-render",
  "tapiti-schema",
 ]
 
